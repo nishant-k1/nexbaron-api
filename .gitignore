@@ -1,0 +1,23 @@
+# dependencies
+/node_modules
+
+# build output
+/dist
+
+# environment variables
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+logs/
+
+# misc
+.DS_Store
+*.pem
+
+# uploads
+/uploads
+/logs
+
