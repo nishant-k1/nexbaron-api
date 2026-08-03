@@ -5,8 +5,9 @@ import helmet from 'helmet'
 import compression from 'compression'
 import { logger } from './utils/logger'
 import { connectDatabase } from './utils/database'
-import { contactRouter } from './features/contact/routes/contact-routes'
-import { tenderRouter } from './features/tender/routes/tender-routes'
+import { digitalAuthRouter } from './features/digital/auth/routes/auth-routes'
+import { digitalDraftRouter } from './features/digital/onboarding/routes/draft-routes'
+import { printRouter } from './features/print/routes/print-routes'
 import { errorHandler } from './middleware/error-handler'
 import { notFoundHandler } from './middleware/not-found-handler'
 
@@ -32,9 +33,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// API routes
-app.use('/api/contact', contactRouter)
-app.use('/api/tenders', tenderRouter)
+// API routes — segregated by division (mirrors nexbaron-web)
+app.use('/api/digital/auth', digitalAuthRouter)
+app.use('/api/digital/drafts', digitalDraftRouter)
+app.use('/api/print', printRouter)
 
 // Error handling
 app.use(notFoundHandler)
@@ -54,4 +56,3 @@ async function startServer() {
 }
 
 startServer()
-
