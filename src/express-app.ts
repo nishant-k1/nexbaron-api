@@ -6,6 +6,7 @@ import compression from 'compression'
 import { digitalAuthRouter } from './features/digital/auth/routes/auth-routes'
 import { digitalDraftRouter } from './features/digital/onboarding/routes/draft-routes'
 import { printRouter } from './features/print/routes/print-routes'
+import { contactRouter, adminLeadRouter } from './features/leads/routes/lead-routes'
 import { errorHandler } from './middleware/error-handler'
 import { notFoundHandler } from './middleware/not-found-handler'
 
@@ -34,6 +35,8 @@ app.get('/health', (req, res) => {
 app.use('/api/digital/auth', digitalAuthRouter)
 app.use('/api/digital/drafts', digitalDraftRouter)
 app.use('/api/print', printRouter)
+app.use('/api', contactRouter)
+app.use('/api/admin', adminLeadRouter)
 
 // Error handling
 app.use(notFoundHandler)
