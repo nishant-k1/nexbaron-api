@@ -68,7 +68,7 @@ export async function listLeads(req: Request, res: Response) {
     const filter: Record<string, unknown> = {}
     if (division === 'digital' || division === 'print') filter.division = division
     if (VALID_STATUSES.includes(status as LeadStatus)) filter.status = status
-    if (assigned === 'mine') filter.assignedStaff = req.auth?.name
+    if (assigned === 'mine') filter.assignedStaff = req.staffAuth?.name
     if (assigned === 'unassigned') filter.assignedStaff = null
     if (search) {
       const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')

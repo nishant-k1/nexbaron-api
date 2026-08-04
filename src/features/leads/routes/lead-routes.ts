@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth } from '../../shared/middleware/require-auth'
+import { requireAdmin } from '../../admin/middleware/require-admin'
 import { submitLead, listLeads } from '../controllers/lead-controller'
 
 export const leadRouter = Router()
@@ -8,8 +8,8 @@ export const leadRouter = Router()
 export const contactRouter = Router()
 contactRouter.post('/contact', submitLead)
 
-// Reads will be consumed by the CRM (Phase 1+); protected now for parity.
+// Reads will be consumed by the CRM; protected by staff admin auth.
 const adminLeadRouter = Router()
-adminLeadRouter.get('/leads', requireAuth, listLeads)
+adminLeadRouter.get('/leads', requireAdmin, listLeads)
 
 export { adminLeadRouter }
