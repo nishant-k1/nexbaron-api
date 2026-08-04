@@ -20,10 +20,7 @@ Backend API for Nexbaron Services Private Limited built with Express.js, TypeScr
 npm install
 ```
 
-2. Copy environment variables:
-```bash
-cp .env.example .env
-```
+2. Create `.env` with your environment variables:
 
 3. Update `.env` with your MongoDB connection:
 ```
