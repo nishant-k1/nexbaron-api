@@ -54,7 +54,13 @@ const UserSchema = new Schema<IUser>(
   }
 )
 
-UserSchema.index({ email: 1, division: 1 }, { unique: true, sparse: true })
-UserSchema.index({ phone: 1, division: 1 }, { unique: true, sparse: true })
+UserSchema.index(
+  { email: 1, division: 1 },
+  { unique: true, partialFilterExpression: { email: { $type: 'string' } } }
+)
+UserSchema.index(
+  { phone: 1, division: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: 'string' } } }
+)
 
 export const User = mongoose.model<IUser>('User', UserSchema)
