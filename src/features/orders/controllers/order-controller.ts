@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
-import { Order, OrderStatus, PaymentMethod } from '../models/order.model'
-import { Lead } from '../../../models/lead.model'
+import { OrderStatus, PaymentMethod } from '../models/order.model'
+import { getDivisionModels } from '../../../models/registry'
 
 const VALID_STATUSES: OrderStatus[] = ['pending', 'paid', 'in_progress', 'delivered', 'cancelled']
 const VALID_PAYMENT_METHODS: PaymentMethod[] = ['razorpay', 'upi', 'bank', 'cash', 'other']
@@ -8,12 +8,15 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = ['razorpay', 'upi', 'bank', 'cash
 /** Admin-only: list customers (orders) with filters. */
 export async function listOrders(req: Request, res: Response) {
   try {
-    const division = req.query.division
     const status = req.query.status
     const search = (req.query.search as string) || ''
 
-    const filter: Record<string, unknown> = {}
-    if (division === 'digital' || division === 'print') filter.division = division
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Order } = getDivisionModels(req.staffAuth.division)
+    const filter: Record<string, unknown> = { division: req.staffAuth.division }
     if (VALID_STATUSES.includes(status as OrderStatus)) filter.status = status
     if (search) {
       const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
@@ -57,9 +60,19 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
     }
     const method: PaymentMethod = VALID_PAYMENT_METHODS.includes(body.method) ? body.method : 'other'
 
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Order, Lead } = getDivisionModels(req.staffAuth.division)
+
     const lead = await Lead.findById(leadId)
     if (!lead) {
       res.status(404).json({ success: false, message: 'Lead not found' })
+      return
+    }
+    if (lead.division !== req.staffAuth.division) {
+      res.status(403).json({ success: false, message: 'Not authorized for this lead' })
       return
     }
 
@@ -118,9 +131,18 @@ export async function updateOrderStatus(req: Request, res: Response) {
       res.status(400).json({ success: false, message: 'Invalid order status' })
       return
     }
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Order } = getDivisionModels(req.staffAuth.division)
     const order = await Order.findById(req.params.id)
     if (!order) {
       res.status(404).json({ success: false, message: 'Order not found' })
+      return
+    }
+    if (order.division !== req.staffAuth.division) {
+      res.status(403).json({ success: false, message: 'Not authorized for this order' })
       return
     }
     order.status = status

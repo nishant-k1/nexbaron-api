@@ -1,4 +1,4 @@
-import { Schema, model, Document, Types } from 'mongoose'
+import { Schema, Document, Types, Connection } from 'mongoose'
 
 export interface IRefreshToken extends Document {
   staffId: Types.ObjectId
@@ -19,4 +19,6 @@ const RefreshTokenSchema = new Schema<IRefreshToken>(
   { timestamps: true, collection: 'staff_refresh_tokens' }
 )
 
-export const RefreshToken = model<IRefreshToken>('RefreshToken', RefreshTokenSchema)
+export function createRefreshTokenModel(conn: Connection) {
+  return conn.model<IRefreshToken>('RefreshToken', RefreshTokenSchema)
+}

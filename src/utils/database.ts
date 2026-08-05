@@ -1,29 +1,37 @@
-import mongoose from 'mongoose'
+import mongoose, { Connection } from 'mongoose'
 import { logger } from './logger'
+import { registerDivisionModels } from '../models/registry'
 
-export async function connectDatabase() {
-  try {
-    const mongoUri = process.env.DATABASE_URL || process.env.MONGODB_URI
-    
-    if (!mongoUri) {
-      throw new Error('DATABASE_URL or MONGODB_URI environment variable is not set')
-    }
-
-    await mongoose.connect(mongoUri)
-    logger.info('Connected to MongoDB')
-  } catch (error) {
-    logger.error('MongoDB connection error:', error)
-    throw error
-  }
+export interface DivisionConnections {
+  digital: Connection
+  print: Connection
 }
 
-export async function disconnectDatabase() {
-  try {
-    await mongoose.disconnect()
-    logger.info('Disconnected from MongoDB')
-  } catch (error) {
-    logger.error('MongoDB disconnection error:', error)
-    throw error
+function uriFor(database: string): string {
+  const configured = (process.env[`DATABASE_URL_${database.toUpperCase()}`] ||
+    process.env.DATABASE_URL) as string | undefined
+  if (!configured) {
+    throw new Error(`DATABASE_URL_${database.toUpperCase()} (or DATABASE_URL) is not set`)
   }
+  return configured
 }
 
+export async function openDivisionConnections(): Promise<DivisionConnections> {
+  const digital = await mongoose.createConnection(uriFor('digital')).asPromise()
+  registerDivisionModels('digital', digital)
+  logger.info('Connected to MongoDB (digital)')
+
+  const print = await mongoose.createConnection(uriFor('print')).asPromise()
+  registerDivisionModels('print', print)
+  logger.info('Connected to MongoDB (print)')
+
+  return { digital, print }
+}
+
+export async function closeDivisionConnections(connections: DivisionConnections): Promise<void> {
+  await Promise.all([
+    connections.digital.close(),
+    connections.print.close(),
+  ])
+  logger.info('Disconnected from MongoDB')
+}

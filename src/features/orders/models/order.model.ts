@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import { Schema, Document, Connection, Types } from 'mongoose'
 
 export type OrderStatus =
   | 'pending' // created, awaiting payment
@@ -23,7 +23,7 @@ export interface IPayment {
 }
 
 export interface IOrder extends Document {
-  leadId: mongoose.Types.ObjectId
+  leadId: Types.ObjectId
   division: 'digital' | 'print'
   // Snapshot of the customer (denormalised from the lead)
   customer: {
@@ -91,4 +91,6 @@ OrderSchema.index({ 'customer.email': 1 })
 OrderSchema.index({ 'customer.phone': 1 })
 OrderSchema.index({ amountPaid: 1 })
 
-export const Order = mongoose.model<IOrder>('Order', OrderSchema)
+export function createOrderModel(conn: Connection) {
+  return conn.model<IOrder>('Order', OrderSchema)
+}

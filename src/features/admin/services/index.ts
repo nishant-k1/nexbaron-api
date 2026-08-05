@@ -1,5 +1,3 @@
-export { Staff } from '../models/staff.model'
-export { RefreshToken } from '../models/refresh-token.model'
 export {
   getPublicStaff,
   hashPassword,

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAdmin } from '../../admin/middleware/require-admin'
+import { requireAdmin, requireDivision } from '../../admin/middleware/require-admin'
 import { submitLead, listLeads } from '../controllers/lead-controller'
 
 export const leadRouter = Router()
@@ -10,6 +10,6 @@ contactRouter.post('/contact', submitLead)
 
 // Reads will be consumed by the CRM; protected by staff admin auth.
 const adminLeadRouter = Router()
-adminLeadRouter.get('/leads', requireAdmin, listLeads)
+adminLeadRouter.get('/leads', requireAdmin, requireDivision('digital', 'print'), listLeads)
 
 export { adminLeadRouter }

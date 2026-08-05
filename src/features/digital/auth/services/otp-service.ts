@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { Otp } from '../../../../models/otp.model'
+import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
 
 export const OTP_TTL_MS = Number(process.env.OTP_TTL_MS) || 10 * 60 * 1000
@@ -10,6 +10,7 @@ function generateCode(): string {
 }
 
 export async function createOtp(target: string, channel: 'email' | 'phone' | 'sms', purpose: 'signup' | 'login', division: 'digital' | 'print') {
+  const { Otp } = getDivisionModels(division)
   await Otp.deleteMany({ target, channel, division, purpose, verifiedAt: undefined })
 
   const code = generateCode()
@@ -28,6 +29,7 @@ export async function createOtp(target: string, channel: 'email' | 'phone' | 'sm
 }
 
 export async function verifyOtp(target: string, code: string, channel: 'email' | 'phone' | 'sms', division: 'digital' | 'print') {
+  const { Otp } = getDivisionModels(division)
   const otp = await Otp.findOne({
     target,
     channel,

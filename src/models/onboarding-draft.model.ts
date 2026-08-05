@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import { Schema, Document, Connection, Types } from 'mongoose'
 
 export interface IOnboardingDraft extends Document {
-  userId: mongoose.Types.ObjectId
+  userId: Types.ObjectId
   division: 'digital' | 'print'
   planId: string
   planSelection: {
@@ -78,7 +78,6 @@ const DraftSchema = new Schema<IOnboardingDraft>(
 
 DraftSchema.index({ userId: 1, division: 1 }, { unique: true })
 
-export const OnboardingDraft = mongoose.model<IOnboardingDraft>(
-  'OnboardingDraft',
-  DraftSchema
-)
+export function createOnboardingDraftModel(conn: Connection) {
+  return conn.model<IOnboardingDraft>('OnboardingDraft', DraftSchema)
+}

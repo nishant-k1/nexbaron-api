@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import { Schema, Document, Connection } from 'mongoose'
 
 export interface IUser extends Document {
   name: string
@@ -63,4 +63,6 @@ UserSchema.index(
   { unique: true, partialFilterExpression: { phone: { $type: 'string' } } }
 )
 
-export const User = mongoose.model<IUser>('User', UserSchema)
+export function createUserModel(conn: Connection) {
+  return conn.model<IUser>('User', UserSchema)
+}

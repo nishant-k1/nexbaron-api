@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import { Schema, Document, Connection } from 'mongoose'
 
 export interface IOtp extends Document {
   target: string
@@ -30,4 +30,6 @@ const OtpSchema = new Schema<IOtp>(
 
 OtpSchema.index({ target: 1, division: 1, purpose: 1 })
 
-export const Otp = mongoose.model<IOtp>('Otp', OtpSchema)
+export function createOtpModel(conn: Connection) {
+  return conn.model<IOtp>('Otp', OtpSchema)
+}

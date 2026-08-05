@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
-import { Lead, LeadStatus } from '../../../models/lead.model'
+import { LeadStatus } from '../../../models/lead.model'
+import { getDivisionModels } from '../../../models/registry'
 
 const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'dormant']
 
@@ -24,6 +25,8 @@ export async function submitLead(req: Request, res: Response) {
     }
 
     const clientRef = deriveClientRef({ email: body.email, phone: body.phone })
+
+    const { Lead } = getDivisionModels(division)
 
     const lead = await Lead.create({
       division,
@@ -60,15 +63,18 @@ function deriveClientRef(input: { email?: string; phone?: string }): string | un
 /** Admin-only: list leads with optional filters. */
 export async function listLeads(req: Request, res: Response) {
   try {
-    const division = req.query.division
     const status = req.query.status
     const assigned = req.query.assigned
     const search = (req.query.search as string) || ''
 
-    const filter: Record<string, unknown> = {}
-    if (division === 'digital' || division === 'print') filter.division = division
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Lead } = getDivisionModels(req.staffAuth.division)
+    const filter: Record<string, unknown> = { division: req.staffAuth.division }
     if (VALID_STATUSES.includes(status as LeadStatus)) filter.status = status
-    if (assigned === 'mine') filter.assignedStaff = req.staffAuth?.name
+    if (assigned === 'mine') filter.assignedStaff = req.staffAuth.name
     if (assigned === 'unassigned') filter.assignedStaff = null
     if (search) {
       const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')

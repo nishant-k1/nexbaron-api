@@ -1,12 +1,13 @@
 import crypto from 'crypto'
+import type { StaffRole, StaffDivision } from '../models/staff.model'
 
 const ACCESS_TTL = 60 * 15 // 15 minutes
 const REFRESH_TTL_DAYS = 30
 
 export interface AdminTokenPayload {
   sub: string
-  role: 'admin' | 'staff'
-  division: 'digital' | 'print' | 'both'
+  role: StaffRole
+  division: StaffDivision
   name: string
   iat: number
   exp: number
@@ -30,8 +31,8 @@ function sign(data: string): string {
 
 function create(payload: {
   sub: string
-  role: 'admin' | 'staff'
-  division: 'digital' | 'print' | 'both'
+  role: StaffRole
+  division: StaffDivision
   name: string
   ttlSeconds: number
 }): string {
@@ -52,8 +53,8 @@ function create(payload: {
 
 export function createAccessToken(p: {
   sub: string
-  role: 'admin' | 'staff'
-  division: 'digital' | 'print' | 'both'
+  role: StaffRole
+  division: StaffDivision
   name: string
 }): string {
   return create({ ...p, ttlSeconds: ACCESS_TTL })
@@ -61,8 +62,8 @@ export function createAccessToken(p: {
 
 export function createRefreshToken(p: {
   sub: string
-  role: 'admin' | 'staff'
-  division: 'digital' | 'print' | 'both'
+  role: StaffRole
+  division: StaffDivision
   name: string
 }): string {
   return create({ ...p, ttlSeconds: REFRESH_TTL_DAYS * 24 * 60 * 60 })

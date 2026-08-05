@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { User } from '../../../../models/user.model'
+import { getDivisionModels } from '../../../../models/registry'
 import { createOtp, verifyOtp } from '../services/otp-service'
 import { createToken } from '../../../shared/middleware/jwt'
 import { logger } from '../../../../utils/logger'
@@ -11,6 +11,10 @@ function normalizeEmail(email: string): string {
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/[^\d+]/g, '')
   return digits.startsWith('+') ? digits : `+91${digits}`
+}
+
+function resolveDivision(value: string): 'digital' | 'print' {
+  return value === 'print' ? 'print' : 'digital'
 }
 
 // Send an OTP to email or phone for signup/login.
@@ -61,7 +65,10 @@ export async function verifyCode(req: Request, res: Response) {
       return
     }
 
-    const lookup: Record<string, string> = { division }
+    const d: 'digital' | 'print' = resolveDivision(division)
+    const { User } = getDivisionModels(d)
+
+    const lookup: Record<string, string> = { division: d }
     if (channel === 'email') lookup.email = normalized
     else lookup.phone = normalized
 
@@ -75,7 +82,7 @@ export async function verifyCode(req: Request, res: Response) {
       user = await User.create({
         name: name?.trim() || 'Customer',
         ...(channel === 'email' ? { email: normalized } : { phone: normalized }),
-        division,
+        division: d,
         authProviders: [channel === 'email' ? 'email' : 'phone'],
       })
     }
@@ -85,7 +92,7 @@ export async function verifyCode(req: Request, res: Response) {
       await user.save()
     }
 
-    const token = createToken({ sub: String(user._id), division })
+    const token = createToken({ sub: String(user._id), division: d })
 
     res.status(200).json({
       success: true,
@@ -114,16 +121,19 @@ export async function googleSignIn(req: Request, res: Response) {
       return
     }
 
-    let user: InstanceType<typeof User> | null = await User.findOne({
+    const d: 'digital' | 'print' = resolveDivision(division)
+    const { User } = getDivisionModels(d)
+
+    let user: InstanceType<ReturnType<typeof getDivisionModels>['User']> | null = await User.findOne({
       email: normalizeEmail(email),
-      division,
+      division: d,
     })
 
     if (!user) {
       const created = await User.create({
         name: name?.trim() || email.split('@')[0],
         email: normalizeEmail(email),
-        division,
+        division: d,
         authProviders: ['google'],
         googleId,
         photo,
@@ -140,7 +150,7 @@ export async function googleSignIn(req: Request, res: Response) {
       return
     }
 
-    const token = createToken({ sub: String(user._id), division })
+    const token = createToken({ sub: String(user._id), division: d })
 
     res.status(200).json({
       success: true,
@@ -163,6 +173,7 @@ export async function googleSignIn(req: Request, res: Response) {
 // Return the current user from a valid token.
 export async function me(req: Request, res: Response) {
   try {
+    const { User } = getDivisionModels(resolveDivision(req.division || 'digital'))
     const user = await User.findById(req.userId)
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' })

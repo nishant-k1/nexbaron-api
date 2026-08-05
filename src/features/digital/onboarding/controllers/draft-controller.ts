@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { OnboardingDraft } from '../../../../models/onboarding-draft.model'
+import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
 
 interface DraftPlanState {
@@ -20,6 +20,7 @@ function plansToObject(plans: Map<string, DraftPlanState> | Record<string, Draft
 export async function getDraft(req: Request, res: Response) {
   try {
     const division = (req.params.division || 'digital') as 'digital' | 'print'
+    const { OnboardingDraft } = getDivisionModels(division)
     const draft = await OnboardingDraft.findOne({ userId: req.userId, division })
     if (!draft) {
       res.status(200).json({ success: true, draft: null })
@@ -53,6 +54,7 @@ export async function upsertDraft(req: Request, res: Response) {
       return
     }
 
+    const { OnboardingDraft } = getDivisionModels(division)
     const draft = await OnboardingDraft.findOneAndUpdate(
       { userId: req.userId, division },
       {
@@ -88,6 +90,7 @@ export async function upsertDraft(req: Request, res: Response) {
 export async function resetPlan(req: Request, res: Response) {
   try {
     const division = (req.params.division || 'digital') as 'digital' | 'print'
+    const { OnboardingDraft } = getDivisionModels(division)
     const draft = await OnboardingDraft.findOneAndUpdate(
       { userId: req.userId, division },
       {

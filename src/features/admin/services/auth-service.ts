@@ -1,6 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { Staff, IStaff } from '../models/staff.model'
-import { RefreshToken } from '../models/refresh-token.model'
+import { IStaff } from '../models/staff.model'
 import {
   createAccessToken,
   createRefreshToken,
@@ -8,6 +7,8 @@ import {
   REFRESH_TOKEN_TTL_MS,
   verifyToken,
 } from './token'
+import { getDivisionModels } from '../../../models/registry'
+import type { StaffDivision } from '../models/staff.model'
 
 const BCRYPT_ROUNDS = 12
 
@@ -37,11 +38,17 @@ export async function validateCredentials(
   email: string,
   password: string
 ): Promise<IStaff | null> {
-  const staff = await Staff.findOne({ email: email.toLowerCase().trim(), active: true })
-  if (!staff) return null
-  const ok = await bcrypt.compare(password, staff.passwordHash)
-  if (!ok) return null
-  return staff
+  // Search both division databases (email is unique within a division).
+  const normalized = email.toLowerCase().trim()
+  for (const division of ['digital', 'print'] as StaffDivision[]) {
+    const Staff = getDivisionModels(division).Staff
+    const staff = await Staff.findOne({ email: normalized, active: true })
+    if (staff) {
+      const ok = await bcrypt.compare(password, staff.passwordHash)
+      return ok ? staff : null
+    }
+  }
+  return null
 }
 
 export function issueTokens(staff: IStaff): { access: string; refresh: string } {
@@ -57,7 +64,12 @@ export function issueTokens(staff: IStaff): { access: string; refresh: string } 
   }
 }
 
-export async function persistRefreshToken(staffId: string, refreshToken: string): Promise<void> {
+export async function persistRefreshToken(
+  staffId: string,
+  refreshToken: string,
+  division: StaffDivision
+): Promise<void> {
+  const { RefreshToken } = getDivisionModels(division)
   await RefreshToken.create({
     staffId,
     tokenHash: hashToken(refreshToken),
@@ -70,6 +82,7 @@ export async function rotateRefreshToken(
   oldToken: string,
   oldHash: string
 ): Promise<{ access: string; refresh: string } | null> {
+  const { RefreshToken } = getDivisionModels(staff.division)
   const stored = await RefreshToken.findOne({
     staffId: staff._id,
     tokenHash: oldHash,
@@ -85,18 +98,23 @@ export async function rotateRefreshToken(
       rotatedFrom: oldToken,
     }
   )
-  await persistRefreshToken(staff._id.toString(), next.refresh)
+  await persistRefreshToken(staff._id.toString(), next.refresh, staff.division)
   return next
 }
 
-export async function revokeRefreshToken(token: string): Promise<void> {
+export async function revokeRefreshToken(token: string, division: StaffDivision): Promise<void> {
+  const { RefreshToken } = getDivisionModels(division)
   await RefreshToken.updateMany(
     { tokenHash: hashToken(token), revokedAt: null },
     { revokedAt: new Date() }
   )
 }
 
-export async function revokeAllForStaff(staffId: string): Promise<void> {
+export async function revokeAllForStaff(
+  staffId: string,
+  division: StaffDivision
+): Promise<void> {
+  const { RefreshToken } = getDivisionModels(division)
   await RefreshToken.updateMany(
     { staffId, revokedAt: null },
     { revokedAt: new Date() }
@@ -106,6 +124,7 @@ export async function revokeAllForStaff(staffId: string): Promise<void> {
 export async function getStaffByRefreshToken(token: string): Promise<IStaff | null> {
   const payload = verifyToken(token)
   if (!payload) return null
+  const { Staff } = getDivisionModels(payload.division)
   const staff = await Staff.findById(payload.sub)
   if (!staff || !staff.active) return null
   return staff

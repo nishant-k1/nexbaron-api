@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import { Schema, Document, Connection } from 'mongoose'
 
 export type LeadStatus =
   | 'new'
@@ -95,4 +95,8 @@ LeadSchema.index({ assignedStaff: 1, nextFollowUp: 1 })
 LeadSchema.index({ division: 1, assignedStaff: 1 })
 LeadSchema.index({ source: 1, createdAt: -1 })
 
-export const Lead = mongoose.model<ILead>('Lead', LeadSchema)
+export function createLeadModel(conn: Connection) {
+  return conn.model<ILead>('Lead', LeadSchema)
+}
+
+export const LeadStatusSchema = LeadSchema

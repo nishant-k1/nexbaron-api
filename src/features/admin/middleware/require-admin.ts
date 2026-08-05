@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from 'express'
 import { verifyToken } from '../services/token'
 import { readAccessCookie } from '../services/cookies'
+import type { StaffRole, StaffDivision } from '../models/staff.model'
 
 declare global {
   namespace Express {
     interface Request {
       staffAuth?: {
         id: string
-        role: 'admin' | 'staff'
-        division: 'digital' | 'print' | 'both'
+        role: StaffRole
+        division: StaffDivision
         name: string
       }
     }
@@ -35,7 +36,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   next()
 }
 
-export function requireRole(...roles: Array<'admin' | 'staff'>) {
+export function requireRole(...roles: Array<StaffRole>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.staffAuth) {
       res.status(401).json({ success: false, message: 'Authentication required' })
@@ -57,15 +58,14 @@ export function requireAnyDivision(req: Request, res: Response, next: NextFuncti
   next()
 }
 
-export function requireDivision(...divisions: Array<'digital' | 'print'>) {
+export function requireDivision(...divisions: Array<StaffDivision>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.staffAuth) {
       res.status(401).json({ success: false, message: 'Authentication required' })
       return
     }
     const { division } = req.staffAuth
-    const staffDivisions = division === 'both' ? ['digital', 'print'] : [division]
-    if (!divisions.some((d) => staffDivisions.includes(d))) {
+    if (!divisions.includes(division)) {
       res.status(403).json({ success: false, message: 'Not authorized for this division' })
       return
     }

@@ -6,6 +6,7 @@ declare global {
     interface Request {
       userId?: string
       auth?: TokenPayload
+      division?: 'digital' | 'print'
     }
   }
 }
@@ -27,5 +28,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   req.userId = payload.sub
   req.auth = payload
+  req.division = payload.division
   next()
 }
