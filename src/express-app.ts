@@ -47,7 +47,6 @@ app.use(compression())
 // so mount its raw parser BEFORE the global JSON body parser.
 if (runtimeBrand === 'digital') {
   app.use('/digital', paymentWebhookRouter)
-  app.use('/api/digital', paymentWebhookRouter)
 }
 
 // Body parsing
@@ -82,7 +81,6 @@ function mountBrandRoutes(brandBase: string): void {
 }
 
 mountBrandRoutes(`/${runtimeBrand}`)
-mountBrandRoutes(`/api/${runtimeBrand}`)
 
 // Error handling
 app.use(notFoundHandler)

@@ -3,19 +3,11 @@
   "rewrites": [
     {
       "source": "/digital/:path*",
-      "destination": "https://nexbaron-api.vercel.app/api/digital/:path*"
+      "destination": "https://nexbaron-api.vercel.app/digital/:path*"
     },
     {
       "source": "/print/:path*",
-      "destination": "https://nexbaron-api-print.vercel.app/api/print/:path*"
-    },
-    {
-      "source": "/api/digital/:path*",
-      "destination": "https://nexbaron-api.vercel.app/api/digital/:path*"
-    },
-    {
-      "source": "/api/print/:path*",
-      "destination": "https://nexbaron-api-print.vercel.app/api/print/:path*"
+      "destination": "https://nexbaron-api-print.vercel.app/print/:path*"
     },
     {
       "source": "/health/digital",

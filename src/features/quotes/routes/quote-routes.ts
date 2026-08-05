@@ -16,7 +16,7 @@ export const customerQuoteRouter = Router()
 customerQuoteRouter.post('/quotes', requireAuth, submitQuote)
 customerQuoteRouter.get('/quotes/mine', requireAuth, myQuotes)
 
-// Staff-facing. Mounted at /api/<brand>/admin/quotes.
+// Staff-facing. Mounted at /<brand>/admin/quotes.
 export const adminQuoteRouter = Router()
 adminQuoteRouter.get('/', requireAdmin, requireDivision('digital', 'print'), listQuotes)
 adminQuoteRouter.get('/:id', requireAdmin, requireDivision('digital', 'print'), getQuote)
