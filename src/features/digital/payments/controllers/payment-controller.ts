@@ -3,7 +3,7 @@ import { Types } from 'mongoose'
 
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
-import { IOrder } from '../../../orders/models/order.model'
+import { IOrder } from '../../../../orders/models/order.model'
 import {
   emailInvoice,
   createRazorpayOrder,

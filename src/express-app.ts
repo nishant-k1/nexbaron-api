@@ -3,7 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
-import { digitalAuthRouter } from './features/digital/auth/routes/auth-routes'
+import { customerAuthRouter } from './auth/routes/auth-routes'
 import { digitalDraftRouter } from './features/digital/onboarding/routes/draft-routes'
 import { catalogRouter } from './features/digital/catalog/routes/catalog-routes'
 import { paymentRouter, paymentWebhookRouter } from './features/digital/payments/routes/payment-routes'
@@ -11,11 +11,11 @@ import { printRouter } from './features/print/routes/print-routes'
 import {
   adminLeadRouter,
   brandContactRouter,
-} from './features/leads/routes/lead-routes'
-import { adminOrderRouter } from './features/orders/routes/order-routes'
-import { customerQuoteRouter, adminQuoteRouter } from './features/quotes/routes/quote-routes'
+} from './leads/routes/lead-routes'
+import { adminOrderRouter } from './orders/routes/order-routes'
+import { customerQuoteRouter, adminQuoteRouter } from './quotes/routes/quote-routes'
 import cookieParser from 'cookie-parser'
-import { adminAuthRouter } from './features/admin/routes/auth-routes'
+import { adminAuthRouter } from './admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
 import { notFoundHandler } from './middleware/not-found-handler'
 import { runtimeBrand } from './utils/runtime-brand'
@@ -62,7 +62,7 @@ app.get('/health', (req, res) => {
 })
 
 function mountBrandRoutes(brandBase: string): void {
-  app.use(`${brandBase}/auth`, digitalAuthRouter)
+  app.use(`${brandBase}/auth`, customerAuthRouter)
   app.use(brandBase, brandContactRouter)
   app.use(brandBase, customerQuoteRouter)
 

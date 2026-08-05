@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth } from '../../../shared/middleware/require-auth'
+import { requireAuth } from '../../../../middleware/require-auth'
 import { getDraft, upsertDraft, resetPlan } from '../controllers/draft-controller'
 
 export const digitalDraftRouter = Router()

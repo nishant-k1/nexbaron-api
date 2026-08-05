@@ -1,5 +1,5 @@
 import express, { Router } from 'express'
-import { requireAuth } from '../../../shared/middleware/require-auth'
+import { requireAuth } from '../../../../middleware/require-auth'
 import { createCheckout, myOrder, razorpayWebhook, verifyPayment } from '../controllers/payment-controller'
 
 export const paymentRouter = Router()

@@ -1,5 +1,5 @@
 import { digitalCatalog, CatalogPlan } from '../../catalog/catalog'
-import { IOrderItem } from '../../../orders/models/order.model'
+import { IOrderItem } from '../../../../orders/models/order.model'
 
 export interface PlanSelectionInput {
   selected: string[]

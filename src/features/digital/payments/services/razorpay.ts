@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { Model } from 'mongoose'
 
 import { logger } from '../../../../utils/logger'
-import { IOrder } from '../../../orders/models/order.model'
+import { IOrder } from '../../../../orders/models/order.model'
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
