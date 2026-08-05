@@ -207,7 +207,7 @@ export async function googleSignIn(req: Request, res: Response) {
 }
 
 async function verifyGoogleCredential(credential: string): Promise<GoogleClaims> {
-  const clientId = process.env[`GOOGLE_CLIENT_ID_${runtimeBrand.toUpperCase()}`] || process.env.GOOGLE_CLIENT_ID
+  const clientId = process.env[`GOOGLE_CLIENT_ID_${runtimeBrand.toUpperCase()}`]
   if (!clientId) throw new GoogleTokenError('Google sign-in is not configured', 503)
 
   let response: globalThis.Response
