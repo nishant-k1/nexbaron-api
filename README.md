@@ -13,7 +13,7 @@ Digital: BRAND=digital  DATABASE_URL=<digital database>
 Print:   BRAND=print    DATABASE_URL=<print database>
 ```
 
-`DATABASE_URL_DIGITAL` and `DATABASE_URL_PRINT` are optional conveniences for a shared local env file and are considered only when `DATABASE_URL` is absent. A runtime never opens or falls back to the other brand database.
+`DATABASE_URL_DIGITAL` and `DATABASE_URL_PRINT` are optional conveniences for a shared local env file and take precedence over `DATABASE_URL` for their matching runtime. A runtime never opens or falls back to the other brand database.
 
 Set independent `JWT_SECRET` and `ADMIN_JWT_SECRET` values in each deployment. A shared local env file may instead use the exact `JWT_SECRET_DIGITAL`/`JWT_SECRET_PRINT` and `ADMIN_JWT_SECRET_DIGITAL`/`ADMIN_JWT_SECRET_PRINT` names. Customer and admin tokens are rejected unless their signed division matches the runtime brand.
 

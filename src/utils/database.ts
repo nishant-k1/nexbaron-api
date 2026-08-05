@@ -4,8 +4,8 @@ import { registerDivisionModels } from '../models/registry'
 import { runtimeBrand } from './runtime-brand'
 
 function databaseUri(): string {
-  const localOverride = process.env[`DATABASE_URL_${runtimeBrand.toUpperCase()}`]
-  const configured = process.env.DATABASE_URL || localOverride
+  const brandSpecific = process.env[`DATABASE_URL_${runtimeBrand.toUpperCase()}`]
+  const configured = brandSpecific || process.env.DATABASE_URL
   if (!configured) {
     throw new Error(`DATABASE_URL (or DATABASE_URL_${runtimeBrand.toUpperCase()}) is not set`)
   }
