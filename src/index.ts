@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { openBrandConnection } from './utils/database'
 import { logger } from './utils/logger'
 import { app } from './express-app'
