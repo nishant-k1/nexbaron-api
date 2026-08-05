@@ -22,7 +22,26 @@ export interface IPayment {
   recordedBy?: string
 }
 
+export interface IOrderItem {
+  kind: 'plan' | 'service' | 'addon'
+  planId: string
+  label: string
+  type: 'oneTime' | 'monthly'
+  price: number
+  quantity: number
+}
+
+export interface IOrderMilestone {
+  key: string
+  label: string
+  dayLabel: string
+  date?: Date
+  status: 'pending' | 'in_progress' | 'done'
+  completedAt?: Date
+}
+
 export interface IOrder extends Document {
+  userId?: Types.ObjectId
   leadId: Types.ObjectId
   division: 'digital' | 'print'
   // Snapshot of the customer (denormalised from the lead)
@@ -38,9 +57,22 @@ export interface IOrder extends Document {
   amount: number
   currency: string
   status: OrderStatus
+  items: IOrderItem[]
   payments: IPayment[]
   amountPaid: number
   dueDate?: Date
+  launchDate?: Date
+  launchDays?: number
+  milestones: IOrderMilestone[]
+  razorpay?: {
+    orderId?: string
+    paymentId?: string
+    signature?: string
+  }
+  billing?: {
+    gstin?: string
+    address?: string
+  }
   invoiceNumber?: string
   notes?: string
   createdAt: Date
@@ -58,8 +90,54 @@ const PaymentSchema = new Schema(
   { _id: false }
 )
 
+const OrderItemSchema = new Schema<IOrderItem>(
+  {
+    kind: { type: String, enum: ['plan', 'service', 'addon'], required: true },
+    planId: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    type: { type: String, enum: ['oneTime', 'monthly'], required: true },
+    price: { type: Number, required: true, min: 0 },
+    quantity: { type: Number, required: true, min: 1, default: 1 },
+  },
+  { _id: false }
+)
+
+const MilestoneSchema = new Schema<IOrderMilestone>(
+  {
+    key: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    dayLabel: { type: String, trim: true },
+    date: { type: Date },
+    status: {
+      type: String,
+      enum: ['pending', 'in_progress', 'done'],
+      default: 'pending',
+    },
+    completedAt: { type: Date },
+  },
+  { _id: false }
+)
+
+const RazorpaySchema = new Schema(
+  {
+    orderId: { type: String, trim: true },
+    paymentId: { type: String, trim: true },
+    signature: { type: String, trim: true },
+  },
+  { _id: false }
+)
+
+const BillingSchema = new Schema(
+  {
+    gstin: { type: String, trim: true, uppercase: true },
+    address: { type: String, trim: true },
+  },
+  { _id: false }
+)
+
 const OrderSchema = new Schema<IOrder>(
   {
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     leadId: { type: Schema.Types.ObjectId, ref: 'Lead', required: true },
     division: { type: String, enum: ['digital', 'print'], required: true },
     customer: {
@@ -77,9 +155,15 @@ const OrderSchema = new Schema<IOrder>(
       enum: ['pending', 'paid', 'in_progress', 'delivered', 'cancelled'],
       default: 'pending',
     },
+    items: { type: [OrderItemSchema], default: [] },
     payments: { type: [PaymentSchema], default: [] },
     amountPaid: { type: Number, default: 0 },
     dueDate: { type: Date },
+    launchDate: { type: Date },
+    launchDays: { type: Number, min: 1 },
+    milestones: { type: [MilestoneSchema], default: [] },
+    razorpay: { type: RazorpaySchema },
+    billing: { type: BillingSchema },
     invoiceNumber: { type: String, trim: true },
     notes: { type: String, trim: true },
   },
@@ -87,9 +171,11 @@ const OrderSchema = new Schema<IOrder>(
 )
 
 OrderSchema.index({ division: 1, status: 1 })
+OrderSchema.index({ userId: 1, division: 1 })
 OrderSchema.index({ 'customer.email': 1 })
 OrderSchema.index({ 'customer.phone': 1 })
 OrderSchema.index({ amountPaid: 1 })
+OrderSchema.index({ 'razorpay.orderId': 1 }, { sparse: true })
 
 export function createOrderModel(conn: Connection) {
   return conn.model<IOrder>('Order', OrderSchema)

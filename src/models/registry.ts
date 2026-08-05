@@ -6,6 +6,7 @@ import { createOrderModel } from '../features/orders/models/order.model'
 import { createUserModel } from './user.model'
 import { createOtpModel } from './otp.model'
 import { createOnboardingDraftModel } from './onboarding-draft.model'
+import { createInvoiceCounterModel } from './invoice-counter.model'
 
 export interface DivisionModels {
   Staff: ReturnType<typeof createStaffModel>
@@ -15,6 +16,7 @@ export interface DivisionModels {
   User: ReturnType<typeof createUserModel>
   Otp: ReturnType<typeof createOtpModel>
   OnboardingDraft: ReturnType<typeof createOnboardingDraftModel>
+  InvoiceCounter: ReturnType<typeof createInvoiceCounterModel>
 }
 
 const _registry: Partial<Record<'digital' | 'print', DivisionModels>> = {}
@@ -31,6 +33,7 @@ export function registerDivisionModels(
     User: createUserModel(conn),
     Otp: createOtpModel(conn),
     OnboardingDraft: createOnboardingDraftModel(conn),
+    InvoiceCounter: createInvoiceCounterModel(conn),
   }
   _registry[division] = models
   return models
