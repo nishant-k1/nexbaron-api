@@ -19,7 +19,7 @@ function isDevMode(): boolean {
 }
 
 function hashSecret(): string {
-  const configured = process.env[`OTP_HASH_SECRET_${runtimeBrand.toUpperCase()}`] || process.env.OTP_HASH_SECRET
+  const configured = process.env[`OTP_HASH_SECRET_${runtimeBrand.toUpperCase()}`]
   if (process.env.NODE_ENV === 'production' && (!configured || configured === 'change-me-otp-hash-secret')) {
     throw new OtpRequestError('OTP hashing is not configured', 503)
   }
@@ -115,8 +115,8 @@ async function deliverOtp(
     throw new OtpRequestError('Phone verification is not configured for this deployment', 503)
   }
 
-  const apiKey = process.env[`RESEND_API_KEY_${runtimeBrand.toUpperCase()}`] || process.env.RESEND_API_KEY
-  const from = process.env[`OTP_FROM_EMAIL_${runtimeBrand.toUpperCase()}`] || process.env.OTP_FROM_EMAIL
+  const apiKey = process.env[`RESEND_API_KEY_${runtimeBrand.toUpperCase()}`]
+  const from = process.env[`OTP_FROM_EMAIL_${runtimeBrand.toUpperCase()}`]
   if (!apiKey || !from) {
     throw new OtpRequestError('Email verification is not configured for this deployment', 503)
   }

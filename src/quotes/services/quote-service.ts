@@ -5,8 +5,9 @@ import { digitalCatalog } from '../../features/digital/catalog/catalog'
 import { productLabel } from '../../features/print/catalog'
 import { logger } from '../../utils/logger'
 import { IQuote } from '../../models/quote.model'
+import { runtimeBrand } from '../../utils/runtime-brand'
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
+const RESEND_API_KEY = process.env[`RESEND_API_KEY_${runtimeBrand.toUpperCase()}`] || ''
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 // WhatsApp delivery is config-gated: no provider is wired up yet, so when
 // enabled we only surface a wa.me link (the staff member still hits send).

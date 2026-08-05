@@ -5,9 +5,7 @@ const EXPIRES_IN = Number(process.env.JWT_EXPIRES_IN_SECONDS) || 60 * 60 * 24 * 
 const DEV_SECRET = 'nexbaron-dev-secret'
 
 function secret(): string {
-  const configured = process.env[`JWT_SECRET_${runtimeBrand.toUpperCase()}`] ||
-    process.env.JWT_SECRET ||
-    process.env.SESSION_SECRET
+  const configured = process.env[`JWT_SECRET_${runtimeBrand.toUpperCase()}`]
   if (process.env.NODE_ENV === 'production' && (!configured || configured.length < 32 || configured === DEV_SECRET || configured === 'change-me')) {
     throw new Error('A strong JWT_SECRET is required in production')
   }

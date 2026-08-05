@@ -16,8 +16,8 @@ export interface AdminTokenPayload {
 }
 
 function secret(): string {
-  const adminSecret = process.env[`ADMIN_JWT_SECRET_${runtimeBrand.toUpperCase()}`] || process.env.ADMIN_JWT_SECRET
-  const customerSecret = process.env[`JWT_SECRET_${runtimeBrand.toUpperCase()}`] || process.env.JWT_SECRET
+  const adminSecret = process.env[`ADMIN_JWT_SECRET_${runtimeBrand.toUpperCase()}`]
+  const customerSecret = process.env[`JWT_SECRET_${runtimeBrand.toUpperCase()}`]
   const configured = adminSecret ||
     customerSecret
   if (process.env.NODE_ENV === 'production' && (

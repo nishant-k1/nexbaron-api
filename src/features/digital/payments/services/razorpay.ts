@@ -3,11 +3,12 @@ import { Model } from 'mongoose'
 
 import { logger } from '../../../../utils/logger'
 import { IOrder } from '../../../../orders/models/order.model'
+import { runtimeBrand } from '../../../../utils/runtime-brand'
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || ''
-const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
+const RESEND_API_KEY = process.env[`RESEND_API_KEY_${runtimeBrand.toUpperCase()}`] || ''
 const INVOICE_FROM = process.env.INVOICE_FROM_EMAIL || 'billing@nexbaron.com'
 const BILLING_GSTIN = process.env.BILLING_GSTIN || 'BILLING_GSTIN_PLACEHOLDER'
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
