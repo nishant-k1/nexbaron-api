@@ -2,6 +2,10 @@
 
 Express, TypeScript, Mongoose API deployed as two strictly separated brand runtimes.
 
+`api.nexbaron.com` is a routing-only gateway. Canonical public paths are
+`/digital/*` and `/print/*`; `/api/digital/*` and `/api/print/*` remain available
+for existing clients. The gateway stores no database or provider credentials.
+
 ## Runtime Contract
 
 Every process must set `BRAND=digital` or `BRAND=print`. It opens one MongoDB connection, registers only that brand in the model registry, and mounts only `/api/<BRAND>` routes. Requests for the other brand and generic `/api/contact` or `/api/admin/*` paths return 404.
