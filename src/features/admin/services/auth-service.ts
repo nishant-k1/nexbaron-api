@@ -9,6 +9,7 @@ import {
 } from './token'
 import { getDivisionModels } from '../../../models/registry'
 import type { StaffDivision } from '../models/staff.model'
+import { runtimeBrand } from '../../../utils/runtime-brand'
 
 const BCRYPT_ROUNDS = 12
 
@@ -18,6 +19,7 @@ export interface PublicStaff {
   name: string
   role: IStaff['role']
   division: IStaff['division']
+  active: boolean
 }
 
 export function getPublicStaff(staff: IStaff): PublicStaff {
@@ -27,6 +29,7 @@ export function getPublicStaff(staff: IStaff): PublicStaff {
     name: staff.name,
     role: staff.role,
     division: staff.division,
+    active: staff.active,
   }
 }
 
@@ -38,17 +41,11 @@ export async function validateCredentials(
   email: string,
   password: string
 ): Promise<IStaff | null> {
-  // Search both division databases (email is unique within a division).
   const normalized = email.toLowerCase().trim()
-  for (const division of ['digital', 'print'] as StaffDivision[]) {
-    const Staff = getDivisionModels(division).Staff
-    const staff = await Staff.findOne({ email: normalized, active: true })
-    if (staff) {
-      const ok = await bcrypt.compare(password, staff.passwordHash)
-      return ok ? staff : null
-    }
-  }
-  return null
+  const { Staff } = getDivisionModels(runtimeBrand)
+  const staff = await Staff.findOne({ email: normalized, division: runtimeBrand, active: true })
+  if (!staff) return null
+  return (await bcrypt.compare(password, staff.passwordHash)) ? staff : null
 }
 
 export function issueTokens(staff: IStaff): { access: string; refresh: string } {
@@ -79,25 +76,23 @@ export async function persistRefreshToken(
 
 export async function rotateRefreshToken(
   staff: IStaff,
-  oldToken: string,
   oldHash: string
 ): Promise<{ access: string; refresh: string } | null> {
   const { RefreshToken } = getDivisionModels(staff.division)
-  const stored = await RefreshToken.findOne({
+  const stored = await RefreshToken.findOneAndUpdate({
     staffId: staff._id,
     tokenHash: oldHash,
     revokedAt: null,
-  })
-  if (!stored || stored.expiresAt.getTime() < Date.now()) return null
+    expiresAt: { $gt: new Date() },
+  }, {
+    $set: {
+      revokedAt: new Date(),
+      rotatedFromHash: oldHash,
+    },
+  }, { new: true })
+  if (!stored) return null
 
   const next = issueTokens(staff)
-  await RefreshToken.updateOne(
-    { _id: stored._id },
-    {
-      revokedAt: new Date(),
-      rotatedFrom: oldToken,
-    }
-  )
   await persistRefreshToken(staff._id.toString(), next.refresh, staff.division)
   return next
 }
@@ -123,9 +118,9 @@ export async function revokeAllForStaff(
 
 export async function getStaffByRefreshToken(token: string): Promise<IStaff | null> {
   const payload = verifyToken(token)
-  if (!payload) return null
-  const { Staff } = getDivisionModels(payload.division)
-  const staff = await Staff.findById(payload.sub)
-  if (!staff || !staff.active) return null
+  if (!payload || payload.division !== runtimeBrand) return null
+  const { Staff } = getDivisionModels(runtimeBrand)
+  const staff = await Staff.findOne({ _id: payload.sub, division: runtimeBrand, active: true })
+  if (!staff) return null
   return staff
 }

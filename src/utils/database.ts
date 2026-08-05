@@ -1,37 +1,25 @@
 import mongoose, { Connection } from 'mongoose'
 import { logger } from './logger'
 import { registerDivisionModels } from '../models/registry'
+import { runtimeBrand } from './runtime-brand'
 
-export interface DivisionConnections {
-  digital: Connection
-  print: Connection
-}
-
-function uriFor(database: string): string {
-  const configured = (process.env[`DATABASE_URL_${database.toUpperCase()}`] ||
-    process.env.DATABASE_URL) as string | undefined
+function databaseUri(): string {
+  const localOverride = process.env[`DATABASE_URL_${runtimeBrand.toUpperCase()}`]
+  const configured = process.env.DATABASE_URL || localOverride
   if (!configured) {
-    throw new Error(`DATABASE_URL_${database.toUpperCase()} (or DATABASE_URL) is not set`)
+    throw new Error(`DATABASE_URL (or DATABASE_URL_${runtimeBrand.toUpperCase()}) is not set`)
   }
   return configured
 }
 
-export async function openDivisionConnections(): Promise<DivisionConnections> {
-  const digital = await mongoose.createConnection(uriFor('digital')).asPromise()
-  registerDivisionModels('digital', digital)
-  logger.info('Connected to MongoDB (digital)')
-
-  const print = await mongoose.createConnection(uriFor('print')).asPromise()
-  registerDivisionModels('print', print)
-  logger.info('Connected to MongoDB (print)')
-
-  return { digital, print }
+export async function openBrandConnection(): Promise<Connection> {
+  const connection = await mongoose.createConnection(databaseUri()).asPromise()
+  registerDivisionModels(runtimeBrand, connection)
+  logger.info(`Connected to MongoDB (${runtimeBrand})`)
+  return connection
 }
 
-export async function closeDivisionConnections(connections: DivisionConnections): Promise<void> {
-  await Promise.all([
-    connections.digital.close(),
-    connections.print.close(),
-  ])
+export async function closeBrandConnection(connection: Connection): Promise<void> {
+  await connection.close()
   logger.info('Disconnected from MongoDB')
 }

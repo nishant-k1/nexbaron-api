@@ -25,6 +25,9 @@ export function razorpayConfigured(): boolean {
 
 export async function createRazorpayOrder(amountPaise: number, receipt: string, notes: Record<string, string>) {
   if (!razorpayConfigured()) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Razorpay is not configured')
+    }
     // Dev fallback: synthesise a fake order id so the flow is tappable without live keys.
     return { id: `order_dev_${Date.now()}`, amount: amountPaise, currency: 'INR', dev: true }
   }
@@ -50,6 +53,7 @@ export function verifyPaymentSignature(input: {
   razorpay_payment_id: string
   razorpay_signature: string
 }): boolean {
+  if (!razorpayConfigured()) return false
   const body = `${input.razorpay_order_id}|${input.razorpay_payment_id}`
   const expected = crypto
     .createHmac('sha256', RAZORPAY_KEY_SECRET)
@@ -61,7 +65,7 @@ export function verifyPaymentSignature(input: {
 }
 
 export function verifyWebhookSignature(rawBody: string, signature: string): boolean {
-  if (!RAZORPAY_WEBHOOK_SECRET) return true
+  if (!RAZORPAY_WEBHOOK_SECRET) return false
   const expected = crypto
     .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
     .update(rawBody)
@@ -82,11 +86,13 @@ export async function nextInvoiceNumber(InvoiceCounter: Model<any>) {
 }
 
 function invoiceHtml(order: IOrder, invoiceNumber: string): string {
-  const items = order.items ?? []
-  const taxable = order.amount
-  const cgst = Math.round((taxable * 9) / 100)
-  const sgst = Math.round((taxable * 9) / 100)
-  const total = taxable + cgst + sgst
+  const items = (order.items ?? []).filter((item) => item.type === 'oneTime')
+  // Catalog prices are charged as displayed, so split GST out of the paid total.
+  const total = order.amount
+  const taxable = Math.round((total * 100) / 118)
+  const totalTax = total - taxable
+  const cgst = Math.floor(totalTax / 2)
+  const sgst = totalTax - cgst
   const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',

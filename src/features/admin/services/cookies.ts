@@ -1,10 +1,12 @@
 import { Response } from 'express'
 import { ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from './token'
+import { runtimeBrand } from '../../../utils/runtime-brand'
 
 const IS_PROD = process.env.NODE_ENV === 'production'
 
-const ACCESS_COOKIE = 'admin_access'
-const REFRESH_COOKIE = 'admin_refresh'
+const ACCESS_COOKIE = `admin_access_${runtimeBrand}`
+const REFRESH_COOKIE = `admin_refresh_${runtimeBrand}`
+const COOKIE_PATH = `/api/${runtimeBrand}/admin`
 
 export interface AuthCookies {
   access: string
@@ -16,21 +18,21 @@ export function setAuthCookies(res: Response, tokens: AuthCookies): void {
     httpOnly: true,
     secure: IS_PROD,
     sameSite: 'lax',
-    path: '/',
+    path: COOKIE_PATH,
     maxAge: ACCESS_TOKEN_TTL_MS,
   })
   res.cookie(REFRESH_COOKIE, tokens.refresh, {
     httpOnly: true,
     secure: IS_PROD,
     sameSite: 'lax',
-    path: '/',
+    path: COOKIE_PATH,
     maxAge: REFRESH_TOKEN_TTL_MS,
   })
 }
 
 export function clearAuthCookies(res: Response): void {
-  res.clearCookie(ACCESS_COOKIE, { path: '/' })
-  res.clearCookie(REFRESH_COOKIE, { path: '/' })
+  res.clearCookie(ACCESS_COOKIE, { path: COOKIE_PATH })
+  res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH })
 }
 
 export function readAccessCookie(req: { cookies?: Record<string, string> }): string | undefined {

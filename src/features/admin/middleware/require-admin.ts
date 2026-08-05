@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express'
 import { verifyToken } from '../services/token'
 import { readAccessCookie } from '../services/cookies'
 import type { StaffRole, StaffDivision } from '../models/staff.model'
+import { runtimeBrand } from '../../../utils/runtime-brand'
+import { getDivisionModels } from '../../../models/registry'
 
 declare global {
   namespace Express {
@@ -16,7 +18,7 @@ declare global {
   }
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const token = readAccessCookie(req)
   if (!token) {
     res.status(401).json({ success: false, message: 'Authentication required' })
@@ -27,13 +29,23 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     res.status(401).json({ success: false, message: 'Invalid or expired session' })
     return
   }
-  req.staffAuth = {
-    id: payload.sub,
-    role: payload.role,
-    division: payload.division,
-    name: payload.name,
+  try {
+    const { Staff } = getDivisionModels(runtimeBrand)
+    const staff = await Staff.findOne({ _id: payload.sub, division: runtimeBrand, active: true })
+    if (!staff) {
+      res.status(401).json({ success: false, message: 'Account unavailable' })
+      return
+    }
+    req.staffAuth = {
+      id: staff._id.toString(),
+      role: staff.role,
+      division: runtimeBrand,
+      name: staff.name,
+    }
+    next()
+  } catch {
+    res.status(401).json({ success: false, message: 'Invalid session account' })
   }
-  next()
 }
 
 export function requireRole(...roles: Array<StaffRole>) {

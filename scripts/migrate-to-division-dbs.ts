@@ -1,72 +1,101 @@
 import 'dotenv/config'
-import mongoose from 'mongoose'
+import mongoose, { AnyObject, Connection, Types } from 'mongoose'
 import { logger } from '../src/utils/logger'
 
-/**
- * Copies records from the legacy single `nexbaron` database into the two
- * division databases (`nexbaron-digital`, `nexbaron-print`) based on each
- * document's `division` field. Idempotent: documents already present in the
- * target (matched by _id) are skipped.
- */
+const COLLECTIONS = [
+  'staff',
+  'staff_refresh_tokens',
+  'users',
+  'otps',
+  'leads',
+  'orders',
+  'onboardingdrafts',
+  'invoicecounters',
+  'quotes',
+]
 
-const COLLECTIONS = ['leads', 'orders', 'staff', 'staff_refresh_tokens', 'users', 'otps', 'onboarding_drafts']
+type Brand = 'digital' | 'print'
 
-function baseUri(): string {
-  const uri = (process.env.DATABASE_URL || process.env.MONGODB_URI) as string | undefined
-  if (!uri) throw new Error('DATABASE_URL is not set')
-  return uri
+function required(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`${name} is required`)
+  return value
 }
 
-async function copyCollection(conn: mongoose.Connection, name: string) {
-  const src = conn.collection(name)
-  const count = await src.countDocuments()
-  if (count === 0) return
-  logger.info(`  ${name}: ${count} docs`)
+function brandFromDocument(doc: AnyObject, staffBrands: Map<string, Brand>): Brand | null {
+  if (doc.division === 'digital' || doc.division === 'print') return doc.division
+  if (doc.staffId instanceof Types.ObjectId) return staffBrands.get(doc.staffId.toString()) ?? null
+  if (typeof doc.key === 'string') {
+    if (doc.key.includes('-digital-')) return 'digital'
+    if (doc.key.includes('-print-')) return 'print'
+  }
+  return null
+}
 
-  const digital = await mongoose.createConnection(baseUri().replace(/\/nexbaron\?/, '/nexbaron-digital?')).asPromise()
-  const print = await mongoose.createConnection(baseUri().replace(/\/nexbaron\?/, '/nexbaron-print?')).asPromise()
-  const digitalCol = digital.collection(name)
-  const printCol = print.collection(name)
+async function migrateCollection(
+  source: Connection,
+  targets: Record<Brand, Connection>,
+  name: string,
+  staffBrands: Map<string, Brand>,
+  apply: boolean
+) {
+  const counts = { digital: 0, print: 0, ambiguous: 0 }
+  const cursor = source.collection(name).find({})
 
-  let copied = 0
-  let skipped = 0
-  const cursor = src.find({})
-
-  while (await cursor.hasNext()) {
-    const doc = await cursor.next()
-    if (!doc) break
-    const division = doc.division === 'print' ? 'print' : 'digital'
-    const target = division === 'print' ? printCol : digitalCol
-    const existing = await target.findOne({ _id: doc._id })
-    if (existing) {
-      skipped += 1
+  for await (const doc of cursor) {
+    const brand = brandFromDocument(doc, staffBrands)
+    if (!brand) {
+      counts.ambiguous += 1
+      logger.warn(`Skipped ambiguous ${name} document ${String(doc._id)}`)
       continue
     }
-    const copy = { ...doc }
-    delete copy._id
-    await target.insertOne({ ...copy, _id: doc._id })
-    copied += 1
+    counts[brand] += 1
+    if (apply) {
+      await targets[brand].collection(name).replaceOne({ _id: doc._id }, doc, { upsert: true })
+    }
   }
 
-  await digital.close()
-  await print.close()
-  logger.info(`  ${name}: copied=${copied} skipped=${skipped}`)
+  logger.info(`${name}: digital=${counts.digital} print=${counts.print} ambiguous=${counts.ambiguous}`)
+  return counts.ambiguous
 }
 
 async function migrate() {
-  logger.info('Connecting to legacy nexbaron DB…')
-  const conn = await mongoose.createConnection(baseUri()).asPromise()
-
-  for (const name of COLLECTIONS) {
-    await copyCollection(conn, name)
+  const legacyUrl = required('LEGACY_DATABASE_URL')
+  const digitalUrl = required('DIGITAL_DATABASE_URL')
+  const printUrl = required('PRINT_DATABASE_URL')
+  if (new URL(digitalUrl).pathname === new URL(printUrl).pathname) {
+    throw new Error('Digital and Print target database names must differ')
   }
 
-  await conn.close()
-  logger.info('Migration complete')
-  process.exit(0)
+  const apply = process.env.MIGRATION_APPLY === 'true'
+  logger.info(apply ? 'Applying division database migration' : 'Dry run only; set MIGRATION_APPLY=true to copy data')
+
+  const source = await mongoose.createConnection(legacyUrl).asPromise()
+  const digital = await mongoose.createConnection(digitalUrl).asPromise()
+  const print = await mongoose.createConnection(printUrl).asPromise()
+
+  try {
+    const staffBrands = new Map<string, Brand>()
+    for await (const staff of source.collection('staff').find({})) {
+      if (staff.division === 'digital' || staff.division === 'print') {
+        staffBrands.set(String(staff._id), staff.division)
+      }
+    }
+
+    let ambiguous = 0
+    for (const name of COLLECTIONS) {
+      ambiguous += await migrateCollection(source, { digital, print }, name, staffBrands, apply)
+    }
+    if (ambiguous > 0) {
+      throw new Error(`${ambiguous} ambiguous documents were not migrated; classify them before cutover`)
+    }
+    logger.info(apply ? 'Migration complete' : 'Dry run complete with no ambiguous documents')
+  } finally {
+    await Promise.all([source.close(), digital.close(), print.close()])
+  }
 }
 
-migrate().catch((e) => {
-  logger.error(e)
+migrate().catch((error) => {
+  logger.error('Migration failed', error)
   process.exit(1)
 })

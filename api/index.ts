@@ -1,13 +1,13 @@
 import type { Request, Response } from 'express'
 import { app } from '../src/express-app'
-import { openDivisionConnections } from '../src/utils/database'
-import type { DivisionConnections } from '../src/utils/database'
+import { openBrandConnection } from '../src/utils/database'
+import type { Connection } from 'mongoose'
 
-let dbPromise: Promise<DivisionConnections> | null = null
+let dbPromise: Promise<Connection> | null = null
 
-function ensureDb(): Promise<DivisionConnections> {
+function ensureDb(): Promise<Connection> {
   if (!dbPromise) {
-    dbPromise = openDivisionConnections().catch((err) => {
+    dbPromise = openBrandConnection().catch((err) => {
       dbPromise = null
       throw err
     })

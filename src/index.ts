@@ -1,16 +1,16 @@
-import { openDivisionConnections } from './utils/database'
-import type { DivisionConnections } from './utils/database'
+import { openBrandConnection } from './utils/database'
 import { logger } from './utils/logger'
 import { app } from './express-app'
+import { runtimeBrand } from './utils/runtime-brand'
 
 const PORT = process.env.PORT || 3001
 
 // Connect to database and start server
 async function startServer() {
   try {
-    const connections: DivisionConnections = await openDivisionConnections()
+    const connection = await openBrandConnection()
     app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}, digital=${connections.digital.name}, print=${connections.print.name}`)
+      logger.info(`Server running on port ${PORT}, brand=${runtimeBrand}, database=${connection.name}`)
     })
   } catch (error) {
     logger.error('Failed to start server:', error)

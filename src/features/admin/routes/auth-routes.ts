@@ -61,7 +61,7 @@ adminAuthRouter.post('/refresh', async (req, res, next) => {
       res.status(401).json({ success: false, message: 'Invalid refresh token' })
       return
     }
-    const nextTokens = await rotateRefreshToken(staff, refresh, hashToken(refresh))
+    const nextTokens = await rotateRefreshToken(staff, hashToken(refresh))
     if (!nextTokens) {
       clearAuthCookies(res)
       res.status(401).json({ success: false, message: 'Session expired' })
@@ -105,10 +105,15 @@ adminAuthRouter.get('/me', requireAdmin, async (req, res) => {
 //  - owner: can list/modify all in-division accounts.
 //  - admin: can list, and can modify staff (not other admins/owners, cannot self-modify).
 
-function assertTargetEditor(callerRole: StaffRole, targetRole: StaffRole): boolean {
+function canCreateRole(callerRole: StaffRole, targetRole: StaffRole): boolean {
   if (callerRole === 'owner') return true
   if (callerRole === 'admin') return targetRole === 'staff'
   return false
+}
+
+function canEditTarget(callerRole: StaffRole, currentRole: StaffRole, nextRole = currentRole): boolean {
+  if (callerRole === 'owner') return true
+  return callerRole === 'admin' && currentRole === 'staff' && nextRole === 'staff'
 }
 
 const createStaffSchema = z.object({
@@ -137,7 +142,7 @@ adminAuthRouter.post('/staff', requireAdmin, requireRole('owner', 'admin'), asyn
       return
     }
     // Only owner may create admins or owners; admins may only create staff.
-    if (!assertTargetEditor(caller.role, parsed.data.role)) {
+    if (!canCreateRole(caller.role, parsed.data.role)) {
       res.status(403).json({ success: false, message: 'Insufficient permissions to create this role' })
       return
     }
@@ -188,7 +193,7 @@ adminAuthRouter.patch('/staff/:id', requireAdmin, requireRole('owner', 'admin'),
     }
     const data = parsed.data
     const newRole = data.role ?? target.role
-    if (!assertTargetEditor(caller.role, newRole)) {
+    if (!canEditTarget(caller.role, target.role, newRole)) {
       res.status(403).json({ success: false, message: 'Insufficient permissions for this change' })
       return
     }
@@ -241,7 +246,7 @@ adminAuthRouter.post('/staff/:id/reset-password', requireAdmin, requireRole('own
       res.status(404).json({ success: false, message: 'Staff member not found' })
       return
     }
-    if (!assertTargetEditor(caller.role, target.role)) {
+    if (!canEditTarget(caller.role, target.role)) {
       res.status(403).json({ success: false, message: 'Insufficient permissions' })
       return
     }

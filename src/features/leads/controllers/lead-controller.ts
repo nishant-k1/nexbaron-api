@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { LeadStatus } from '../../../models/lead.model'
 import { getDivisionModels } from '../../../models/registry'
+import { runtimeBrand } from '../../../utils/runtime-brand'
 
 const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'dormant']
 
@@ -12,7 +13,7 @@ const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal
 export async function submitLead(req: Request, res: Response) {
   try {
     const body = req.body ?? {}
-    const division: 'digital' | 'print' = body.division === 'print' ? 'print' : 'digital'
+    const division = runtimeBrand
     const name = (body.name || '').trim()
 
     if (!name || name.length < 2) {

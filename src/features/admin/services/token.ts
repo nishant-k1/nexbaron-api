@@ -1,8 +1,10 @@
 import crypto from 'crypto'
 import type { StaffRole, StaffDivision } from '../models/staff.model'
+import { runtimeBrand } from '../../../utils/runtime-brand'
 
 const ACCESS_TTL = 60 * 15 // 15 minutes
 const REFRESH_TTL_DAYS = 30
+const DEV_SECRET = 'nexbaron-admin-dev-secret'
 
 export interface AdminTokenPayload {
   sub: string
@@ -14,8 +16,20 @@ export interface AdminTokenPayload {
 }
 
 function secret(): string {
-  return process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET || 'nexbaron-admin-dev-secret'
+  const adminSecret = process.env[`ADMIN_JWT_SECRET_${runtimeBrand.toUpperCase()}`] || process.env.ADMIN_JWT_SECRET
+  const customerSecret = process.env[`JWT_SECRET_${runtimeBrand.toUpperCase()}`] || process.env.JWT_SECRET
+  const configured = adminSecret ||
+    customerSecret
+  if (process.env.NODE_ENV === 'production' && (
+    !adminSecret || adminSecret.length < 32 || adminSecret === customerSecret ||
+    adminSecret === DEV_SECRET || adminSecret === 'change-me' || adminSecret === 'change-me-separately'
+  )) {
+    throw new Error('A strong ADMIN_JWT_SECRET is required in production')
+  }
+  return configured || DEV_SECRET
 }
+
+if (process.env.NODE_ENV === 'production') secret()
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input)
@@ -25,8 +39,8 @@ function base64url(input: Buffer | string): string {
     .replace(/\//g, '_')
 }
 
-function sign(data: string): string {
-  return base64url(crypto.createHmac('sha256', secret()).update(data).digest())
+function sign(data: string): Buffer {
+  return crypto.createHmac('sha256', secret()).update(data).digest()
 }
 
 function create(payload: {
@@ -36,6 +50,7 @@ function create(payload: {
   name: string
   ttlSeconds: number
 }): string {
+  if (payload.division !== runtimeBrand) throw new Error('Cannot issue an admin token for another brand')
   const now = Math.floor(Date.now() / 1000)
   const claims: AdminTokenPayload = {
     sub: payload.sub,
@@ -47,7 +62,7 @@ function create(payload: {
   }
   const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
   const body = base64url(JSON.stringify(claims))
-  const signature = sign(`${header}.${body}`)
+  const signature = base64url(sign(`${header}.${body}`))
   return `${header}.${body}.${signature}`
 }
 
@@ -73,12 +88,22 @@ export function verifyToken(token: string): AdminTokenPayload | null {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
-    const [header, body, signature] = parts
-    const expected = sign(`${header}.${body}`)
-    if (signature !== expected) return null
-    const claims = JSON.parse(Buffer.from(body, 'base64url').toString()) as AdminTokenPayload
-    if (claims.exp && claims.exp * 1000 < Date.now()) return null
-    return claims
+    const [encodedHeader, body, signature] = parts
+    const header = JSON.parse(Buffer.from(encodedHeader, 'base64url').toString()) as Record<string, unknown>
+    if (header.alg !== 'HS256' || header.typ !== 'JWT') return null
+    const expected = sign(`${encodedHeader}.${body}`)
+    const supplied = Buffer.from(signature, 'base64url')
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return null
+    const claims = JSON.parse(Buffer.from(body, 'base64url').toString()) as Record<string, unknown>
+    if (typeof claims.sub !== 'string' || !claims.sub.trim()) return null
+    if (typeof claims.iat !== 'number' || !Number.isInteger(claims.iat)) return null
+    if (typeof claims.exp !== 'number' || !Number.isInteger(claims.exp)) return null
+    const now = Math.floor(Date.now() / 1000)
+    if (claims.iat > now + 60 || claims.exp <= now || claims.exp <= claims.iat) return null
+    if (claims.division !== runtimeBrand) return null
+    if (claims.role !== 'owner' && claims.role !== 'admin' && claims.role !== 'staff') return null
+    if (typeof claims.name !== 'string') return null
+    return claims as unknown as AdminTokenPayload
   } catch {
     return null
   }

@@ -5,6 +5,6 @@ import { getDraft, upsertDraft, resetPlan } from '../controllers/draft-controlle
 export const digitalDraftRouter = Router()
 
 digitalDraftRouter.use(requireAuth)
-digitalDraftRouter.get('/:division', getDraft)
-digitalDraftRouter.put('/:division', upsertDraft)
-digitalDraftRouter.post('/:division/reset-plan', resetPlan)
+digitalDraftRouter.get('/', getDraft)
+digitalDraftRouter.put('/', upsertDraft)
+digitalDraftRouter.post('/reset-plan', resetPlan)

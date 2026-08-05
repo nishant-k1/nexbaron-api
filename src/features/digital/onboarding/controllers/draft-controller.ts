@@ -19,7 +19,7 @@ function plansToObject(plans: Map<string, DraftPlanState> | Record<string, Draft
 // Load the draft for the current user + division.
 export async function getDraft(req: Request, res: Response) {
   try {
-    const division = (req.params.division || 'digital') as 'digital' | 'print'
+    const division = req.division!
     const { OnboardingDraft } = getDivisionModels(division)
     const draft = await OnboardingDraft.findOne({ userId: req.userId, division })
     if (!draft) {
@@ -46,7 +46,7 @@ export async function getDraft(req: Request, res: Response) {
 // Create or fully replace the draft for the current user + division.
 export async function upsertDraft(req: Request, res: Response) {
   try {
-    const division = (req.params.division || 'digital') as 'digital' | 'print'
+    const division = req.division!
     const { planId, planSelection, plans, fields, step } = req.body
 
     if (!planId && !fields) {
@@ -89,7 +89,7 @@ export async function upsertDraft(req: Request, res: Response) {
 // Reset the plan selection but keep the entered fields (fresh start on pricing).
 export async function resetPlan(req: Request, res: Response) {
   try {
-    const division = (req.params.division || 'digital') as 'digital' | 'print'
+    const division = req.division!
     const { OnboardingDraft } = getDivisionModels(division)
     const draft = await OnboardingDraft.findOneAndUpdate(
       { userId: req.userId, division },

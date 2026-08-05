@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { verifyToken, TokenPayload } from './jwt'
+import { runtimeBrand } from '../../../utils/runtime-brand'
 
 declare global {
   namespace Express {
@@ -13,7 +14,7 @@ declare global {
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : (req.query.token as string | undefined)
+  const token = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined
 
   if (!token) {
     res.status(401).json({ success: false, message: 'Authentication required' })
@@ -28,6 +29,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   req.userId = payload.sub
   req.auth = payload
-  req.division = payload.division
+  req.division = runtimeBrand
   next()
 }

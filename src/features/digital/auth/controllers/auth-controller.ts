@@ -1,8 +1,24 @@
 import { Request, Response } from 'express'
 import { getDivisionModels } from '../../../../models/registry'
-import { createOtp, verifyOtp } from '../services/otp-service'
+import { createOtp, OtpRequestError, verifyOtp } from '../services/otp-service'
 import { createToken } from '../../../shared/middleware/jwt'
 import { logger } from '../../../../utils/logger'
+import { runtimeBrand } from '../../../../utils/runtime-brand'
+
+const GOOGLE_TIMEOUT_MS = 5000
+
+interface GoogleClaims {
+  sub: string
+  email: string
+  name: string
+  picture?: string
+}
+
+class GoogleTokenError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message)
+  }
+}
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
@@ -13,14 +29,10 @@ function normalizePhone(phone: string): string {
   return digits.startsWith('+') ? digits : `+91${digits}`
 }
 
-function resolveDivision(value: string): 'digital' | 'print' {
-  return value === 'print' ? 'print' : 'digital'
-}
-
 // Send an OTP to email or phone for signup/login.
 export async function requestOtp(req: Request, res: Response) {
   try {
-    const { channel, target, name, purpose = 'signup', division = 'digital' } = req.body
+    const { channel, target, purpose = 'signup' } = req.body ?? {}
 
     if (channel !== 'email' && channel !== 'phone' && channel !== 'sms') {
       res.status(400).json({ success: false, message: 'channel must be email, phone or sms' })
@@ -30,18 +42,25 @@ export async function requestOtp(req: Request, res: Response) {
       res.status(400).json({ success: false, message: 'Missing email or phone number' })
       return
     }
+    if (purpose !== 'signup' && purpose !== 'login') {
+      res.status(400).json({ success: false, message: 'purpose must be signup or login' })
+      return
+    }
 
     const normalized = channel === 'email' ? normalizeEmail(target) : normalizePhone(target)
-    const otp = await createOtp(normalized, channel === 'phone' ? 'sms' : channel, purpose, division)
+    const otp = await createOtp(normalized, channel === 'email' ? 'email' : 'sms', purpose, runtimeBrand)
 
     res.status(200).json({
       success: true,
       message: `Verification code sent to ${channel === 'email' ? 'your email' : 'your phone'}`,
       target: normalized,
-      // Dev convenience: only include code when OTP_DEV_MODE is enabled.
-      ...(process.env.OTP_DEV_MODE !== 'false' ? { devCode: otp.code } : {}),
+      ...(otp.devCode ? { devCode: otp.devCode } : {}),
     })
   } catch (error) {
+    if (error instanceof OtpRequestError) {
+      res.status(error.status).json({ success: false, message: error.message })
+      return
+    }
     logger.error('requestOtp error:', error)
     res.status(500).json({ success: false, message: 'Failed to send verification code' })
   }
@@ -50,22 +69,32 @@ export async function requestOtp(req: Request, res: Response) {
 // Verify the OTP, create/find the user, and return a token.
 export async function verifyCode(req: Request, res: Response) {
   try {
-    const { channel, target, code, name, purpose = 'signup', division = 'digital' } = req.body
+    const { channel, target, code, name, purpose = 'signup' } = req.body ?? {}
 
-    if (!code) {
+    if ((channel !== 'email' && channel !== 'phone' && channel !== 'sms') || !target || !code) {
       res.status(400).json({ success: false, message: 'Missing verification code' })
+      return
+    }
+    if (purpose !== 'signup' && purpose !== 'login') {
+      res.status(400).json({ success: false, message: 'purpose must be signup or login' })
       return
     }
 
     const normalized = channel === 'email' ? normalizeEmail(target) : normalizePhone(target)
-    const result = await verifyOtp(normalized, code, channel === 'phone' ? 'sms' : channel, division)
+    const result = await verifyOtp(
+      normalized,
+      String(code),
+      channel === 'email' ? 'email' : 'sms',
+      purpose,
+      runtimeBrand
+    )
 
     if (!result.ok) {
       res.status(400).json({ success: false, message: result.message })
       return
     }
 
-    const d: 'digital' | 'print' = resolveDivision(division)
+    const d = runtimeBrand
     const { User } = getDivisionModels(d)
 
     const lookup: Record<string, string> = { division: d }
@@ -111,37 +140,40 @@ export async function verifyCode(req: Request, res: Response) {
   }
 }
 
-// Google sign-in. Expects { name, email, googleId, photo, division }.
+// Google sign-in. Identity is derived only from Google's verified ID token claims.
 export async function googleSignIn(req: Request, res: Response) {
   try {
-    const { name, email, googleId, photo, division = 'digital' } = req.body
-
-    if (!googleId || !email) {
-      res.status(400).json({ success: false, message: 'Missing Google credentials' })
+    const credential = typeof req.body === 'string' ? req.body : req.body?.credential
+    if (typeof credential !== 'string' || !credential.trim()) {
+      res.status(400).json({ success: false, message: 'Missing Google ID token credential' })
       return
     }
+    const claims = await verifyGoogleCredential(credential.trim())
 
-    const d: 'digital' | 'print' = resolveDivision(division)
+    const d = runtimeBrand
     const { User } = getDivisionModels(d)
 
     let user: InstanceType<ReturnType<typeof getDivisionModels>['User']> | null = await User.findOne({
-      email: normalizeEmail(email),
+      $or: [{ googleId: claims.sub }, { email: claims.email }],
       division: d,
     })
 
     if (!user) {
       const created = await User.create({
-        name: name?.trim() || email.split('@')[0],
-        email: normalizeEmail(email),
+        name: claims.name,
+        email: claims.email,
         division: d,
         authProviders: ['google'],
-        googleId,
-        photo,
+        googleId: claims.sub,
+        photo: claims.picture,
       })
       user = Array.isArray(created) ? created[0] : created
-    } else if (!user.authProviders.includes('google')) {
-      user.authProviders.push('google')
-      user.set('photo', photo)
+    } else {
+      if (!user.authProviders.includes('google')) user.authProviders.push('google')
+      user.googleId = claims.sub
+      user.email = claims.email
+      user.name = claims.name
+      user.photo = claims.picture
       await user.save()
     }
 
@@ -165,15 +197,59 @@ export async function googleSignIn(req: Request, res: Response) {
       },
     })
   } catch (error) {
+    if (error instanceof GoogleTokenError) {
+      res.status(error.status).json({ success: false, message: error.message })
+      return
+    }
     logger.error('googleSignIn error:', error)
     res.status(500).json({ success: false, message: 'Failed to sign in with Google' })
+  }
+}
+
+async function verifyGoogleCredential(credential: string): Promise<GoogleClaims> {
+  const clientId = process.env[`GOOGLE_CLIENT_ID_${runtimeBrand.toUpperCase()}`] || process.env.GOOGLE_CLIENT_ID
+  if (!clientId) throw new GoogleTokenError('Google sign-in is not configured', 503)
+
+  let response: globalThis.Response
+  try {
+    response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`, {
+      signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS),
+    })
+  } catch {
+    throw new GoogleTokenError('Google token verification is unavailable', 502)
+  }
+  if (!response.ok) throw new GoogleTokenError('Invalid Google ID token', 401)
+
+  const claims = await response.json() as Record<string, unknown>
+  if (claims.iss !== 'accounts.google.com' && claims.iss !== 'https://accounts.google.com') {
+    throw new GoogleTokenError('Invalid Google token issuer', 401)
+  }
+  if (claims.aud !== clientId) throw new GoogleTokenError('Google token audience mismatch', 401)
+  if (claims.email_verified !== 'true' && claims.email_verified !== true) {
+    throw new GoogleTokenError('Google email is not verified', 401)
+  }
+  if (typeof claims.exp !== 'string' || Number(claims.exp) <= Math.floor(Date.now() / 1000)) {
+    throw new GoogleTokenError('Google ID token has expired', 401)
+  }
+  if (typeof claims.sub !== 'string' || !claims.sub || typeof claims.email !== 'string' || !claims.email) {
+    throw new GoogleTokenError('Google token is missing required identity claims', 401)
+  }
+
+  const email = normalizeEmail(claims.email)
+  const claimedName = typeof claims.name === 'string' ? claims.name.trim() : ''
+  const fallbackName = email.split('@')[0]
+  return {
+    sub: claims.sub,
+    email,
+    name: claimedName.length >= 2 ? claimedName : fallbackName.length >= 2 ? fallbackName : 'Google User',
+    picture: typeof claims.picture === 'string' ? claims.picture : undefined,
   }
 }
 
 // Return the current user from a valid token.
 export async function me(req: Request, res: Response) {
   try {
-    const { User } = getDivisionModels(resolveDivision(req.division || 'digital'))
+    const { User } = getDivisionModels(runtimeBrand)
     const user = await User.findById(req.userId)
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' })
