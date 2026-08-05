@@ -27,17 +27,17 @@ Production requires explicit, non-placeholder customer and admin JWT secrets. JW
 
 Both brands expose:
 
-- `/api/<brand>/auth`
-- `/api/<brand>/contact`
-- `/api/<brand>/quotes`
-- `/api/<brand>/admin/auth`
-- `/api/<brand>/admin/leads`
-- `/api/<brand>/admin/orders`
-- `/api/<brand>/admin/quotes`
+- `/<brand>/auth`
+- `/<brand>/contact`
+- `/<brand>/quotes`
+- `/<brand>/admin/auth`
+- `/<brand>/admin/leads`
+- `/<brand>/admin/orders`
+- `/<brand>/admin/quotes`
 
-Digital additionally exposes `/catalog`, `/drafts`, `/payments`, and the Razorpay webhook under `/api/digital`. Print additionally exposes `/catalog` and `/status` under `/api/print`.
+Digital additionally exposes `/catalog`, `/drafts`, `/payments`, and the Razorpay webhook under `/digital`. Print additionally exposes `/catalog` and `/status` under `/print`.
 
-Admin cookies include the brand in their names and use path `/api/<brand>/admin`, allowing simultaneous Digital and Print sessions in one browser.
+Admin cookies include the brand in their names, allowing simultaneous Digital and Print sessions in one browser.
 
 ## Configuration
 

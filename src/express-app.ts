@@ -46,6 +46,7 @@ app.use(compression())
 // Razorpay webhook — must capture the raw body for signature verification,
 // so mount its raw parser BEFORE the global JSON body parser.
 if (runtimeBrand === 'digital') {
+  app.use('/digital', paymentWebhookRouter)
   app.use('/api/digital', paymentWebhookRouter)
 }
 
@@ -61,24 +62,27 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-const brandBase = `/api/${runtimeBrand}`
+function mountBrandRoutes(brandBase: string): void {
+  app.use(`${brandBase}/auth`, digitalAuthRouter)
+  app.use(brandBase, brandContactRouter)
+  app.use(brandBase, customerQuoteRouter)
 
-app.use(`${brandBase}/auth`, digitalAuthRouter)
-app.use(brandBase, brandContactRouter)
-app.use(brandBase, customerQuoteRouter)
+  if (runtimeBrand === 'digital') {
+    app.use(`${brandBase}/drafts`, digitalDraftRouter)
+    app.use(`${brandBase}/catalog`, catalogRouter)
+    app.use(`${brandBase}/payments`, paymentRouter)
+  } else {
+    app.use(brandBase, printRouter)
+  }
 
-if (runtimeBrand === 'digital') {
-  app.use(`${brandBase}/drafts`, digitalDraftRouter)
-  app.use(`${brandBase}/catalog`, catalogRouter)
-  app.use(`${brandBase}/payments`, paymentRouter)
-} else {
-  app.use(brandBase, printRouter)
+  app.use(`${brandBase}/admin/auth`, adminAuthRouter)
+  app.use(`${brandBase}/admin`, adminLeadRouter)
+  app.use(`${brandBase}/admin`, adminOrderRouter)
+  app.use(`${brandBase}/admin/quotes`, adminQuoteRouter)
 }
 
-app.use(`${brandBase}/admin/auth`, adminAuthRouter)
-app.use(`${brandBase}/admin`, adminLeadRouter)
-app.use(`${brandBase}/admin`, adminOrderRouter)
-app.use(`${brandBase}/admin/quotes`, adminQuoteRouter)
+mountBrandRoutes(`/${runtimeBrand}`)
+mountBrandRoutes(`/api/${runtimeBrand}`)
 
 // Error handling
 app.use(notFoundHandler)

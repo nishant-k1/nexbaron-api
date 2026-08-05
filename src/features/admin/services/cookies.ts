@@ -6,7 +6,7 @@ const IS_PROD = process.env.NODE_ENV === 'production'
 
 const ACCESS_COOKIE = `admin_access_${runtimeBrand}`
 const REFRESH_COOKIE = `admin_refresh_${runtimeBrand}`
-const COOKIE_PATH = `/api/${runtimeBrand}/admin`
+const COOKIE_PATH = '/'
 
 export interface AuthCookies {
   access: string
