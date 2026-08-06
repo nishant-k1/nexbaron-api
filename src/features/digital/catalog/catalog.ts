@@ -21,6 +21,7 @@ export interface CatalogPlan {
   monthlyName: string
   tagline: string
   timeline: string
+  icon: string // Lucide icon name — mapped to component on the client
   featured?: boolean
   inherited?: { label: string; oneTime: number; monthly: number }
   services: CatalogService[]
@@ -50,6 +51,7 @@ export const digitalCatalog: DigitalCatalog = {
       monthly: 1499,
       monthlyName: 'Care',
       tagline: 'Get your business online, professionally.',
+      icon: 'Rocket',
       timeline: 'Website live in ~7 days · visibility builds after',
       services: [
         {
@@ -141,6 +143,7 @@ export const digitalCatalog: DigitalCatalog = {
       monthly: 3999,
       monthlyName: 'Growth Care',
       tagline: 'Generate more calls, WhatsApp enquiries, and Google leads every month.',
+      icon: 'TrendingUp',
       timeline: 'Website live in ~9 days · rankings over 4\u20138 weeks',
       featured: true,
       inherited: { label: 'Everything in Launch', oneTime: 24999, monthly: 1499 },
@@ -224,6 +227,7 @@ export const digitalCatalog: DigitalCatalog = {
       monthly: 7999,
       monthlyName: 'Business Partner',
       tagline: 'Your outsourced digital growth team.',
+      icon: 'MapPin',
       timeline: '30-day foundation: audit \u2192 strategy \u2192 growth plan',
       timelineMode: 'phased',
       foundationDays: 30,
