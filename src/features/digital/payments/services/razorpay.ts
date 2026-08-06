@@ -3,12 +3,11 @@ import { Model } from 'mongoose'
 
 import { logger } from '../../../../utils/logger'
 import { IOrder } from '../../../../orders/models/order.model'
-import { runtimeBrand } from '../../../../utils/runtime-brand'
+import { canSendMail, sendMail } from '../../../../utils/mailer'
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || ''
-const RESEND_API_KEY = process.env[`RESEND_API_KEY_${runtimeBrand.toUpperCase()}`] || ''
 const INVOICE_FROM = process.env.INVOICE_FROM_EMAIL || 'billing@nexbaron.com'
 const BILLING_GSTIN = process.env.BILLING_GSTIN || 'BILLING_GSTIN_PLACEHOLDER'
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
@@ -159,8 +158,8 @@ function invoiceHtml(order: IOrder, invoiceNumber: string): string {
 }
 
 export async function emailInvoice(order: IOrder, invoiceNumber: string): Promise<boolean> {
-  if (!RESEND_API_KEY) {
-    logger.warn('RESEND_API_KEY not set — skipping invoice email')
+  if (!canSendMail()) {
+    logger.warn('SMTP not configured — skipping invoice email')
     return false
   }
   const to = order.customer.email
@@ -169,25 +168,17 @@ export async function emailInvoice(order: IOrder, invoiceNumber: string): Promis
     return false
   }
   const html = invoiceHtml(order, invoiceNumber)
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
+  try {
+    await sendMail({
       from: INVOICE_FROM,
       to,
       subject: `Your Nexbaron Digital invoice ${invoiceNumber}`,
       html,
-    }),
-  })
-  if (!response.ok) {
-    const body = await response.text()
-    logger.error('Resend invoice failed', { status: response.status, body })
+    })
+    return true
+  } catch {
     return false
   }
-  return true
 }
 
 export { RAZORPAY_KEY_ID }

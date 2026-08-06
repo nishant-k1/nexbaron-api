@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { getDivisionModels } from '../../models/registry'
 import { runtimeBrand } from '../../utils/runtime-brand'
+import { canSendMail, sendMail } from '../../utils/mailer'
 
 export const OTP_TTL_MS = Number(process.env.OTP_TTL_MS) || 10 * 60 * 1000
 export const MAX_ATTEMPTS = 5
@@ -115,32 +116,21 @@ async function deliverOtp(
     throw new OtpRequestError('Phone verification is not configured for this deployment', 503)
   }
 
-  const apiKey = process.env[`RESEND_API_KEY_${runtimeBrand.toUpperCase()}`]
-  const from = process.env[`OTP_FROM_EMAIL_${runtimeBrand.toUpperCase()}`]
-  if (!apiKey || !from) {
-    throw new OtpRequestError('Email verification is not configured for this deployment', 503)
+
+  if (!canSendMail()) {
+    throw new OtpRequestError('Email delivery is not configured', 503)
   }
 
-  let response: globalThis.Response
+  const from = process.env[`OTP_FROM_EMAIL_${runtimeBrand.toUpperCase()}`] || `verify@nexbaron.com`
+
   try {
-    response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        from,
-        to: target,
-        subject: `Your Nexbaron ${purpose} verification code`,
-        html: `<p>Your verification code is <strong>${code}</strong>.</p><p>It expires in ${Math.ceil(OTP_TTL_MS / 60000)} minutes.</p>`,
-      }),
-      signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
+    await sendMail({
+      from,
+      to: target as string,
+      subject: `Your Nexbaron ${purpose} verification code`,
+      html: `<p>Your verification code is <strong>${code}</strong>.</p><p>It expires in ${Math.ceil(OTP_TTL_MS / 60000)} minutes.</p>`,
     })
   } catch {
-    throw new OtpRequestError('Could not send the verification email', 502)
-  }
-  if (!response.ok) {
     throw new OtpRequestError('Could not send the verification email', 502)
   }
 }

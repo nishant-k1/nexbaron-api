@@ -5,9 +5,9 @@ import { digitalCatalog } from '../../features/digital/catalog/catalog'
 import { productLabel } from '../../features/print/catalog'
 import { logger } from '../../utils/logger'
 import { IQuote } from '../../models/quote.model'
-import { runtimeBrand } from '../../utils/runtime-brand'
+import { canSendMail, sendMail } from '../../utils/mailer'
 
-const RESEND_API_KEY = process.env[`RESEND_API_KEY_${runtimeBrand.toUpperCase()}`] || ''
+
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 // WhatsApp delivery is config-gated: no provider is wired up yet, so when
 // enabled we only surface a wa.me link (the staff member still hits send).
@@ -180,8 +180,8 @@ export function renderQuotePdf(quote: IQuote): Promise<Buffer> {
 }
 
 export async function sendQuoteEmail(quote: IQuote): Promise<boolean> {
-  if (!RESEND_API_KEY) {
-    logger.warn('RESEND_API_KEY not set — skipping quote email')
+  if (!canSendMail()) {
+    logger.warn('SMTP not configured — skipping quote email')
     return false
   }
   const to = quote.customer.email
@@ -191,29 +191,16 @@ export async function sendQuoteEmail(quote: IQuote): Promise<boolean> {
   }
   const brand = brandInfo(quote)
   const pdf = await renderQuotePdf(quote)
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
+  try {
+    await sendMail({
       from: brand.fromEmail,
       to,
       subject: `Your ${brand.name} quote ${quote.quoteNumber}`,
       html: quoteHtml(quote),
-      attachments: [
-        {
-          filename: `${quote.quoteNumber}.pdf`,
-          content: pdf.toString('base64'),
-        },
-      ],
-    }),
-  })
-  if (!response.ok) {
-    const body = await response.text()
-    logger.error('Resend quote failed', { status: response.status, body })
+      attachments: [{ filename: `${quote.quoteNumber}.pdf`, content: pdf }],
+    })
+    return true
+  } catch {
     return false
   }
-  return true
 }
