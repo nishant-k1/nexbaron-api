@@ -105,6 +105,86 @@ export async function verifyOtp(
   return { ok: true, message: 'Verified', otp }
 }
 
+const brandColors: Record<string, { accent: string; accentSoft: string; label: string }> = {
+  digital: { accent: '#2dd4bf', accentSoft: '#134e4a', label: 'Nexbaron Digital' },
+  print: { accent: '#f59e0b', accentSoft: '#451a03', label: 'Nexbaron Print' },
+}
+
+function otpEmailHtml(code: string, purpose: string, expiresMinutes: number, brand: string): string {
+  const c = brandColors[brand] ?? brandColors.digital
+  const action = purpose === 'signup' ? 'Sign Up' : 'Log In'
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#020617;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#020617;padding:48px 16px">
+<tr><td align="center">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px">
+
+    <!-- Logo -->
+    <tr><td align="center" style="padding-bottom:32px">
+      <table cellpadding="0" cellspacing="0"><tr>
+        <td style="background:#0f172a;border-radius:12px;padding:12px 20px">
+          <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.3px">Nexbaron</span>
+          <span style="font-size:11px;font-weight:600;color:${c.accent};font-family:monospace;margin-left:6px;text-transform:uppercase;letter-spacing:0.5px">${brand.toUpperCase()}</span>
+        </td>
+      </tr></table>
+    </td></tr>
+
+    <!-- Card -->
+    <tr><td style="background:#0f172a;border-radius:20px;border:1px solid #1e293b;padding:40px 32px">
+      <table width="100%" cellpadding="0" cellspacing="0">
+
+        <tr><td align="center" style="padding-bottom:24px">
+          <span style="display:inline-block;background:${c.accentSoft};color:${c.accent};font-size:11px;font-weight:600;padding:4px 12px;border-radius:100px;letter-spacing:0.5px;text-transform:uppercase">${action} Code</span>
+        </td></tr>
+
+        <tr><td align="center" style="padding-bottom:8px">
+          <h1 style="margin:0;font-size:22px;font-weight:700;color:#f1f5f9;letter-spacing:-0.3px">Your verification code</h1>
+        </td></tr>
+
+        <tr><td align="center" style="padding-bottom:32px">
+          <p style="margin:0;font-size:14px;color:#94a3b8;line-height:1.6">Enter this code to ${purpose} to your ${c.label} account.</p>
+        </td></tr>
+
+        <tr><td align="center" style="padding-bottom:32px">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="background:#020617;border:1px solid ${c.accent}33;border-radius:16px;padding:20px 40px">
+              <span style="font-size:36px;font-weight:800;color:${c.accent};letter-spacing:6px;font-family:'SF Mono',monospace">${code}</span>
+            </td>
+          </tr></table>
+        </td></tr>
+
+        <tr><td style="padding-bottom:24px">
+          <hr style="border:0;border-top:1px solid #1e293b;margin:0">
+        </td></tr>
+
+        <tr><td align="center" style="padding-bottom:8px">
+          <p style="margin:0;font-size:12px;color:#64748b">This code expires in <strong style="color:#94a3b8">${expiresMinutes} minutes</strong></p>
+        </td></tr>
+
+        <tr><td align="center">
+          <p style="margin:0;font-size:11px;color:#475569">If you didn't request this, you can safely ignore this email.</p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+
+    <!-- Footer -->
+    <tr><td align="center" style="padding-top:24px">
+      <p style="margin:0;font-size:11px;color:#334155">Nexbaron Private Limited</p>
+    </td></tr>
+
+  </table>
+
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
 async function deliverOtp(
   target: string,
   channel: 'email' | 'sms',
@@ -121,14 +201,16 @@ async function deliverOtp(
     throw new OtpRequestError('Email delivery is not configured', 503)
   }
 
-  const from = process.env[`OTP_FROM_EMAIL_${runtimeBrand.toUpperCase()}`] || `verify@nexbaron.com`
+  const brand = runtimeBrand
+  const from = process.env[`OTP_FROM_EMAIL_${brand.toUpperCase()}`] || `verify@nexbaron.com`
+  const expiresMinutes = Math.ceil(OTP_TTL_MS / 60000)
 
   try {
     await sendMail({
       from,
       to: target as string,
-      subject: `Your Nexbaron ${purpose} verification code`,
-      html: `<p>Your verification code is <strong>${code}</strong>.</p><p>It expires in ${Math.ceil(OTP_TTL_MS / 60000)} minutes.</p>`,
+      subject: `${purpose === 'signup' ? 'Sign Up' : 'Log In'} — Nexbaron ${brand.charAt(0).toUpperCase() + brand.slice(1)}`,
+      html: otpEmailHtml(code, purpose, expiresMinutes, brand),
     })
   } catch {
     throw new OtpRequestError('Could not send the verification email', 502)
