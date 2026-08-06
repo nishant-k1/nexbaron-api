@@ -105,7 +105,11 @@ export async function verifyCode(req: Request, res: Response) {
 
     if (!user) {
       if (purpose === 'login') {
-        res.status(400).json({ success: false, message: 'No account found with this ' + (channel === 'email' ? 'email' : 'phone number') })
+        res.status(400).json({
+          success: false,
+          message: 'No account found with this ' + (channel === 'email' ? 'email' : 'phone number') +
+            '. To create an account, choose a plan and submit your details on our website.',
+        })
         return
       }
       user = await User.create({

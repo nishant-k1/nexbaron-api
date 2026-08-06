@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "write-out-cwd",
-      "write-in-cwd"
+      "write-in-cwd",
+      "mutate-git-log"
     ],
     "deny": [],
     "ask": [],
