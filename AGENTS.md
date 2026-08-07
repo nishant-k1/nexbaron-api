@@ -74,3 +74,13 @@ scripts/                seed-admin, division DB migration
 ### Git
 
 Branch `main`; commits are feature-sized imperative messages ("Add X").
+
+### Brand Logo
+
+The official Nexbaron logo is an NX monogram. Source SVG at `nexbaron-web/public/icon.svg`.
+
+**Rules for any server-generated HTML/PDF:**
+- Always use the NX monogram, never a plain letter or text-based logo.
+- Digital division: teal gradient (`#14b8a6` → `#06b6d4`).
+- Print division: amber gradient (`#f59e0b` → `#f97316`).
+- See `src/quotes/services/quote-service.ts` for the canonical implementation.
