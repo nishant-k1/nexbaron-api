@@ -14,6 +14,7 @@ import {
 } from './leads/routes/lead-routes'
 import { adminOrderRouter } from './orders/routes/order-routes'
 import { customerQuoteRouter, adminQuoteRouter } from './quotes/routes/quote-routes'
+import { customerChatRouter, adminChatRouter } from './chat/routes/chat-routes'
 import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
@@ -65,6 +66,7 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(`${brandBase}/auth`, customerAuthRouter)
   app.use(brandBase, brandContactRouter)
   app.use(brandBase, customerQuoteRouter)
+  app.use(brandBase, customerChatRouter)
 
   if (runtimeBrand === 'digital') {
     app.use(`${brandBase}/drafts`, digitalDraftRouter)
@@ -76,6 +78,7 @@ function mountBrandRoutes(brandBase: string): void {
 
   app.use(`${brandBase}/admin/auth`, adminAuthRouter)
   app.use(`${brandBase}/admin`, adminLeadRouter)
+  app.use(`${brandBase}/admin`, adminChatRouter)
   app.use(`${brandBase}/admin`, adminOrderRouter)
   app.use(`${brandBase}/admin/quotes`, adminQuoteRouter)
 }

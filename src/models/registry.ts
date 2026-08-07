@@ -8,6 +8,7 @@ import { createOtpModel } from './otp.model'
 import { createOnboardingDraftModel } from './onboarding-draft.model'
 import { createInvoiceCounterModel } from './invoice-counter.model'
 import { createQuoteModel } from './quote.model'
+import { createChatMessageModel } from './chat-message.model'
 import { runtimeBrand } from '../utils/runtime-brand'
 
 export interface DivisionModels {
@@ -20,6 +21,7 @@ export interface DivisionModels {
   OnboardingDraft: ReturnType<typeof createOnboardingDraftModel>
   InvoiceCounter: ReturnType<typeof createInvoiceCounterModel>
   Quote: ReturnType<typeof createQuoteModel>
+  ChatMessage: ReturnType<typeof createChatMessageModel>
 }
 
 const _registry: Partial<Record<'digital' | 'print', DivisionModels>> = {}
@@ -41,6 +43,7 @@ export function registerDivisionModels(
     OnboardingDraft: createOnboardingDraftModel(conn),
     InvoiceCounter: createInvoiceCounterModel(conn),
     Quote: createQuoteModel(conn),
+    ChatMessage: createChatMessageModel(conn),
   }
   _registry[division] = models
   return models
