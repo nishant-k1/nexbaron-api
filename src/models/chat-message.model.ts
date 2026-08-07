@@ -6,6 +6,8 @@ export interface IChatMessage extends Document {
   sessionId?: string // anonymous session identifier
   sender: 'customer' | 'agent'
   message: string
+  name?: string // customer name
+  phone?: string // for linking anonymous chats to accounts
   isRead: boolean
   createdAt: Date
 }
@@ -17,6 +19,8 @@ const chatMessageSchema = new Schema(
     sessionId: { type: String, default: null },
     sender: { type: String, required: true, enum: ['customer', 'agent'] },
     message: { type: String, required: true },
+    name: { type: String, default: null },
+    phone: { type: String, default: null },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true }

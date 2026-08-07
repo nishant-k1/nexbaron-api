@@ -17,6 +17,8 @@ export async function customerSendMessage(req: Request, res: Response) {
       sessionId: req.body.sessionId || undefined,
       sender: 'customer',
       message: req.body.message,
+      name: req.body.name || undefined,
+      phone: req.body.phone || undefined,
     })
 
     res.status(201).json({ success: true, message: { id: message._id, createdAt: message.createdAt } })
@@ -73,12 +75,22 @@ export async function customerMergeChat(req: Request, res: Response) {
       return
     }
 
-    const result = await ChatMessage.updateMany(
+    // Merge by sessionId
+    const sessionResult = await ChatMessage.updateMany(
       { division, sessionId: req.body.sessionId, customerId: null },
       { $set: { customerId: req.userId } }
     )
 
-    res.json({ success: true, merged: result.modifiedCount })
+    // Merge by phone (cross-device recovery)
+    let phoneResult = { modifiedCount: 0 }
+    if (req.body.phone) {
+      phoneResult = await ChatMessage.updateMany(
+        { division, phone: req.body.phone, customerId: null },
+        { $set: { customerId: req.userId } }
+      )
+    }
+
+    res.json({ success: true, merged: sessionResult.modifiedCount + phoneResult.modifiedCount })
   } catch {
     res.status(500).json({ success: false, message: 'Merge failed' })
   }
