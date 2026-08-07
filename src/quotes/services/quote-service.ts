@@ -92,7 +92,24 @@ function brandInfo(quote: IQuote) {
 }
 
 function logoNx(brand: BrandConfig): string {
-  return `<div style="width:44px;height:44px;background:${brand.logoGradient};border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:-1px">N</div>`
+  // NX monogram — matches the actual brand logo used on nexbaron.com
+  const stop1 = brand === BRANDS.digital ? '#14b8a6' : '#f59e0b'
+  const stop2 = brand === BRANDS.digital ? '#06b6d4' : '#f97316'
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="44" height="44">
+    <defs>
+      <linearGradient id="lg_${brand.accent.slice(1)}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="${stop1}"/>
+        <stop offset="1" stop-color="${stop2}"/>
+      </linearGradient>
+    </defs>
+    <rect width="32" height="32" rx="8" fill="#0f172a"/>
+    <rect x="1.5" y="1.5" width="29" height="29" rx="7" fill="none" stroke="url(#lg_${brand.accent.slice(1)})" stroke-width="2"/>
+    <g fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 7.5 V24.5"/>
+      <path d="M23 7.5 V24.5"/>
+      <path d="M9 7.5 L23 24.5"/>
+    </g>
+  </svg>`
 }
 
 export function quoteHtml(quote: IQuote): string {
@@ -215,9 +232,16 @@ export function renderQuotePdf(quote: IQuote): Promise<Buffer> {
     doc.rect(56, 56, pageWidth, 80).fill('#0f172a')
     doc.rect(56, 56, pageWidth, 4).fill(brand.accent)
 
-    // Logo circle
-    doc.circle(84, 96, 18).fill(brand.accent)
-    doc.font('Helvetica-Bold').fontSize(18).fillColor('#ffffff').text('N', 84 - 5, 96 - 6, { width: 36, align: 'center' })
+    // Logo — NX monogram
+    // Rounded rect background
+    doc.roundedRect(70, 78, 44, 44, 10).fill('#0f172a')
+    // Gradient border (approximated with accent stroke)
+    doc.roundedRect(70, 78, 44, 44, 10).lineWidth(2).stroke(brand.accent)
+    // NX paths
+    doc.lineWidth(2.4).lineCap('round')
+      .moveTo(92, 89).lineTo(92, 111).stroke('#94a3b8')
+      .moveTo(92, 89).lineTo(107, 111).stroke('#94a3b8')
+      .moveTo(107, 89).lineTo(107, 111).stroke('#94a3b8')
 
     // Brand name
     doc.fontSize(18).fillColor('#ffffff').text(brand.name, 114, 78)
