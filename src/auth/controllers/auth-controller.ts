@@ -275,3 +275,84 @@ export async function me(req: Request, res: Response) {
     res.status(500).json({ success: false, message: 'Failed to load user' })
   }
 }
+
+/**
+ * Create user account without OTP — used when a visitor signs up
+ * via the pricing page with name + email + phone.
+ */
+export async function signup(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const { User } = getDivisionModels(division)
+    const { name, email, phone } = req.body
+
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+
+    const normalizedEmail = normalizeEmail(email)
+    const normalizedPhone = phone ? normalizePhone(phone) : undefined
+
+    // Check if user already exists
+    const existing = await User.findOne({ email: normalizedEmail, division })
+    if (existing) {
+      res.status(409).json({ success: true, message: 'Account already exists', userId: existing._id })
+      return
+    }
+
+    const user = await User.create({
+      division,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
+    })
+
+    res.status(201).json({ success: true, userId: user._id })
+  } catch (error) {
+    logger.error('signup error:', error)
+    res.status(500).json({ success: false, message: 'Failed to create account' })
+  }
+}
+
+/**
+ * Issue a JWT token for a given email — used for auto-login after signup.
+ */
+export async function issueToken(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const { User } = getDivisionModels(division)
+    const { email } = req.body
+
+    if (!email?.trim()) {
+      res.status(400).json({ success: false, message: 'Email is required' })
+      return
+    }
+
+    const user = await User.findOne({ email: normalizeEmail(email), division })
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Account not found' })
+      return
+    }
+
+    const token = createToken({
+      sub: user._id.toString(),
+      division: user.division,
+    })
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || null,
+        division: user.division,
+      },
+    })
+  } catch (error) {
+    logger.error('issueToken error:', error)
+    res.status(500).json({ success: false, message: 'Failed to generate token' })
+  }
+}
