@@ -8,6 +8,7 @@ export interface IChatMessage extends Document {
   message: string
   name?: string // customer name
   phone?: string // for linking anonymous chats to accounts
+  email?: string
   isRead: boolean
   createdAt: Date
 }
@@ -21,6 +22,7 @@ const chatMessageSchema = new Schema(
     message: { type: String, required: true },
     name: { type: String, default: null },
     phone: { type: String, default: null },
+    email: { type: String, default: null },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true }
