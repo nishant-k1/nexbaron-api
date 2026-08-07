@@ -7,10 +7,7 @@ import { logger } from '../../utils/logger'
 import { IQuote } from '../../models/quote.model'
 import { canSendMail, sendMail } from '../../utils/mailer'
 
-
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
-// WhatsApp delivery is config-gated: no provider is wired up yet, so when
-// enabled we only surface a wa.me link (the staff member still hits send).
 const WHATSAPP_ENABLED = process.env.QUOTE_WHATSAPP_ENABLED === 'true'
 
 function escapeHtml(value: unknown): string {
@@ -26,7 +23,9 @@ interface BrandConfig {
   name: string
   fromEmail: string
   accent: string
+  accentLight: string
   tagline: string
+  logoGradient: string
 }
 
 const BRANDS: Record<'digital' | 'print', BrandConfig> = {
@@ -34,13 +33,17 @@ const BRANDS: Record<'digital' | 'print', BrandConfig> = {
     name: 'Nexbaron Digital',
     fromEmail: process.env.QUOTE_FROM_EMAIL_DIGITAL || 'billing@nexbaron.com',
     accent: '#14b8a6',
+    accentLight: '#ccfbf1',
     tagline: 'Your website & growth partner',
+    logoGradient: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
   },
   print: {
     name: 'Nexbaron Print',
     fromEmail: process.env.QUOTE_FROM_EMAIL_PRINT || 'billing@nexbaron.com',
     accent: '#f59e0b',
+    accentLight: '#fef3c7',
     tagline: 'Commercial printing, done right',
+    logoGradient: 'linear-gradient(135deg, #f59e0b, #f97316)',
   },
 }
 
@@ -88,92 +91,187 @@ function brandInfo(quote: IQuote) {
   return BRANDS[quote.division]
 }
 
+function logoNx(brand: BrandConfig): string {
+  return `<div style="width:44px;height:44px;background:${brand.logoGradient};border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:-1px">N</div>`
+}
+
 export function quoteHtml(quote: IQuote): string {
   const brand = brandInfo(quote)
   const resp = quote.response
   const wa = whatsAppDelivery(quote)
   const summary = escapeHtml(selectionSummary(quote)).replace(/\n/g, '<br>')
   const validity = resp?.validityDays ?? 7
+  const price = (resp?.price ?? 0).toLocaleString('en-IN')
+  const monthly = resp?.monthlyPrice ? resp.monthlyPrice.toLocaleString('en-IN') : null
 
-  return `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#0f172a">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid ${brand.accent};padding-bottom:16px">
-      <div>
-        <div style="font-size:22px;font-weight:700">${brand.name}</div>
-        <div style="font-size:12px;color:#475569">${brand.tagline}</div>
-      </div>
-      <div style="text-align:right;font-size:12px;color:#475569">
-        <div><strong>Quote:</strong> ${escapeHtml(quote.quoteNumber)}</div>
-        <div>Valid for ${validity} days</div>
-      </div>
-    </div>
-    <h2 style="font-size:18px;margin:20px 0 4px">Your Quote Request</h2>
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:13px;margin:16px 0">
-      <strong>Hi ${escapeHtml(quote.customer.name)},</strong><br>
-      ${escapeHtml(resp?.message || 'Here is your personalised quote. We are happy to answer any questions.')}
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <tr style="background:#f1f5f9">
-        <th style="text-align:left;padding:8px">Requested</th>
-        <td style="padding:8px">${summary}</td>
-      </tr>
-       ${quote.customer.company ? `<tr><th style="text-align:left;padding:8px">Company</th><td style="padding:8px">${escapeHtml(quote.customer.company)}</td></tr>` : ''}
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.06)">
+
+      <!-- Header -->
       <tr>
-        <th style="text-align:left;padding:8px;background:#f1f5f9">Quoted Price</th>
-        <td style="padding:8px"><strong>₹${(resp?.price ?? 0).toLocaleString('en-IN')}</strong>${resp?.monthlyPrice ? ` + ₹${resp.monthlyPrice.toLocaleString('en-IN')}/mo` : ''}</td>
+        <td style="padding:32px 40px 24px;background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%)">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle">
+                ${logoNx(brand)}
+              </td>
+              <td style="vertical-align:middle;padding-left:14px">
+                <div style="font-size:20px;font-weight:700;color:#fff;line-height:1.2">${brand.name}</div>
+                <div style="font-size:11px;color:#94a3b8">${brand.tagline}</div>
+              </td>
+              <td style="text-align:right;vertical-align:middle">
+                <div style="font-size:11px;color:#94a3b8;line-height:1.6">
+                  <div><strong style="color:#e2e8f0">Quote</strong> ${escapeHtml(quote.quoteNumber)}</div>
+                  <div>Valid ${validity} days</div>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
       </tr>
+
+      <!-- Greeting -->
+      <tr>
+        <td style="padding:28px 40px 16px">
+          <div style="font-size:18px;font-weight:600;color:#0f172a;margin-bottom:8px">Your Quote is Ready</div>
+          <div style="font-size:14px;color:#475569;line-height:1.7">
+            Hi ${escapeHtml(quote.customer.name)},<br>
+            ${escapeHtml(resp?.message || 'Thank you for your interest. Here is your personalised quote.')}
+          </div>
+        </td>
+      </tr>
+
+      <!-- Summary Card -->
+      <tr>
+        <td style="padding:8px 40px 28px">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+            <tr>
+              <td style="padding:14px 18px;background:#f8fafc;font-size:12px;font-weight:600;color:#64748b;width:120px">Requested</td>
+              <td style="padding:14px 18px;font-size:13px;color:#0f172a">${summary}</td>
+            </tr>
+            ${quote.customer.company ? `<tr><td style="padding:14px 18px;border-top:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#64748b">Company</td><td style="padding:14px 18px;border-top:1px solid #f1f5f9;font-size:13px;color:#0f172a">${escapeHtml(quote.customer.company)}</td></tr>` : ''}
+            <tr>
+              <td style="padding:14px 18px;border-top:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#64748b">Your Price</td>
+              <td style="padding:14px 18px;border-top:1px solid #f1f5f9">
+                <span style="font-size:22px;font-weight:700;color:${brand.accent}">₹${price}</span>
+                ${monthly ? `<span style="font-size:13px;color:#64748b"> + ₹${monthly}/month</span>` : ''}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- CTA -->
+      <tr>
+        <td style="padding:0 40px 32px">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="font-size:13px;color:#475569;line-height:1.7">
+                <strong>Ready to proceed?</strong> Reply to this email or reach us on WhatsApp — we'll confirm everything and get started.
+                ${wa.link ? `<br><br><a href="${escapeHtml(wa.link)}" style="display:inline-block;background:${brand.accent};color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Chat on WhatsApp →</a>` : ''}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="padding:20px 40px;background:#f8fafc;border-top:1px solid #e2e8f0">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="font-size:11px;color:#94a3b8">${brand.name}</td>
+              <td style="text-align:right;font-size:11px;color:#94a3b8">nexbaron.com</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
     </table>
-    <p style="font-size:12px;color:#475569;margin-top:20px">
-      Ready to go ahead? Just reply to this email or ping us on WhatsApp —
-       ${wa.link ? `<a href="${escapeHtml(wa.link)}" style="color:${brand.accent}">send a WhatsApp message</a>` : 'we will share a link to confirm.'}
-    </p>
-    <p style="font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:12px;margin-top:24px">
-       ${brand.name} · ${escapeHtml(FRONTEND_URL)}
-    </p>
-  </div>`
+  </td></tr>
+</table>
+</body>
+</html>`
 }
 
 export function renderQuotePdf(quote: IQuote): Promise<Buffer> {
   const brand = brandInfo(quote)
   const resp = quote.response
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 48, size: 'A4' })
+    const doc = new PDFDocument({ margin: 56, size: 'A4', bufferPages: true })
     const chunks: Buffer[] = []
     doc.on('data', (c: Buffer) => chunks.push(c))
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    doc.fillColor(brand.accent).rect(48, 48, 495, 3).fill()
-    doc.fontSize(20).fillColor('#0f172a').text(brand.name, 48, 70)
-    doc.fontSize(9).fillColor('#475569').text(brand.tagline)
-    doc.text(`Quote: ${quote.quoteNumber}`, { align: 'right' })
+    const pageWidth = 595 - 112 // A4 minus margins
+
+    // Header bar
+    doc.rect(56, 56, pageWidth, 80).fill('#0f172a')
+    doc.rect(56, 56, pageWidth, 4).fill(brand.accent)
+
+    // Logo circle
+    doc.circle(84, 96, 18).fill(brand.accent)
+    doc.font('Helvetica-Bold').fontSize(18).fillColor('#ffffff').text('N', 84 - 5, 96 - 6, { width: 36, align: 'center' })
+
+    // Brand name
+    doc.fontSize(18).fillColor('#ffffff').text(brand.name, 114, 78)
+    doc.fontSize(8).fillColor('#94a3b8').text(brand.tagline, 114, 100)
+
+    // Quote number
+    doc.fontSize(9).fillColor('#e2e8f0').text(`Quote: ${quote.quoteNumber}`, 114, 118, { align: 'right' })
+    doc.fontSize(7).fillColor('#94a3b8').text(`Valid ${resp?.validityDays ?? 7} days`, 114, 130, { align: 'right' })
+
+    doc.moveDown(4)
+
+    // Greeting
+    doc.fontSize(16).fillColor('#0f172a').text('Your Quote is Ready')
+    doc.moveDown(0.3)
+    doc.fontSize(10).fillColor('#475569').text(`Hi ${quote.customer.name},`)
+    doc.text(resp?.message || 'Here is your personalised quote.', { width: pageWidth })
+
     doc.moveDown(1.5)
 
-    doc.fontSize(14).text('Your Quote Request')
-    doc.moveDown(0.5)
-    doc.fontSize(10).text(`Hi ${quote.customer.name},`)
-    doc.text(resp?.message || 'Here is your personalised quote.')
-    doc.moveDown(1)
+    // Details table
+    const y0 = doc.y
+    const col1 = 70
+    const rowH = 30
 
-    doc.fillColor('#f1f5f9').rect(48, doc.y, 495, 24).fill()
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(10)
-    doc.text('Requested', 52, doc.y + 8)
-    doc.moveDown(1)
-    doc.font('Helvetica').text(selectionSummary(quote))
+    // Row 1: Requested
+    doc.rect(56, y0, pageWidth, rowH).fill('#f8fafc')
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#64748b').text('Requested', col1, y0 + 9)
+    doc.font('Helvetica').fontSize(10).fillColor('#0f172a').text(selectionSummary(quote), 160, y0 + 8)
+
+    // Row 2: Company (if present)
+    let y = y0 + rowH
     if (quote.customer.company) {
-      doc.text(`Company: ${quote.customer.company}`)
+      doc.rect(56, y, pageWidth, rowH).fill('#ffffff')
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#64748b').text('Company', col1, y + 9)
+      doc.font('Helvetica').fontSize(10).fillColor('#0f172a').text(quote.customer.company, 160, y + 8)
+      y += rowH
     }
-    doc.moveDown(1)
-    doc.fillColor('#f1f5f9').rect(48, doc.y, 495, 24).fill()
-    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(10)
-    doc.text('Quoted Price', 52, doc.y + 8)
-    doc.moveDown(1)
-    doc.font('Helvetica').text(
-      `₹${(resp?.price ?? 0).toLocaleString('en-IN')}${resp?.monthlyPrice ? ` + ₹${resp.monthlyPrice.toLocaleString('en-IN')}/mo` : ''}`
-    )
-    doc.moveDown(1)
-    doc.fontSize(9).fillColor('#64748b').text(
-      `Valid for ${resp?.validityDays ?? 7} days · ${brand.name}`
-    )
+
+    // Row 3: Price
+    doc.rect(56, y, pageWidth, rowH).fill('#f8fafc')
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#64748b').text('Your Price', col1, y + 8)
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(brand.accent)
+      .text(`₹${(resp?.price ?? 0).toLocaleString('en-IN')}`, 160, y + 5)
+    if (resp?.monthlyPrice) {
+      doc.font('Helvetica').fontSize(9).fillColor('#64748b')
+        .text(`+ ₹${resp.monthlyPrice.toLocaleString('en-IN')}/month`, 160 + doc.widthOfString(`₹${(resp?.price ?? 0).toLocaleString('en-IN')}`) + 8, y + 10)
+    }
+
+    // Footer
+    doc.moveDown(4)
+    doc.moveTo(56, doc.y).lineTo(56 + pageWidth, doc.y).strokeColor('#e2e8f0').stroke()
+    doc.moveDown(0.5)
+    doc.fontSize(8).fillColor('#94a3b8').text(brand.name, 56, doc.y, { width: pageWidth / 2, align: 'left' })
+    doc.text('nexbaron.com', 56, doc.y - 10, { width: pageWidth, align: 'right' })
 
     doc.end()
   })

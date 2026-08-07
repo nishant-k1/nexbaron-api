@@ -7,7 +7,7 @@ import { logger } from '../../utils/logger'
 import { computePrintEstimate } from '../../features/print/catalog'
 import { PRINT_FINISHES, PRINT_PRODUCTS, PRINT_STOCK_TIERS } from '../../features/print/catalog'
 import { digitalCatalog } from '../../features/digital/catalog/catalog'
-import { nextQuoteNumber, sendQuoteEmail, whatsAppDelivery } from '../services/quote-service'
+import { nextQuoteNumber, sendQuoteEmail, whatsAppDelivery, quoteHtml } from '../services/quote-service'
 import { runtimeBrand } from '../../utils/runtime-brand'
 
 const VALID_STATUSES: QuoteStatus[] = ['new', 'quoted', 'accepted', 'lost', 'closed']
@@ -348,6 +348,26 @@ export async function updateQuote(req: Request, res: Response) {
     res.status(500).json({ success: false, message: 'Failed to update quote' })
   }
 }
+
+  // Admin-only: preview the quote email HTML before sending.
+  export async function previewQuote(req: Request, res: Response) {
+    try {
+      if (!req.staffAuth) {
+        res.status(401).json({ success: false, message: 'Authentication required' })
+        return
+      }
+      const { Quote } = getDivisionModels(req.staffAuth.division)
+      const quote = await Quote.findById(req.params.id)
+      if (!quote) {
+        res.status(404).json({ success: false, message: 'Quote not found' })
+        return
+      }
+      const html = quoteHtml(quote)
+      res.json({ success: true, html })
+    } catch {
+      res.status(500).json({ success: false, message: 'Failed to generate preview' })
+    }
+  }
 
 // Admin-only: compose + deliver the final quote (email compulsory, WhatsApp
 // when configured). Requires a price so a quote is never sent empty.

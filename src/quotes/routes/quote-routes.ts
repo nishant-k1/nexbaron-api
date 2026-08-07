@@ -5,6 +5,7 @@ import {
   getQuote,
   listQuotes,
   myQuotes,
+  previewQuote,
   sendQuote,
   submitQuote,
   updateQuote,
@@ -20,5 +21,6 @@ customerQuoteRouter.get('/quotes/mine', requireAuth, myQuotes)
 export const adminQuoteRouter = Router()
 adminQuoteRouter.get('/', requireAdmin, requireDivision('digital', 'print'), listQuotes)
 adminQuoteRouter.get('/:id', requireAdmin, requireDivision('digital', 'print'), getQuote)
+adminQuoteRouter.get('/:id/preview', requireAdmin, requireDivision('digital', 'print'), previewQuote)
 adminQuoteRouter.patch('/:id', requireAdmin, requireDivision('digital', 'print'), updateQuote)
 adminQuoteRouter.post('/:id/send', requireAdmin, requireDivision('digital', 'print'), requireRole('owner', 'admin'), sendQuote)
