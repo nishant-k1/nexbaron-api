@@ -115,16 +115,16 @@ export async function adminListChats(req: Request, res: Response) {
     const division = runtimeBrand
     const { ChatMessage } = getDivisionModels(division)
 
-    // Aggregate to group conversations — sort customer messages first so name/phone/email are populated
+    // Aggregate to group conversations
     const conversations = await ChatMessage.aggregate([
       { $match: { division } },
-      { $sort: { sender: -1, createdAt: -1 } },
+      { $sort: { createdAt: -1 } },
       {
         $group: {
           _id: { $ifNull: ['$customerId', '$sessionId'] },
-          customerName: { $first: '$name' },
-          customerPhone: { $first: '$phone' },
-          customerEmail: { $first: '$email' },
+          names: { $push: '$name' },
+          phones: { $push: '$phone' },
+          emails: { $push: '$email' },
           customerId: { $first: '$customerId' },
           lastMessage: { $first: '$message' },
           lastSender: { $first: '$sender' },
@@ -139,7 +139,16 @@ export async function adminListChats(req: Request, res: Response) {
       { $limit: 100 },
     ])
 
-    res.json({ success: true, conversations })
+    // Post-process: extract first non-null name/phone/email from each conversation
+    const result = conversations.map((c: any) => ({
+      ...c,
+      customerName: c.names?.find((n: any) => n) || null,
+      customerPhone: c.phones?.find((p: any) => p) || null,
+      customerEmail: c.emails?.find((e: any) => e) || null,
+      names: undefined, phones: undefined, emails: undefined,
+    }))
+
+    res.json({ success: true, conversations: result })
   } catch {
     res.status(500).json({ success: false, message: 'Failed to load chats' })
   }
