@@ -5,6 +5,8 @@ import {
   customerSendMessage,
   customerGetChat,
   customerMergeChat,
+  customerMarkRead,
+  customerPresence,
   adminListChats,
   adminGetConversation,
   adminReplyToChat,
@@ -17,6 +19,8 @@ import { rateLimit } from '../../utils/rate-limit'
 export const customerChatRouter = Router()
 customerChatRouter.post('/chat', optionalAuth, rateLimit({ windowMs: 10 * 60 * 1000, max: 60 }), customerSendMessage)
 customerChatRouter.get('/chat', optionalAuth, customerGetChat)
+customerChatRouter.post('/chat/read', optionalAuth, customerMarkRead)
+customerChatRouter.post('/chat/presence', optionalAuth, rateLimit({ windowMs: 60 * 1000, max: 60 }), customerPresence)
 customerChatRouter.post('/chat/merge', requireAuth, customerMergeChat)
 
 // Admin routes

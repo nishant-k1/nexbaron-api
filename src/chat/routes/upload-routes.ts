@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../../middleware/require-auth'
 import { optionalAuth } from '../../middleware/optional-auth'
+import { requireAdmin, requireDivision } from '../../admin/middleware/require-admin'
 import { runtimeBrand } from '../../utils/runtime-brand'
 import { rateLimit } from '../../utils/rate-limit'
 import { createUploadTarget, isAllowedAttachmentName, readConfig } from '../services/r2-service'
@@ -14,16 +15,7 @@ interface UploadRequestFile {
   size?: number
 }
 
-/**
- * POST /{division}/upload — mint presigned R2 PUT URLs for direct browser
- * uploads, plus the permanent public URL for each file.
- *
- * Authentication is required — storage is billed to our account, so only
- * signed-in customers may upload. Keys are server-generated (brand/uuid.ext)
- * and the extension is validated, so a caller can never overwrite other
- * assets or upload arbitrary file types.
- */
-router.post('/upload', requireAuth, rateLimit({ windowMs: 60 * 60 * 1000, max: 120 }), (req: Request, res: Response) => {
+function handleUpload(req: Request, res: Response): void {
   try {
     const files: UploadRequestFile[] = Array.isArray(req.body?.files) ? req.body.files : null
 
@@ -51,7 +43,24 @@ router.post('/upload', requireAuth, rateLimit({ windowMs: 60 * 60 * 1000, max: 1
   } catch {
     res.status(500).json({ success: false, message: 'Failed to create upload URLs' })
   }
-})
+}
+
+/**
+ * POST /{division}/upload — mint presigned R2 PUT URLs for direct browser
+ * uploads, plus the permanent public URL for each file.
+ *
+ * Authentication is required — storage is billed to our account, so only
+ * signed-in customers may upload. Keys are server-generated (brand/uuid.ext)
+ * and the extension is validated, so a caller can never overwrite other
+ * assets or upload arbitrary file types.
+ */
+router.post('/upload', requireAuth, rateLimit({ windowMs: 60 * 60 * 1000, max: 120 }), handleUpload)
+
+/**
+ * POST /{division}/admin/upload — admin (staff) uploads an attachment to send
+ * in a chat reply. Same presigned-PUT flow, scoped to staff cookie auth.
+ */
+router.post('/admin/upload', requireAdmin, requireDivision('digital', 'print'), rateLimit({ windowMs: 60 * 60 * 1000, max: 120 }), handleUpload)
 
 /**
  * GET /{division}/chat/download?url=...&name=... — proxy an attachment and

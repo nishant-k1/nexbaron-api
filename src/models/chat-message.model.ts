@@ -18,6 +18,7 @@ export interface IChatMessage extends Document {
   phone?: string // for linking anonymous chats to accounts
   email?: string
   isRead: boolean
+  lastSeen?: Date
   createdAt: Date
 }
 
@@ -38,6 +39,7 @@ const chatMessageSchema = new Schema(
     phone: { type: String, default: null },
     email: { type: String, default: null },
     isRead: { type: Boolean, default: false },
+    lastSeen: { type: Date, default: null },
   },
   { timestamps: true }
 )
