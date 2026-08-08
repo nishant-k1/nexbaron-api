@@ -344,8 +344,8 @@ async function finalizeOrder(order: IOrder, payment: { method: 'razorpay'; payme
   // Mark first two milestones as done (order created + payment received)
   if (order.milestones && order.milestones.length > 0) {
     const ms = order.milestones
-    if (ms[0]) ms[0].status = 'completed'
-    if (ms[1]) ms[1].status = 'completed'
+    if (ms[0]) ms[0].status = 'done'
+    if (ms[1]) ms[1].status = 'done'
     order.markModified('milestones')
   }
   await order.save()
