@@ -199,6 +199,7 @@ export async function adminReplyToChat(req: Request, res: Response) {
       sessionId: original.sessionId,
       sender: 'agent',
       message: req.body.message,
+      isRead: true,
     })
 
     res.status(201).json({ success: true, message: reply })
