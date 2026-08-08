@@ -27,7 +27,7 @@ const chatMessageSchema = new Schema(
     customerId: { type: String, default: null },
     sessionId: { type: String, default: null },
     sender: { type: String, required: true, enum: ['customer', 'agent'] },
-    message: { type: String, required: true },
+    message: { type: String, default: '' },
     attachments: [{
       url: String,
       type: { type: String, enum: ['image', 'video', 'document'] },
