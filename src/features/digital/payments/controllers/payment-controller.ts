@@ -163,6 +163,7 @@ export async function myOrder(req: Request, res: Response) {
         launchDate: order.launchDate ?? null,
         launchDays: order.launchDays ?? null,
         milestones: order.milestones ?? [],
+        items: (order.items || []).map((i: any) => ({ label: i.label || i.name || i.id, status: i.status || 'pending', type: i.type || 'oneTime' })),
         createdAt: order.createdAt,
       })),
     })
