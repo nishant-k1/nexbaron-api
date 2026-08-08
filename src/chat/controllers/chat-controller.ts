@@ -115,10 +115,10 @@ export async function adminListChats(req: Request, res: Response) {
     const division = runtimeBrand
     const { ChatMessage } = getDivisionModels(division)
 
-    // Aggregate to group conversations
+    // Aggregate to group conversations — sort customer messages first so name/phone/email are populated
     const conversations = await ChatMessage.aggregate([
       { $match: { division } },
-      { $sort: { createdAt: -1 } },
+      { $sort: { sender: -1, createdAt: -1 } },
       {
         $group: {
           _id: { $ifNull: ['$customerId', '$sessionId'] },
