@@ -1,12 +1,13 @@
 import express, { Router } from 'express'
 import { requireAuth } from '../../../../middleware/require-auth'
-import { createCheckout, myOrder, razorpayWebhook, verifyPayment } from '../controllers/payment-controller'
+import { createCheckout, myOrder, razorpayWebhook, verifyPayment, downloadReceipt } from '../controllers/payment-controller'
 
 export const paymentRouter = Router()
 
 // Customer checkout (authenticated, bearer token).
 paymentRouter.post('/create-order', requireAuth, createCheckout)
 paymentRouter.get('/orders/mine', requireAuth, myOrder)
+paymentRouter.get('/orders/:orderId/receipt', requireAuth, downloadReceipt)
 paymentRouter.post('/verify', requireAuth, verifyPayment)
 
 // Server-side webhook uses the raw body for signature verification.

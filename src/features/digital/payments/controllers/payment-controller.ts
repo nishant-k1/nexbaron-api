@@ -172,6 +172,69 @@ export async function myOrder(req: Request, res: Response) {
   }
 }
 
+// Download invoice receipt for a specific order
+export async function downloadReceipt(req: Request, res: Response) {
+  try {
+    if (!req.userId || !Types.ObjectId.isValid(req.userId)) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Order } = getDivisionModels(req.division!)
+    const order = await Order.findOne({
+      _id: new Types.ObjectId(req.params.orderId),
+      userId: new Types.ObjectId(req.userId),
+      division: req.division,
+    }).lean()
+
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' })
+      return
+    }
+
+    const date = new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    const amount = (order.amount || 0).toLocaleString('en-IN')
+    const invoice = order.invoiceNumber || order._id.toString().slice(-8).toUpperCase()
+    const brand = req.division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+    const accent = req.division === 'digital' ? '#14b8a6' : '#f59e0b'
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${invoice}</title>
+<style>body{font-family:Arial,sans-serif;max-width:600px;margin:40px auto;color:#0f172a;padding:0 16px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${accent};padding-bottom:16px;margin-bottom:24px}
+.header h1{font-size:20px;margin:0}.header p{font-size:12px;color:#64748b;margin:2px 0}
+.meta{display:flex;justify-content:space-between;font-size:13px;margin-bottom:24px}
+.meta strong{color:#64748b}
+.table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px}
+.table th{text-align:left;padding:10px 8px;background:#f8fafc;border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;text-transform:uppercase}
+.table td{padding:10px 8px;border-bottom:1px solid #f1f5f9}
+.total{text-align:right;font-size:18px;font-weight:bold}
+.footer{font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;margin-top:24px}
+</style></head><body>
+<div class="header">
+  <div><h1>${brand}</h1><p>Payment Receipt</p></div>
+  <div style="text-align:right"><p><strong>Receipt #</strong> ${invoice}</p><p>${date}</p></div>
+</div>
+<div class="meta">
+  <div><strong>Customer</strong><br>${order.customer?.name || '—'}<br>${order.customer?.email || ''}<br>${order.customer?.phone || ''}</div>
+  <div style="text-align:right"><strong>Status</strong><br><span style="color:${accent}">${order.status}</span></div>
+</div>
+<table class="table">
+  <tr><th>Description</th><th style="text-align:right">Amount</th></tr>
+  <tr><td>${order.service || 'Website Plan'}</td><td style="text-align:right">₹${amount}</td></tr>
+  ${(order.payments || []).map((p: any) => `<tr><td style="color:#64748b;font-size:11px">Payment · ${p.method || 'upi'} · ${new Date(p.receivedAt).toLocaleDateString('en-IN')}</td><td style="text-align:right;color:#64748b">-₹${(p.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('')}
+  <tr><td colspan="2" style="border-top:2px solid #e2e8f0"><div class="total">Balance: ₹${((order.amount || 0) - (order.amountPaid || 0)).toLocaleString('en-IN')}</div></td></tr>
+</table>
+<div class="footer">${brand} · nexbaron.com · This is a computer-generated receipt.</div>
+</body></html>`
+
+    res.setHeader('Content-Type', 'text/html')
+    res.setHeader('Content-Disposition', `inline; filename="receipt-${invoice}.html"`)
+    res.send(html)
+  } catch (error) {
+    logger.error('downloadReceipt failed', error)
+    res.status(500).json({ success: false, message: 'Failed to generate receipt' })
+  }
+}
+
 // Client-driven: verify Razorpay signature after the Checkout modal succeeds.
 export async function verifyPayment(req: Request, res: Response) {
   try {
