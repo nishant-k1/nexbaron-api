@@ -11,10 +11,11 @@ import {
 } from '../controllers/chat-controller'
 
 import { optionalAuth } from '../../middleware/optional-auth'
+import { rateLimit } from '../../utils/rate-limit'
 
 // Customer routes (public + auth)
 export const customerChatRouter = Router()
-customerChatRouter.post('/chat', optionalAuth, customerSendMessage)
+customerChatRouter.post('/chat', optionalAuth, rateLimit({ windowMs: 10 * 60 * 1000, max: 60 }), customerSendMessage)
 customerChatRouter.get('/chat', optionalAuth, customerGetChat)
 customerChatRouter.post('/chat/merge', requireAuth, customerMergeChat)
 

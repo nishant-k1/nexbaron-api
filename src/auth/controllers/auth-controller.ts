@@ -298,7 +298,7 @@ export async function signup(req: Request, res: Response) {
     // Check if user already exists
     const existing = await User.findOne({ email: normalizedEmail, division })
     if (existing) {
-      res.status(409).json({ success: true, message: 'Account already exists', userId: existing._id })
+      res.status(409).json({ success: false, message: 'Account already exists', userId: existing._id })
       return
     }
 
@@ -309,40 +309,14 @@ export async function signup(req: Request, res: Response) {
       phone: normalizedPhone,
     })
 
-    res.status(201).json({ success: true, userId: user._id })
-  } catch (error) {
-    logger.error('signup error:', error)
-    res.status(500).json({ success: false, message: 'Failed to create account' })
-  }
-}
+    // The account was just created in this request — return its session token
+    // so the signup flow can log the visitor straight into the hub. No token
+    // is ever minted for pre-existing accounts (login requires OTP).
+    const token = createToken({ sub: user._id.toString(), division: user.division })
 
-/**
- * Issue a JWT token for a given email — used for auto-login after signup.
- */
-export async function issueToken(req: Request, res: Response) {
-  try {
-    const division = runtimeBrand
-    const { User } = getDivisionModels(division)
-    const { email } = req.body
-
-    if (!email?.trim()) {
-      res.status(400).json({ success: false, message: 'Email is required' })
-      return
-    }
-
-    const user = await User.findOne({ email: normalizeEmail(email), division })
-    if (!user) {
-      res.status(404).json({ success: false, message: 'Account not found' })
-      return
-    }
-
-    const token = createToken({
-      sub: user._id.toString(),
-      division: user.division,
-    })
-
-    res.json({
+    res.status(201).json({
       success: true,
+      userId: user._id,
       token,
       user: {
         id: user._id,
@@ -353,8 +327,8 @@ export async function issueToken(req: Request, res: Response) {
       },
     })
   } catch (error) {
-    logger.error('issueToken error:', error)
-    res.status(500).json({ success: false, message: 'Failed to generate token' })
+    logger.error('signup error:', error)
+    res.status(500).json({ success: false, message: 'Failed to create account' })
   }
 }
 
@@ -376,9 +350,9 @@ export async function updateProfile(req: Request, res: Response) {
       res.status(409).json({ success: false, message: 'Email already in use' })
       return
     }
-    await User.updateOne({ _id: req.userId, division: req.division }, {
-      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
-    })
+    const update: Record<string, unknown> = { name: name.trim(), email: normalizedEmail }
+    if (phone?.trim()) update.phone = phone.trim()
+    await User.updateOne({ _id: req.userId, division: req.division }, { $set: update })
     res.json({ success: true, message: 'Profile updated' })
   } catch (error) {
     logger.error('updateProfile error:', error)

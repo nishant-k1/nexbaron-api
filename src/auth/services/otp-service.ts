@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { getDivisionModels } from '../../models/registry'
 import { runtimeBrand } from '../../utils/runtime-brand'
 import { canSendMail, sendMail } from '../../utils/mailer'
+import { logoNx, NX_DIGITAL, NX_PRINT } from '../../utils/html'
 
 export const OTP_TTL_MS = Number(process.env.OTP_TTL_MS) || 10 * 60 * 1000
 export const MAX_ATTEMPTS = 5
@@ -126,9 +127,8 @@ function otpEmailHtml(code: string, purpose: string, expiresMinutes: number, bra
     <!-- Logo -->
     <tr><td align="center" style="padding-bottom:32px">
       <table cellpadding="0" cellspacing="0"><tr>
-        <td style="background:#0f172a;border-radius:12px;padding:12px 20px">
-          <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.3px">Nexbaron</span>
-          <span style="font-size:11px;font-weight:600;color:${c.accent};font-family:monospace;margin-left:6px;text-transform:uppercase;letter-spacing:0.5px">${brand.toUpperCase()}</span>
+        <td style="background:#0f172a;border-radius:12px;padding:12px 16px">
+          ${logoNx(brand === 'digital' ? NX_DIGITAL : NX_PRINT, 32, 32)}
         </td>
       </tr></table>
     </td></tr>

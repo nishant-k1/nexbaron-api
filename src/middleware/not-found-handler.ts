@@ -6,7 +6,7 @@ export function notFoundHandler(
   next: NextFunction
 ) {
   res.status(404).json({
-    error: 'Not found',
+    success: false,
     message: `Route ${req.method} ${req.path} not found`,
   })
 }

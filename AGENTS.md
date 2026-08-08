@@ -49,6 +49,7 @@ scripts/                seed-admin, division DB migration
 ### Integrations (all via global `fetch`, no SDKs)
 
 - **Razorpay** (`digital/payments/services/razorpay.ts`): order creation, HMAC signature checks, webhook. Development fallback returns fake `order_dev_*` ids; production requires valid credentials and webhook secret.
+- **Cloudflare R2** (`chat/services/r2-service.ts`): chat attachments. Per-division Cloudflare accounts/buckets (env `R2_*_DIGITAL`/`R2_*_PRINT`). Server mints **hand-rolled SigV4 presigned PUT URLs** (no SDK) via `POST /<brand>/upload`; the browser PUTs bytes straight to R2, then stores the permanent public URL in the chat message. Downloads go through `GET /<brand>/chat/download` (validates the URL is under our bucket → no open proxy; forces `Content-Disposition: attachment`).
 - **Resend** for invoice/quote emails (skipped with warning if `RESEND_API_KEY` unset). **PDFKit** for quote PDFs. WhatsApp = `wa.me` links only (no provider).
 - **OTP delivery** (`otp-service.ts`) hashes OTPs, applies TTL/throttling, and returns `devCode` only outside production when explicitly enabled.
 
@@ -65,9 +66,14 @@ scripts/                seed-admin, division DB migration
 
 `PORT`, `FRONTEND_URL`, `CORS_ORIGINS`, `DATABASE_URL`(+`_DIGITAL`/`_PRINT`), `JWT_SECRET`, `JWT_EXPIRES_IN_SECONDS`, `OTP_DEV_MODE`, `OTP_TTL_MS`, `RAZORPAY_KEY_ID`/`_KEY_SECRET`/`_WEBHOOK_SECRET`, `RESEND_API_KEY`, `INVOICE_FROM_EMAIL`, `BILLING_GSTIN`. Undocumented: `ADMIN_JWT_SECRET`, `LOG_LEVEL`, `SEED_ADMIN_PASSWORD`, `QUOTE_WHATSAPP_ENABLED`, `QUOTE_FROM_EMAIL_DIGITAL`/`_PRINT`.
 
+Chat attachments use Cloudflare R2: `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_ACCESS_KEY_SECRET`/`R2_BUCKET`/`R2_PUBLIC_URL` each suffixed `_DIGITAL` and `_PRINT` (separate Cloudflare account per division). `R2_PUBLIC_URL` is the bucket's public base URL (r2.dev or custom domain), no trailing slash.
+
+> **R2 division isolation:** Print currently shares the Digital Cloudflare account/bucket token (dedicated print account pending). Critical: the `_PRINT` vars must point at the **`nexbaron-print` bucket** and its **own `pub-…` r2.dev URL** — they once mirrored digital by mistake. When migrating print to its dedicated account, swap only `R2_ACCOUNT_ID_PRINT`, `R2_ACCESS_KEY_ID_PRINT`/`R2_ACCESS_KEY_SECRET_PRINT`, and `R2_PUBLIC_URL_PRINT` (no bucket rename needed), then update each bucket's CORS origins if the new account should differentiate hub/crm.
+
 ### Gotchas
 
 - Production checklist: `OTP_DEV_MODE=false`, real Razorpay keys and webhook secret, `RESEND_API_KEY`, real `BILLING_GSTIN`, and strong `JWT_SECRET`/`ADMIN_JWT_SECRET` values.
+- R2 browser uploads need a **CORS policy on each bucket**: allow the hub origin, methods `PUT`, headers `Content-Type`, expose `ETag`. Without it, browser PUTs to the presigned URL fail even though the URL is valid.
 - `POST /<brand>/auth/google` verifies the raw Google credential server-side; it does not trust client-supplied identity fields.
 - Customer auth, drafts, payments, quotes, leads, and admin routes are available only under the runtime's canonical `/<brand>/*` path.
 

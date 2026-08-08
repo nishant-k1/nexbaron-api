@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
 import { LeadStatus } from '../../models/lead.model'
 import { getDivisionModels } from '../../models/registry'
+import { logger } from '../../utils/logger'
+import { escapeRegex } from '../../utils/regex'
 import { runtimeBrand } from '../../utils/runtime-brand'
 
 const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'dormant']
@@ -51,6 +53,7 @@ export async function submitLead(req: Request, res: Response) {
 
     res.status(201).json({ success: true, leadId: lead._id })
   } catch (error) {
+    logger.error('submitLead failed', error)
     res.status(500).json({ success: false, message: 'Failed to save lead' })
   }
 }
@@ -78,24 +81,64 @@ export async function listLeads(req: Request, res: Response) {
     if (assigned === 'mine') filter.assignedStaff = req.staffAuth.name
     if (assigned === 'unassigned') filter.assignedStaff = null
     if (search) {
-      const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      const rx = new RegExp(escapeRegex(search), 'i')
       filter.$or = [{ name: rx }, { email: rx }, { phone: rx }, { company: rx }]
     }
 
     const leads = await Lead.find(filter).sort({ createdAt: -1 }).limit(500).lean()
     res.json({ success: true, leads })
-  } catch {
+  } catch (error) {
+    logger.error('listLeads failed', error)
     res.status(500).json({ success: false, message: 'Failed to load leads' })
   }
 }
 
+
+/** Admin-only: create a lead manually (CRM "New Lead" form). */
+export async function createLead(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
+    const body = req.body ?? {}
+    const name = (body.name || '').trim()
+    if (!name || name.length < 2) {
+      res.status(400).json({ success: false, message: 'Please provide a valid name' })
+      return
+    }
+    const { Lead } = getDivisionModels(division)
+    const lead = await Lead.create({
+      division,
+      source: (body.source || 'manual').toString().trim().slice(0, 40),
+      name,
+      email: body.email?.trim() || undefined,
+      phone: body.phone?.trim() || undefined,
+      company: body.company?.trim() || undefined,
+      city: body.city?.trim() || undefined,
+      subject: body.subject?.trim() || undefined,
+      message: body.message?.trim() || undefined,
+      plan: body.plan?.trim() || undefined,
+      clientRef: deriveClientRef({ email: body.email, phone: body.phone }),
+    })
+    res.status(201).json({ success: true, lead })
+  } catch (error) {
+    logger.error('createLead failed', error)
+    res.status(500).json({ success: false, message: 'Failed to create lead' })
+  }
+}
 
 /**
  * Admin-only — update lead status.
  */
 export async function updateLeadStatus(req: Request, res: Response) {
   try {
-    const division = runtimeBrand
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
     const { Lead } = getDivisionModels(division)
     const { status } = req.body
     if (!status || !VALID_STATUSES.includes(status)) {
@@ -113,6 +156,7 @@ export async function updateLeadStatus(req: Request, res: Response) {
     }
     res.json({ success: true, lead: { _id: lead._id, status: lead.status } })
   } catch (error) {
+    logger.error('updateLeadStatus failed', error)
     res.status(500).json({ success: false, message: 'Failed to update lead' })
   }
 }

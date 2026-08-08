@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import type { StaffRole, StaffDivision } from '../models/staff.model'
 import { runtimeBrand } from '../../utils/runtime-brand'
+import { base64urlEncode, hmacSha256 } from '../../utils/token-util'
 
 const ACCESS_TTL = 60 * 15 // 15 minutes
 const REFRESH_TTL_DAYS = 30
@@ -31,16 +32,8 @@ function secret(): string {
 
 if (process.env.NODE_ENV === 'production') secret()
 
-function base64url(input: Buffer | string): string {
-  return Buffer.from(input)
-    .toString('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-}
-
 function sign(data: string): Buffer {
-  return crypto.createHmac('sha256', secret()).update(data).digest()
+  return hmacSha256(data, secret())
 }
 
 function create(payload: {
@@ -60,9 +53,9 @@ function create(payload: {
     exp: now + payload.ttlSeconds,
     iat: now,
   }
-  const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
-  const body = base64url(JSON.stringify(claims))
-  const signature = base64url(sign(`${header}.${body}`))
+  const header = base64urlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const body = base64urlEncode(JSON.stringify(claims))
+  const signature = base64urlEncode(sign(`${header}.${body}`))
   return `${header}.${body}.${signature}`
 }
 

@@ -4,6 +4,8 @@ import { Model } from 'mongoose'
 import { logger } from '../../../../utils/logger'
 import { IOrder } from '../../../../orders/models/order.model'
 import { canSendMail, sendMail } from '../../../../utils/mailer'
+import { escapeHtml, logoNx, NX_DIGITAL } from '../../../../utils/html'
+import { nextSequence } from '../../../../utils/counter'
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
@@ -77,12 +79,8 @@ export function verifyWebhookSignature(rawBody: string, signature: string): bool
 
 export async function nextInvoiceNumber(InvoiceCounter: Model<any>) {
   const year = new Date().getFullYear()
-  const counter = await InvoiceCounter.findOneAndUpdate(
-    { key: `invoice-${year}` },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  )
-  return `NXB${year}${String(counter.seq).padStart(5, '0')}`
+  const seq = await nextSequence(InvoiceCounter, `invoice-${year}`)
+  return `NXB${year}${String(seq).padStart(5, '0')}`
 }
 
 function invoiceHtml(order: IOrder, invoiceNumber: string): string {
@@ -101,7 +99,7 @@ function invoiceHtml(order: IOrder, invoiceNumber: string): string {
   const rows = items
     .map(
       (it) => `<tr>
-        <td>${it.label}</td>
+        <td>${escapeHtml(it.label)}</td>
         <td class="c">${it.quantity}</td>
         <td class="r">${it.price.toLocaleString('en-IN')}</td>
         <td class="r">${(it.price * it.quantity).toLocaleString('en-IN')}</td>
@@ -110,25 +108,28 @@ function invoiceHtml(order: IOrder, invoiceNumber: string): string {
     .join('')
 
   return `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#0f172a">
-    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #14b8a6;padding-bottom:16px">
-      <div>
-        <div style="font-size:22px;font-weight:700">Nexbaron Pvt Ltd</div>
-        <div style="font-size:12px;color:#475569">Digital Division</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #14b8a6;padding-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        ${logoNx(NX_DIGITAL)}
+        <div>
+          <div style="font-size:22px;font-weight:700">Nexbaron</div>
+          <div style="font-size:12px;color:#475569">Digital Division</div>
+        </div>
       </div>
       <div style="text-align:right;font-size:12px;color:#475569">
-        <div><strong>GSTIN:</strong> ${BILLING_GSTIN}</div>
+        <div><strong>GSTIN:</strong> ${escapeHtml(BILLING_GSTIN)}</div>
         <div>Registered address on file</div>
       </div>
     </div>
     <h2 style="font-size:18px;margin:20px 0 4px">GST Invoice</h2>
     <div style="font-size:12px;color:#475569;margin-bottom:20px">
-      Invoice <strong>#${invoiceNumber}</strong> · ${orderDate}
+      Invoice <strong>#${escapeHtml(invoiceNumber)}</strong> · ${orderDate}
     </div>
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:13px;margin-bottom:20px">
-      <strong>Billed to:</strong> ${order.customer.name}<br>
-      ${order.customer.company ? `${order.customer.company}<br>` : ''}
-      ${order.billing?.address ? `${order.billing.address}<br>` : ''}${order.customer.city ? `${order.customer.city}` : ''}<br>
-      ${order.customer.phone || ''}${order.customer.email ? ` · ${order.customer.email}` : ''}
+      <strong>Billed to:</strong> ${escapeHtml(order.customer.name)}<br>
+      ${order.customer.company ? `${escapeHtml(order.customer.company)}<br>` : ''}
+      ${order.billing?.address ? `${escapeHtml(order.billing.address)}<br>` : ''}${order.customer.city ? `${escapeHtml(order.customer.city)}` : ''}<br>
+      ${escapeHtml(order.customer.phone || '')}${order.customer.email ? ` · ${escapeHtml(order.customer.email)}` : ''}
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="background:#f1f5f9">

@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { openBrandConnection } from '../src/utils/database'
 import { getDivisionModels } from '../src/models/registry'
-import { hashPassword } from '../src/features/admin/services/auth-service'
+import { hashPassword } from '../src/admin/services/auth-service'
 import { logger } from '../src/utils/logger'
 import { runtimeBrand } from '../src/utils/runtime-brand'
 

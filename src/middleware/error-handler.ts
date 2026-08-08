@@ -15,10 +15,10 @@ export function errorHandler(
   })
 
   res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' 
-      ? 'An error occurred' 
-      : err.message,
+    success: false,
+    message: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message || 'Internal server error',
   })
 }
 

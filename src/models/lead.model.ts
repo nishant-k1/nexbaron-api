@@ -98,5 +98,3 @@ LeadSchema.index({ source: 1, createdAt: -1 })
 export function createLeadModel(conn: Connection) {
   return conn.model<ILead>('Lead', LeadSchema)
 }
-
-export const LeadStatusSchema = LeadSchema

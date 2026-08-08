@@ -62,14 +62,6 @@ export function requireRole(...roles: Array<StaffRole>) {
   }
 }
 
-export function requireAnyDivision(req: Request, res: Response, next: NextFunction): void {
-  if (!req.staffAuth) {
-    res.status(401).json({ success: false, message: 'Authentication required' })
-    return
-  }
-  next()
-}
-
 export function requireDivision(...divisions: Array<StaffDivision>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.staffAuth) {

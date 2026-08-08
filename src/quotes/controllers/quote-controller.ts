@@ -4,11 +4,14 @@ import { Types } from 'mongoose'
 import { getDivisionModels } from '../../models/registry'
 import { QuoteStatus } from '../../models/quote.model'
 import { logger } from '../../utils/logger'
+import { escapeRegex } from '../../utils/regex'
+import { requireAuthenticated } from '../../middleware/require-authenticated'
 import { computePrintEstimate } from '../../features/print/catalog'
 import { PRINT_FINISHES, PRINT_PRODUCTS, PRINT_STOCK_TIERS } from '../../features/print/catalog'
 import { digitalCatalog } from '../../features/digital/catalog/catalog'
 import { nextQuoteNumber, sendQuoteEmail, whatsAppDelivery, quoteHtml } from '../services/quote-service'
 import { runtimeBrand } from '../../utils/runtime-brand'
+import { stringParam } from '../../utils/route-param'
 
 const VALID_STATUSES: QuoteStatus[] = ['new', 'quoted', 'accepted', 'lost', 'closed']
 const MAX_PRINT_QUANTITY = Number(process.env.MAX_PRINT_QUANTITY) || 1_000_000
@@ -21,7 +24,7 @@ function isObjectId(value: string | undefined): value is string {
 // token's division. Email always comes from the signed-in account (compulsory).
 export async function submitQuote(req: Request, res: Response) {
   try {
-    if (!ifAuthenticated(req, res)) return
+    if (!requireAuthenticated(req, res)) return
     const division = runtimeBrand
     const body = (req.body ?? {}) as Record<string, any>
 
@@ -151,7 +154,7 @@ export async function submitQuote(req: Request, res: Response) {
           name,
           email,
           phone,
-          company: division === 'print' ? details.company : undefined,
+company: division === 'print' ? (details.company as string | undefined) : undefined,
           subject: division === 'digital' ? (selection.planIds as string[]).join(', ') : selection.product,
           message: String(details.notes || body.message || '').trim(),
           requirement: division === 'print' ? selection.product : undefined,
@@ -172,7 +175,7 @@ export async function submitQuote(req: Request, res: Response) {
         name,
         email,
         phone,
-        company: division === 'print' ? details.company : undefined,
+        company: division === 'print' ? (details.company as string | undefined) : undefined,
       },
       source: 'web',
       selection,
@@ -198,7 +201,7 @@ export async function submitQuote(req: Request, res: Response) {
 // Customer dashboard: the signed-in user's quote requests.
 export async function myQuotes(req: Request, res: Response) {
   try {
-    if (!ifAuthenticated(req, res)) return
+    if (!requireAuthenticated(req, res)) return
     const division = runtimeBrand
     if (!isObjectId(req.userId)) {
       res.status(401).json({ success: false, message: 'Invalid authentication subject' })
@@ -251,7 +254,7 @@ export async function listQuotes(req: Request, res: Response) {
     if (assigned === 'mine') filter.assignedStaff = req.staffAuth.name
     if (assigned === 'unassigned') filter.assignedStaff = null
     if (search) {
-      const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      const rx = new RegExp(escapeRegex(search), 'i')
       filter.$or = [
         { quoteNumber: rx },
         { 'customer.name': rx },
@@ -275,12 +278,13 @@ export async function getQuote(req: Request, res: Response) {
       res.status(401).json({ success: false, message: 'Authentication required' })
       return
     }
-    if (!isObjectId(req.params.id)) {
+    const id = stringParam(req, 'id')
+    if (!isObjectId(id)) {
       res.status(400).json({ success: false, message: 'Invalid quote id' })
       return
     }
     const { Quote } = getDivisionModels(req.staffAuth.division)
-    const quote = await Quote.findOne({ _id: req.params.id, division: req.staffAuth.division }).lean()
+    const quote = await Quote.findOne({ _id: id, division: req.staffAuth.division }).lean()
     if (!quote) {
       res.status(404).json({ success: false, message: 'Quote not found' })
       return
@@ -299,13 +303,14 @@ export async function updateQuote(req: Request, res: Response) {
       res.status(401).json({ success: false, message: 'Authentication required' })
       return
     }
-    if (!isObjectId(req.params.id)) {
+    const id = stringParam(req, 'id')
+    if (!isObjectId(id)) {
       res.status(400).json({ success: false, message: 'Invalid quote id' })
       return
     }
     const body = (req.body ?? {}) as Record<string, any>
     const { Quote } = getDivisionModels(req.staffAuth.division)
-    const quote = await Quote.findOne({ _id: req.params.id, division: req.staffAuth.division })
+    const quote = await Quote.findOne({ _id: id, division: req.staffAuth.division })
     if (!quote) {
       res.status(404).json({ success: false, message: 'Quote not found' })
       return
@@ -349,25 +354,31 @@ export async function updateQuote(req: Request, res: Response) {
   }
 }
 
-  // Admin-only: preview the quote email HTML before sending.
-  export async function previewQuote(req: Request, res: Response) {
-    try {
-      if (!req.staffAuth) {
-        res.status(401).json({ success: false, message: 'Authentication required' })
-        return
-      }
-      const { Quote } = getDivisionModels(req.staffAuth.division)
-      const quote = await Quote.findById(req.params.id)
-      if (!quote) {
-        res.status(404).json({ success: false, message: 'Quote not found' })
-        return
-      }
-      const html = quoteHtml(quote)
-      res.json({ success: true, html })
-    } catch {
-      res.status(500).json({ success: false, message: 'Failed to generate preview' })
+// Admin-only: preview the quote email HTML before sending.
+export async function previewQuote(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
     }
+    const id = stringParam(req, 'id')
+    if (!isObjectId(id)) {
+      res.status(400).json({ success: false, message: 'Invalid quote id' })
+      return
+    }
+    const { Quote } = getDivisionModels(req.staffAuth.division)
+    const quote = await Quote.findOne({ _id: id, division: req.staffAuth.division })
+    if (!quote) {
+      res.status(404).json({ success: false, message: 'Quote not found' })
+      return
+    }
+    const html = quoteHtml(quote)
+    res.json({ success: true, html })
+  } catch (error) {
+    logger.error('previewQuote failed', error)
+    res.status(500).json({ success: false, message: 'Failed to generate preview' })
   }
+}
 
 // Admin-only: compose + deliver the final quote (email compulsory, WhatsApp
 // when configured). Requires a price so a quote is never sent empty.
@@ -377,13 +388,14 @@ export async function sendQuote(req: Request, res: Response) {
       res.status(401).json({ success: false, message: 'Authentication required' })
       return
     }
-    if (!isObjectId(req.params.id)) {
+    const id = stringParam(req, 'id')
+    if (!isObjectId(id)) {
       res.status(400).json({ success: false, message: 'Invalid quote id' })
       return
     }
     const body = (req.body ?? {}) as Record<string, any>
     const { Quote } = getDivisionModels(req.staffAuth.division)
-    const quote = await Quote.findOne({ _id: req.params.id, division: req.staffAuth.division })
+    const quote = await Quote.findOne({ _id: id, division: req.staffAuth.division })
     if (!quote) {
       res.status(404).json({ success: false, message: 'Quote not found' })
       return
@@ -445,12 +457,4 @@ export async function sendQuote(req: Request, res: Response) {
     logger.error('sendQuote failed', error)
     res.status(500).json({ success: false, message: 'Failed to send quote' })
   }
-}
-
-function ifAuthenticated(req: Request, res: Response): boolean {
-  if (!req.userId) {
-    res.status(401).json({ success: false, message: 'Authentication required' })
-    return false
-  }
-  return true
 }

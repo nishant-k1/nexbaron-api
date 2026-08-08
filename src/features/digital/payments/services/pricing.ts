@@ -27,12 +27,6 @@ export interface ComputedOrder {
 
 const LAUNCH_FIXED_DAYS = 4
 
-function getPlan(planId: string): CatalogPlan {
-  const plan = digitalCatalog.plans.find((p) => p.id === planId)
-  if (!plan) throw new Error('Unknown plan')
-  return plan
-}
-
 export function computeOrder(selections: SelectionsInput, from = new Date()): ComputedOrder {
   const planId = selections.planId
   const planByIndex: { plan: CatalogPlan; oneTimeLive: number }[] = []
@@ -185,5 +179,3 @@ export function buildLaunchStages(launchDays: number) {
     },
   ]
 }
-
-export { getPlan }

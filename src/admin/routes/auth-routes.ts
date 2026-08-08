@@ -20,6 +20,7 @@ import {
 import { hashToken } from '../services/token'
 import { getDivisionModels } from '../../models/registry'
 import type { StaffRole, StaffDivision } from '../models/staff.model'
+import { rateLimit } from '../../utils/rate-limit'
 
 export const adminAuthRouter: Router = Router()
 
@@ -28,7 +29,9 @@ const loginSchema = z.object({
   password: z.string().min(1),
 })
 
-adminAuthRouter.post('/login', async (req, res, next) => {
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many login attempts. Try again later.' })
+
+adminAuthRouter.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body)
     if (!parsed.success) {

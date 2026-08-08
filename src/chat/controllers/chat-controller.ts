@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { getDivisionModels } from '../../models/registry'
 import { runtimeBrand } from '../../utils/runtime-brand'
+import { logger } from '../../utils/logger'
 
 /**
  * POST /{division}/chat — customer sends a chat message.
@@ -25,6 +26,7 @@ export async function customerSendMessage(req: Request, res: Response) {
 
     res.status(201).json({ success: true, message: { id: message._id, createdAt: message.createdAt } })
   } catch (error) {
+    logger.error('customerSendMessage failed', error)
     res.status(500).json({ success: false, message: 'Failed to save message' })
   }
 }
@@ -59,7 +61,8 @@ export async function customerGetChat(req: Request, res: Response) {
 
     const messages = await ChatMessage.find(filter).sort({ createdAt: 1 }).limit(200).lean()
     res.json({ success: true, messages })
-  } catch {
+  } catch (error) {
+    logger.error('customerGetChat failed', error)
     res.status(500).json({ success: false, message: 'Failed to load chat' })
   }
 }
@@ -102,7 +105,8 @@ export async function customerMergeChat(req: Request, res: Response) {
     }
 
     res.json({ success: true, merged: sessionResult.modifiedCount + phoneResult.modifiedCount + emailResult.modifiedCount })
-  } catch {
+  } catch (error) {
+    logger.error('customerMergeChat failed', error)
     res.status(500).json({ success: false, message: 'Merge failed' })
   }
 }
@@ -149,7 +153,8 @@ export async function adminListChats(req: Request, res: Response) {
     }))
 
     res.json({ success: true, conversations: result })
-  } catch {
+  } catch (error) {
+    logger.error('adminListChats failed', error)
     res.status(500).json({ success: false, message: 'Failed to load chats' })
   }
 }
@@ -176,7 +181,8 @@ export async function adminGetConversation(req: Request, res: Response) {
     )
 
     res.json({ success: true, messages })
-  } catch {
+  } catch (error) {
+    logger.error('adminGetConversation failed', error)
     res.status(500).json({ success: false, message: 'Failed to load conversation' })
   }
 }
@@ -212,7 +218,8 @@ export async function adminReplyToChat(req: Request, res: Response) {
     })
 
     res.status(201).json({ success: true, message: reply })
-  } catch {
+  } catch (error) {
+    logger.error('adminReplyToChat failed', error)
     res.status(500).json({ success: false, message: 'Failed to send reply' })
   }
 }

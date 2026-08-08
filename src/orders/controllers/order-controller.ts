@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
 import { OrderStatus, PaymentMethod } from '../models/order.model'
 import { getDivisionModels } from '../../models/registry'
+import { logger } from '../../utils/logger'
+import { escapeRegex } from '../../utils/regex'
 
 const VALID_STATUSES: OrderStatus[] = ['pending', 'paid', 'in_progress', 'delivered', 'cancelled']
 const VALID_PAYMENT_METHODS: PaymentMethod[] = ['razorpay', 'upi', 'bank', 'cash', 'other']
@@ -19,7 +21,7 @@ export async function listOrders(req: Request, res: Response) {
     const filter: Record<string, unknown> = { division: req.staffAuth.division }
     if (VALID_STATUSES.includes(status as OrderStatus)) filter.status = status
     if (search) {
-      const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      const rx = new RegExp(escapeRegex(search), 'i')
       filter.$or = [
         { 'customer.name': rx },
         { 'customer.email': rx },
@@ -31,7 +33,8 @@ export async function listOrders(req: Request, res: Response) {
 
     const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(500).lean()
     res.json({ success: true, orders })
-  } catch {
+  } catch (error) {
+    logger.error('listOrders failed', error)
     res.status(500).json({ success: false, message: 'Failed to load customers' })
   }
 }
@@ -118,7 +121,8 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
     }
 
     res.json({ success: true, order, lead })
-  } catch {
+  } catch (error) {
+    logger.error('recordPaymentFromLead failed', error)
     res.status(500).json({ success: false, message: 'Failed to record payment' })
   }
 }
@@ -148,7 +152,8 @@ export async function updateOrderStatus(req: Request, res: Response) {
     order.status = status
     await order.save()
     res.json({ success: true, order })
-  } catch {
+  } catch (error) {
+    logger.error('updateOrderStatus failed', error)
     res.status(500).json({ success: false, message: 'Failed to update order' })
   }
 }

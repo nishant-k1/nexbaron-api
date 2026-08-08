@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { runtimeBrand } from '../utils/runtime-brand'
+import { base64urlEncode, hmacSha256 } from '../utils/token-util'
 
 const EXPIRES_IN = Number(process.env.JWT_EXPIRES_IN_SECONDS) || 60 * 60 * 24 * 7
 const DEV_SECRET = 'nexbaron-dev-secret'
@@ -22,16 +23,8 @@ export interface TokenPayload {
   exp: number
 }
 
-function base64url(input: Buffer | string): string {
-  return Buffer.from(input)
-    .toString('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-}
-
 function sign(data: string): Buffer {
-  return crypto.createHmac('sha256', secret()).update(data).digest()
+  return hmacSha256(data, secret())
 }
 
 export function createToken(payload: { sub: string; division: 'digital' | 'print'; name?: string }): string {
@@ -44,9 +37,9 @@ export function createToken(payload: { sub: string; division: 'digital' | 'print
     exp: now + EXPIRES_IN,
     iat: now,
   }
-  const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
-  const body = base64url(JSON.stringify(claims))
-  const signature = base64url(sign(`${header}.${body}`))
+  const header = base64urlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const body = base64urlEncode(JSON.stringify(claims))
+  const signature = base64urlEncode(sign(`${header}.${body}`))
   return `${header}.${body}.${signature}`
 }
 

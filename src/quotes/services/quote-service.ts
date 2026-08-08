@@ -6,18 +6,11 @@ import { productLabel } from '../../features/print/catalog'
 import { logger } from '../../utils/logger'
 import { IQuote } from '../../models/quote.model'
 import { canSendMail, sendMail } from '../../utils/mailer'
+import { escapeHtml, logoNx, NX_DIGITAL, NX_PRINT } from '../../utils/html'
+import { nextSequence } from '../../utils/counter'
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 const WHATSAPP_ENABLED = process.env.QUOTE_WHATSAPP_ENABLED === 'true'
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
 
 interface BrandConfig {
   name: string
@@ -25,7 +18,7 @@ interface BrandConfig {
   accent: string
   accentLight: string
   tagline: string
-  logoGradient: string
+  division: 'digital' | 'print'
 }
 
 const BRANDS: Record<'digital' | 'print', BrandConfig> = {
@@ -35,7 +28,7 @@ const BRANDS: Record<'digital' | 'print', BrandConfig> = {
     accent: '#14b8a6',
     accentLight: '#ccfbf1',
     tagline: 'Your website & growth partner',
-    logoGradient: 'linear-gradient(135deg, #14b8a6, #06b6d4)',
+    division: 'digital',
   },
   print: {
     name: 'Nexbaron Print',
@@ -43,18 +36,15 @@ const BRANDS: Record<'digital' | 'print', BrandConfig> = {
     accent: '#f59e0b',
     accentLight: '#fef3c7',
     tagline: 'Commercial printing, done right',
-    logoGradient: 'linear-gradient(135deg, #f59e0b, #f97316)',
+    division: 'print',
   },
 }
 
 export function nextQuoteNumber(division: 'digital' | 'print', InvoiceCounter: Model<any>): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = division === 'digital' ? 'NXB-D' : 'NXB-P'
-  return InvoiceCounter.findOneAndUpdate(
-    { key: `quote-${division}-${year}` },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  ).then((counter) => `${prefix}-${year}-${String(counter.seq).padStart(5, '0')}`)
+  return nextSequence(InvoiceCounter, `quote-${division}-${year}`)
+    .then((seq) => `${prefix}-${year}-${String(seq).padStart(5, '0')}`)
 }
 
 export function whatsAppDelivery(quote: IQuote): { available: boolean; link?: string } {
@@ -91,25 +81,8 @@ function brandInfo(quote: IQuote) {
   return BRANDS[quote.division]
 }
 
-function logoNx(brand: BrandConfig): string {
-  // NX monogram — matches the actual brand logo used on nexbaron.com
-  const stop1 = brand === BRANDS.digital ? '#14b8a6' : '#f59e0b'
-  const stop2 = brand === BRANDS.digital ? '#06b6d4' : '#f97316'
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="44" height="44">
-    <defs>
-      <linearGradient id="lg_${brand.accent.slice(1)}" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="${stop1}"/>
-        <stop offset="1" stop-color="${stop2}"/>
-      </linearGradient>
-    </defs>
-    <rect width="32" height="32" rx="8" fill="#0f172a"/>
-    <rect x="1.5" y="1.5" width="29" height="29" rx="7" fill="none" stroke="url(#lg_${brand.accent.slice(1)})" stroke-width="2"/>
-    <g fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M9 7.5 V24.5"/>
-      <path d="M23 7.5 V24.5"/>
-      <path d="M9 7.5 L23 24.5"/>
-    </g>
-  </svg>`
+function nxColors(division: 'digital' | 'print') {
+  return division === 'digital' ? NX_DIGITAL : NX_PRINT
 }
 
 export function quoteHtml(quote: IQuote): string {
@@ -135,7 +108,7 @@ export function quoteHtml(quote: IQuote): string {
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="vertical-align:middle">
-                ${logoNx(brand)}
+                ${logoNx(nxColors(quote.division))}
               </td>
               <td style="vertical-align:middle;padding-left:14px">
                 <div style="font-size:20px;font-weight:700;color:#fff;line-height:1.2">${brand.name}</div>

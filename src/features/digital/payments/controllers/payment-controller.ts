@@ -5,6 +5,7 @@ import { digitalCatalog } from '../../catalog/catalog'
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
 import { IOrder } from '../../../../orders/models/order.model'
+import { stringParam } from '../../../../utils/route-param'
 import {
   emailInvoice,
   createRazorpayOrder,
@@ -16,11 +17,13 @@ import {
 } from '../services/razorpay'
 import { buildLaunchStages, computeOrder, SelectionsInput } from '../services/pricing'
 import { runtimeBrand } from '../../../../utils/runtime-brand'
+import { escapeHtml, logoNx, NX_DIGITAL, NX_PRINT } from '../../../../utils/html'
+import { requireAuthenticated } from '../../../../middleware/require-authenticated'
 
 // Client-driven: create a checkout order and return the Razorpay order id.
 export async function createCheckout(req: Request, res: Response) {
   try {
-    if (!ifAuthenticated(req, res)) return
+    if (!requireAuthenticated(req, res)) return
 
     const body = (req.body ?? {}) as Record<string, unknown>
     const planId = String(body.planId ?? '')
@@ -115,7 +118,7 @@ export async function createCheckout(req: Request, res: Response) {
       notes: customer.notes,
     })
 
-    res.json({
+    res.status(201).json({
       success: true,
       orderId: order._id,
       razorpayOrderId: razorpay.id,
@@ -138,7 +141,7 @@ export async function createCheckout(req: Request, res: Response) {
 // order so the site can show their real launch tracker.
 export async function myOrder(req: Request, res: Response) {
   try {
-    if (!ifAuthenticated(req, res)) return
+    if (!requireAuthenticated(req, res)) return
     const { Order } = getDivisionModels(req.division!)
     const orders = await Order.find({
       userId: req.userId ? new Types.ObjectId(req.userId) : undefined,
@@ -169,6 +172,7 @@ export async function myOrder(req: Request, res: Response) {
         orderId: order._id,
         invoiceNumber: order.invoiceNumber || '',
         plan: order.service || '',
+        planName: plan?.name || order.service || '',
         status: order.status,
         amount: order.amount,
         amountPaid: order.amountPaid,
@@ -189,13 +193,14 @@ export async function myOrder(req: Request, res: Response) {
 // Download invoice receipt for a specific order
 export async function downloadReceipt(req: Request, res: Response) {
   try {
-    if (!req.userId || !Types.ObjectId.isValid(req.userId)) {
-      res.status(401).json({ success: false, message: 'Authentication required' })
+    const orderId = stringParam(req, 'orderId')
+    if (!req.userId || !Types.ObjectId.isValid(req.userId) || !orderId || !Types.ObjectId.isValid(orderId)) {
+      res.status(400).json({ success: false, message: 'Invalid order id' })
       return
     }
     const { Order } = getDivisionModels(req.division!)
     const order = await Order.findOne({
-      _id: new Types.ObjectId(req.params.orderId),
+      _id: new Types.ObjectId(orderId),
       userId: new Types.ObjectId(req.userId),
       division: req.division,
     }).lean()
@@ -207,14 +212,17 @@ export async function downloadReceipt(req: Request, res: Response) {
 
     const date = new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
     const amount = (order.amount || 0).toLocaleString('en-IN')
-    const invoice = order.invoiceNumber || order._id.toString().slice(-8).toUpperCase()
+    const invoice = escapeHtml(order.invoiceNumber || order._id.toString().slice(-8).toUpperCase())
     const brand = req.division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
-    const accent = req.division === 'digital' ? '#14b8a6' : '#f59e0b'
+    const colors = req.division === 'digital' ? NX_DIGITAL : NX_PRINT
+    const accent = colors.stop1
+    const status = escapeHtml(order.status || '')
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${invoice}</title>
 <style>body{font-family:Arial,sans-serif;max-width:600px;margin:40px auto;color:#0f172a;padding:0 16px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${accent};padding-bottom:16px;margin-bottom:24px}
+.header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid ${accent};padding-bottom:16px;margin-bottom:24px}
 .header h1{font-size:20px;margin:0}.header p{font-size:12px;color:#64748b;margin:2px 0}
+.brand{display:flex;align-items:center;gap:12px}
 .meta{display:flex;justify-content:space-between;font-size:13px;margin-bottom:24px}
 .meta strong{color:#64748b}
 .table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px}
@@ -224,17 +232,20 @@ export async function downloadReceipt(req: Request, res: Response) {
 .footer{font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;margin-top:24px}
 </style></head><body>
 <div class="header">
-  <div><h1>${brand}</h1><p>Payment Receipt</p></div>
+  <div class="brand">
+    ${logoNx(colors)}
+    <div><h1>${brand}</h1><p>Payment Receipt</p></div>
+  </div>
   <div style="text-align:right"><p><strong>Receipt #</strong> ${invoice}</p><p>${date}</p></div>
 </div>
 <div class="meta">
-  <div><strong>Customer</strong><br>${order.customer?.name || '—'}<br>${order.customer?.email || ''}<br>${order.customer?.phone || ''}</div>
-  <div style="text-align:right"><strong>Status</strong><br><span style="color:${accent}">${order.status}</span></div>
+  <div><strong>Customer</strong><br>${escapeHtml(order.customer?.name || '—')}<br>${escapeHtml(order.customer?.email || '')}<br>${escapeHtml(order.customer?.phone || '')}</div>
+  <div style="text-align:right"><strong>Status</strong><br><span style="color:${accent}">${status}</span></div>
 </div>
 <table class="table">
   <tr><th>Description</th><th style="text-align:right">Amount</th></tr>
-  <tr><td>${order.service || 'Website Plan'}</td><td style="text-align:right">₹${amount}</td></tr>
-  ${(order.payments || []).map((p: any) => `<tr><td style="color:#64748b;font-size:11px">Payment · ${p.method || 'upi'} · ${new Date(p.receivedAt).toLocaleDateString('en-IN')}</td><td style="text-align:right;color:#64748b">-₹${(p.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('')}
+  <tr><td>${escapeHtml(order.service || 'Website Plan')}</td><td style="text-align:right">₹${amount}</td></tr>
+  ${(order.payments || []).map((p: any) => `<tr><td style="color:#64748b;font-size:11px">Payment · ${escapeHtml(p.method || 'upi')} · ${new Date(p.receivedAt).toLocaleDateString('en-IN')}</td><td style="text-align:right;color:#64748b">-₹${(p.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('')}
   <tr><td colspan="2" style="border-top:2px solid #e2e8f0"><div class="total">Balance: ₹${((order.amount || 0) - (order.amountPaid || 0)).toLocaleString('en-IN')}</div></td></tr>
 </table>
 <div class="footer">${brand} · nexbaron.com · This is a computer-generated receipt.</div>
@@ -366,12 +377,4 @@ async function finalizeOrder(order: IOrder, payment: { method: 'razorpay'; payme
   const { Lead } = getDivisionModels(runtimeBrand)
   if (order.leadId) await Lead.updateOne({ _id: order.leadId }, { $set: { status: 'won' } })
   await emailInvoice(order, order.invoiceNumber || '')
-}
-
-function ifAuthenticated(req: Request, res: Response): boolean {
-  if (!req.userId) {
-    res.status(401).json({ success: false, message: 'Authentication required' })
-    return false
-  }
-  return true
 }
