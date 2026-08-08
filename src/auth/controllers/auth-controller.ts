@@ -268,6 +268,7 @@ export async function me(req: Request, res: Response) {
         phone: user.phone || null,
         division: user.division,
         photo: (user as unknown as { photo?: string }).photo || null,
+        planConfig: (user as any).planConfig || null,
       },
     })
   } catch (error) {
@@ -396,5 +397,28 @@ export async function deleteAccount(req: Request, res: Response) {
   } catch (error) {
     logger.error('deleteAccount error:', error)
     res.status(500).json({ success: false, message: 'Failed to delete account' })
+  }
+}
+
+
+/**
+ * Save the user's plan customisations.
+ */
+export async function savePlan(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { planId, removedServices, addOns } = req.body
+    if (!planId) {
+      res.status(400).json({ success: false, message: 'planId is required' })
+      return
+    }
+    await User.updateOne(
+      { _id: req.userId, division: req.division },
+      { $set: { planConfig: { planId, removedServices: removedServices || [], addOns: addOns || {} } } }
+    )
+    res.json({ success: true, message: 'Plan saved' })
+  } catch (error) {
+    logger.error('savePlan error:', error)
+    res.status(500).json({ success: false, message: 'Failed to save plan' })
   }
 }
