@@ -10,10 +10,12 @@ import {
   adminReplyToChat,
 } from '../controllers/chat-controller'
 
+import { optionalAuth } from '../../middleware/optional-auth'
+
 // Customer routes (public + auth)
 export const customerChatRouter = Router()
 customerChatRouter.post('/chat', customerSendMessage)
-customerChatRouter.get('/chat', customerGetChat)
+customerChatRouter.get('/chat', optionalAuth, customerGetChat)
 customerChatRouter.post('/chat/merge', requireAuth, customerMergeChat)
 
 // Admin routes
