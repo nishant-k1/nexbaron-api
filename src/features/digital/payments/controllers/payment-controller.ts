@@ -341,6 +341,13 @@ async function finalizeOrder(order: IOrder, payment: { method: 'razorpay'; payme
     paymentId: payment.paymentId,
     signature: payment.signature,
   }
+  // Mark first two milestones as done (order created + payment received)
+  if (order.milestones && order.milestones.length > 0) {
+    const ms = order.milestones
+    if (ms[0]) ms[0].status = 'completed'
+    if (ms[1]) ms[1].status = 'completed'
+    order.markModified('milestones')
+  }
   await order.save()
   const { Lead } = getDivisionModels(runtimeBrand)
   if (order.leadId) await Lead.updateOne({ _id: order.leadId }, { $set: { status: 'won' } })
