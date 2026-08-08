@@ -15,6 +15,7 @@ import {
 import { adminOrderRouter } from './orders/routes/order-routes'
 import { customerQuoteRouter, adminQuoteRouter } from './quotes/routes/quote-routes'
 import { customerChatRouter, adminChatRouter } from './chat/routes/chat-routes'
+import { uploadRouter } from './chat/routes/upload-routes'
 import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'

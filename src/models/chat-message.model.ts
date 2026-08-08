@@ -1,11 +1,19 @@
 import { Schema, Document, Connection } from 'mongoose'
 
+export interface IChatAttachment {
+  url: string
+  type: 'image' | 'video' | 'document'
+  name: string
+  size?: number
+}
+
 export interface IChatMessage extends Document {
   division: 'digital' | 'print'
   customerId?: string // null for anonymous visitors
   sessionId?: string // anonymous session identifier
   sender: 'customer' | 'agent'
   message: string
+  attachments?: IChatAttachment[]
   name?: string // customer name
   phone?: string // for linking anonymous chats to accounts
   email?: string
@@ -20,6 +28,12 @@ const chatMessageSchema = new Schema(
     sessionId: { type: String, default: null },
     sender: { type: String, required: true, enum: ['customer', 'agent'] },
     message: { type: String, required: true },
+    attachments: [{
+      url: String,
+      type: { type: String, enum: ['image', 'video', 'document'] },
+      name: String,
+      size: Number,
+    }],
     name: { type: String, default: null },
     phone: { type: String, default: null },
     email: { type: String, default: null },
