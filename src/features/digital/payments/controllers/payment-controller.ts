@@ -139,31 +139,32 @@ export async function myOrder(req: Request, res: Response) {
   try {
     if (!ifAuthenticated(req, res)) return
     const { Order } = getDivisionModels(req.division!)
-    const order = await Order.findOne({
+    const orders = await Order.find({
       userId: req.userId ? new Types.ObjectId(req.userId) : undefined,
       division: req.division,
       status: { $ne: 'cancelled' },
     })
       .sort({ createdAt: -1 })
       .lean()
-    if (!order) {
-      res.json({ success: true, order: null })
+    if (!orders || orders.length === 0) {
+      res.json({ success: true, orders: [] })
       return
     }
     res.json({
       success: true,
-      order: {
+      orders: orders.map((order) => ({
         orderId: order._id,
         invoiceNumber: order.invoiceNumber || '',
         plan: order.service || '',
         status: order.status,
         amount: order.amount,
         amountPaid: order.amountPaid,
+        payments: order.payments || [],
         launchDate: order.launchDate ?? null,
         launchDays: order.launchDays ?? null,
         milestones: order.milestones ?? [],
         createdAt: order.createdAt,
-      },
+      })),
     })
   } catch (error) {
     logger.error('myOrder failed', error)
