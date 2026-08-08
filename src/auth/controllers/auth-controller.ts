@@ -20,6 +20,47 @@ class GoogleTokenError extends Error {
   }
 }
 
+/**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
+  }
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
@@ -63,6 +104,47 @@ export async function requestOtp(req: Request, res: Response) {
     }
     logger.error('requestOtp error:', error)
     res.status(500).json({ success: false, message: 'Failed to send verification code' })
+  }
+}
+
+/**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
   }
 }
 
@@ -144,6 +226,47 @@ export async function verifyCode(req: Request, res: Response) {
   }
 }
 
+/**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
+  }
+}
+
 // Google sign-in. Identity is derived only from Google's verified ID token claims.
 export async function googleSignIn(req: Request, res: Response) {
   try {
@@ -210,6 +333,47 @@ export async function googleSignIn(req: Request, res: Response) {
   }
 }
 
+/**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
+  }
+}
+
 async function verifyGoogleCredential(credential: string): Promise<GoogleClaims> {
   const clientId = process.env[`GOOGLE_CLIENT_ID_${runtimeBrand.toUpperCase()}`]
   if (!clientId) throw new GoogleTokenError('Google sign-in is not configured', 503)
@@ -250,6 +414,47 @@ async function verifyGoogleCredential(credential: string): Promise<GoogleClaims>
   }
 }
 
+/**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
+  }
+}
+
 // Return the current user from a valid token.
 export async function me(req: Request, res: Response) {
   try {
@@ -273,6 +478,47 @@ export async function me(req: Request, res: Response) {
   } catch (error) {
     logger.error('me error:', error)
     res.status(500).json({ success: false, message: 'Failed to load user' })
+  }
+}
+
+/**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
   }
 }
 
@@ -316,6 +562,47 @@ export async function signup(req: Request, res: Response) {
 }
 
 /**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
+  }
+}
+
+/**
  * Issue a JWT token for a given email — used for auto-login after signup.
  */
 export async function issueToken(req: Request, res: Response) {
@@ -354,5 +641,46 @@ export async function issueToken(req: Request, res: Response) {
   } catch (error) {
     logger.error('issueToken error:', error)
     res.status(500).json({ success: false, message: 'Failed to generate token' })
+  }
+}
+
+/**
+ * Update the authenticated user's profile (name, email, phone).
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    const { name, email, phone } = req.body
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({ success: false, message: 'Name and email are required' })
+      return
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const existing = await User.findOne({ email: normalizedEmail, division: req.division, _id: { $ne: req.userId } })
+    if (existing) {
+      res.status(409).json({ success: false, message: 'Email already in use' })
+      return
+    }
+    await User.updateOne({ _id: req.userId, division: req.division }, {
+      $set: { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || undefined }
+    })
+    res.json({ success: true, message: 'Profile updated' })
+  } catch (error) {
+    logger.error('updateProfile error:', error)
+    res.status(500).json({ success: false, message: 'Failed to update profile' })
+  }
+}
+
+/**
+ * Permanently delete the authenticated user's account.
+ */
+export async function deleteAccount(req: Request, res: Response) {
+  try {
+    const { User } = getDivisionModels(req.division!)
+    await User.deleteOne({ _id: req.userId, division: req.division })
+    res.json({ success: true, message: 'Account deleted' })
+  } catch (error) {
+    logger.error('deleteAccount error:', error)
+    res.status(500).json({ success: false, message: 'Failed to delete account' })
   }
 }
