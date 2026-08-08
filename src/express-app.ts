@@ -68,6 +68,7 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(brandBase, brandContactRouter)
   app.use(brandBase, customerQuoteRouter)
   app.use(brandBase, customerChatRouter)
+  app.use(brandBase, uploadRouter)
 
   if (runtimeBrand === 'digital') {
     app.use(`${brandBase}/drafts`, digitalDraftRouter)
