@@ -121,6 +121,10 @@ export async function adminListChats(req: Request, res: Response) {
       {
         $group: {
           _id: { $ifNull: ['$customerId', '$sessionId'] },
+          customerName: { $first: '$name' },
+          customerPhone: { $first: '$phone' },
+          customerEmail: { $first: '$email' },
+          customerId: { $first: '$customerId' },
           lastMessage: { $first: '$message' },
           lastSender: { $first: '$sender' },
           lastAt: { $first: '$createdAt' },
