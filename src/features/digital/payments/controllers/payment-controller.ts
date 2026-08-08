@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { Types } from 'mongoose'
 
+import { digitalCatalog } from '../../catalog/catalog'
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
 import { IOrder } from '../../../../orders/models/order.model'
@@ -152,7 +153,19 @@ export async function myOrder(req: Request, res: Response) {
     }
     res.json({
       success: true,
-      orders: orders.map((order) => ({
+      orders: orders.map((order) => {
+        // Compute progress from plan catalog
+        const plan = digitalCatalog.plans.find((p) => p.id === order.service)
+        const steps: { label: string; done: boolean }[] = [
+          { label: 'Package chosen', done: true },
+          { label: 'Payment completed', done: order.status === 'paid' || order.status === 'in_progress' || order.status === 'delivered' },
+        ]
+        if (plan) {
+          for (const s of plan.services) steps.push({ label: s.label, done: order.status === 'delivered' })
+        }
+        const doneCount = steps.filter((s) => s.done).length
+
+        return {
         orderId: order._id,
         invoiceNumber: order.invoiceNumber || '',
         plan: order.service || '',
@@ -163,9 +176,9 @@ export async function myOrder(req: Request, res: Response) {
         launchDate: order.launchDate ?? null,
         launchDays: order.launchDays ?? null,
         milestones: order.milestones ?? [],
-        items: (order.items || []).map((i: any) => ({ label: i.label || i.name || i.id, status: i.status || 'pending', type: i.type || 'oneTime' })),
+        progress: { steps, percentage: steps.length > 0 ? Math.round((doneCount / steps.length) * 100) : 0 },
         createdAt: order.createdAt,
-      })),
+      }}),
     })
   } catch (error) {
     logger.error('myOrder failed', error)
