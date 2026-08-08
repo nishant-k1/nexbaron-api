@@ -88,3 +88,31 @@ export async function listLeads(req: Request, res: Response) {
     res.status(500).json({ success: false, message: 'Failed to load leads' })
   }
 }
+
+
+/**
+ * Admin-only — update lead status.
+ */
+export async function updateLeadStatus(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const { Lead } = getDivisionModels(division)
+    const { status } = req.body
+    if (!status || !VALID_STATUSES.includes(status)) {
+      res.status(400).json({ success: false, message: 'Valid status required' })
+      return
+    }
+    const lead = await Lead.findOneAndUpdate(
+      { _id: req.params.id, division },
+      { $set: { status } },
+      { new: true }
+    )
+    if (!lead) {
+      res.status(404).json({ success: false, message: 'Lead not found' })
+      return
+    }
+    res.json({ success: true, lead: { _id: lead._id, status: lead.status } })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update lead' })
+  }
+}
