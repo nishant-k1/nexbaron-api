@@ -16,6 +16,13 @@ import { adminOrderRouter } from './orders/routes/order-routes'
 import { customerQuoteRouter, adminQuoteRouter } from './quotes/routes/quote-routes'
 import { customerChatRouter, adminChatRouter } from './chat/routes/chat-routes'
 import { uploadRouter } from './chat/routes/upload-routes'
+import { customerProjectRouter } from './features/projects/routes/project-routes'
+import { adminProjectRouter } from './features/projects/admin-routes'
+import { cronRouter } from './cron/routes'
+import { adminReminderRouter } from './cron/admin-routes'
+import { adminRecurringRouter } from './cron/recurring-routes'
+import { testimonialRouter } from './cron/testimonial-routes'
+import { reportRouter } from './features/reports/routes/report-routes'
 import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
@@ -69,6 +76,8 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(brandBase, customerQuoteRouter)
   app.use(brandBase, customerChatRouter)
   app.use(brandBase, uploadRouter)
+  app.use(brandBase, customerProjectRouter)
+  app.use(brandBase, cronRouter)
 
   if (runtimeBrand === 'digital') {
     app.use(`${brandBase}/drafts`, digitalDraftRouter)
@@ -83,6 +92,11 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(`${brandBase}/admin`, adminChatRouter)
   app.use(`${brandBase}/admin`, adminOrderRouter)
   app.use(`${brandBase}/admin/quotes`, adminQuoteRouter)
+  app.use(`${brandBase}/admin`, adminProjectRouter)
+  app.use(`${brandBase}/admin`, adminReminderRouter)
+  app.use(`${brandBase}/admin`, adminRecurringRouter)
+  app.use(`${brandBase}/admin`, testimonialRouter)
+  app.use(`${brandBase}/admin`, reportRouter)
 }
 
 mountBrandRoutes(`/${runtimeBrand}`)

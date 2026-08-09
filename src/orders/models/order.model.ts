@@ -40,7 +40,32 @@ export interface IOrderMilestone {
   completedAt?: Date
 }
 
+export interface IRevisionFeedback {
+  text: string
+  by: string
+  at: Date
+}
+
+export interface IRevisionTracking {
+  used: number
+  max: number
+  feedback: IRevisionFeedback[]
+}
+
+export interface IOnboardingItem {
+  item: string
+  done: boolean
+  note?: string
+}
+
+export interface IStageTransition {
+  stage: string
+  by: string
+  at: Date
+}
+
 export interface IOrder extends Document {
+  projectId: string
   userId?: Types.ObjectId
   leadId: Types.ObjectId
   division: 'digital' | 'print'
@@ -75,6 +100,24 @@ export interface IOrder extends Document {
   }
   invoiceNumber?: string
   notes?: string
+  // Project lifecycle
+  assignedTeamMember?: string
+  onboardingChecklist: IOnboardingItem[]
+  revisions: IRevisionTracking
+  stageHistory: IStageTransition[]
+  stagingUrl?: string
+  googleBusinessProfile?: {
+    created: boolean
+    verified: boolean
+  }
+  paymentTerms?: string
+  followUpDate?: Date
+  followUpType?: 'review' | 'upsell' | 'referral' | 'checkin'
+  // Review & testimonials
+  reviewRequestedAt?: Date
+  reviewReceived: boolean
+  reviewRating?: number
+  reviewUrl?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -135,8 +178,53 @@ const BillingSchema = new Schema(
   { _id: false }
 )
 
+const RevisionFeedbackSchema = new Schema<IRevisionFeedback>(
+  {
+    text: { type: String, required: true },
+    by: { type: String, required: true },
+    at: { type: Date, default: Date.now },
+  },
+  { _id: false }
+)
+
+const RevisionTrackingSchema = new Schema<IRevisionTracking>(
+  {
+    used: { type: Number, default: 0, min: 0 },
+    max: { type: Number, default: 2, min: 1 },
+    feedback: { type: [RevisionFeedbackSchema], default: [] },
+  },
+  { _id: false }
+)
+
+const OnboardingItemSchema = new Schema<IOnboardingItem>(
+  {
+    item: { type: String, required: true },
+    done: { type: Boolean, default: false },
+    note: { type: String, trim: true },
+  },
+  { _id: false }
+)
+
+const StageTransitionSchema = new Schema<IStageTransition>(
+  {
+    stage: { type: String, required: true },
+    by: { type: String, required: true },
+    at: { type: Date, default: Date.now },
+  },
+  { _id: false }
+)
+
+const GoogleBusinessProfileSchema = new Schema(
+  {
+    created: { type: Boolean, default: false },
+    verified: { type: Boolean, default: false },
+  },
+  { _id: false }
+)
+
 const OrderSchema = new Schema<IOrder>(
   {
+    projectId: { type: String, index: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     leadId: { type: Schema.Types.ObjectId, ref: 'Lead', required: true },
     division: { type: String, enum: ['digital', 'print'], required: true },
@@ -166,6 +254,19 @@ const OrderSchema = new Schema<IOrder>(
     billing: { type: BillingSchema },
     invoiceNumber: { type: String, trim: true },
     notes: { type: String, trim: true },
+    assignedTeamMember: { type: String, trim: true },
+    onboardingChecklist: { type: [OnboardingItemSchema], default: [] },
+    revisions: { type: RevisionTrackingSchema, default: () => ({ used: 0, max: 2, feedback: [] }) },
+    stageHistory: { type: [StageTransitionSchema], default: [] },
+    stagingUrl: { type: String, trim: true },
+    googleBusinessProfile: { type: GoogleBusinessProfileSchema, default: () => ({ created: false, verified: false }) },
+    paymentTerms: { type: String, trim: true },
+    followUpDate: { type: Date },
+    followUpType: { type: String, enum: ['review', 'upsell', 'referral', 'checkin'] },
+    reviewRequestedAt: { type: Date },
+    reviewReceived: { type: Boolean, default: false },
+    reviewRating: { type: Number, min: 1, max: 5 },
+    reviewUrl: { type: String, trim: true },
   },
   { timestamps: true }
 )

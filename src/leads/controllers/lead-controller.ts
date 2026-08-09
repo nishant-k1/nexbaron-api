@@ -1,11 +1,14 @@
 import { Request, Response } from 'express'
+import { randomUUID } from 'crypto'
 import { LeadStatus } from '../../models/lead.model'
 import { getDivisionModels } from '../../models/registry'
 import { logger } from '../../utils/logger'
 import { escapeRegex } from '../../utils/regex'
 import { runtimeBrand } from '../../utils/runtime-brand'
+import { getNextStaffForAssignment } from '../services/auto-assign'
+import { sendLeadAcknowledgment } from '../services/acknowledge'
 
-const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'dormant']
+const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'unqualified', 'proposal', 'won', 'lost', 'dormant']
 
 /**
  * Public endpoint — stores contact-form submissions as leads.
@@ -33,6 +36,7 @@ export async function submitLead(req: Request, res: Response) {
 
     const lead = await Lead.create({
       division,
+      projectId: randomUUID(),
       source: (body.source || 'web').toString().trim().slice(0, 40),
       name,
       email: body.email,
@@ -49,7 +53,13 @@ export async function submitLead(req: Request, res: Response) {
       deadline: body.deadline,
       deliveryPincode: body.deliveryPincode,
       clientRef,
+      referredBy: body.referredBy?.name
+        ? { name: String(body.referredBy.name).trim().slice(0, 100), email: body.referredBy.email?.trim() || undefined, projectId: body.referredBy.projectId || undefined }
+        : undefined,
     })
+
+    void sendLeadAcknowledgment(lead)
+    void autoAssignLeadAfterCreate(lead)
 
     res.status(201).json({ success: true, leadId: lead._id })
   } catch (error) {
@@ -111,6 +121,7 @@ export async function createLead(req: Request, res: Response) {
     const { Lead } = getDivisionModels(division)
     const lead = await Lead.create({
       division,
+      projectId: randomUUID(),
       source: (body.source || 'manual').toString().trim().slice(0, 40),
       name,
       email: body.email?.trim() || undefined,
@@ -121,6 +132,9 @@ export async function createLead(req: Request, res: Response) {
       message: body.message?.trim() || undefined,
       plan: body.plan?.trim() || undefined,
       clientRef: deriveClientRef({ email: body.email, phone: body.phone }),
+      referredBy: body.referredBy?.name
+        ? { name: String(body.referredBy.name).trim().slice(0, 100), email: body.referredBy.email?.trim() || undefined, projectId: body.referredBy.projectId || undefined }
+        : undefined,
     })
     res.status(201).json({ success: true, lead })
   } catch (error) {
@@ -140,23 +154,45 @@ export async function updateLeadStatus(req: Request, res: Response) {
     }
     const division = req.staffAuth.division
     const { Lead } = getDivisionModels(division)
-    const { status } = req.body
+    const { status, rejectionReason, budget, hasDomain, timeline, competitorInfo } = req.body
     if (!status || !VALID_STATUSES.includes(status)) {
       res.status(400).json({ success: false, message: 'Valid status required' })
       return
     }
+    const updateFields: Record<string, unknown> = { status }
+    if (rejectionReason !== undefined) updateFields.rejectionReason = String(rejectionReason).slice(0, 500)
+    if (budget !== undefined) updateFields.budget = String(budget).slice(0, 200)
+    if (hasDomain !== undefined) updateFields.hasDomain = Boolean(hasDomain)
+    if (timeline !== undefined) updateFields.timeline = String(timeline).slice(0, 200)
+    if (competitorInfo !== undefined) updateFields.competitorInfo = String(competitorInfo).slice(0, 500)
     const lead = await Lead.findOneAndUpdate(
       { _id: req.params.id, division },
-      { $set: { status } },
+      {
+        $set: updateFields,
+        $push: { statusHistory: { status: status as LeadStatus, by: req.staffAuth.name, at: new Date() } },
+      },
       { new: true }
     )
     if (!lead) {
       res.status(404).json({ success: false, message: 'Lead not found' })
       return
     }
-    res.json({ success: true, lead: { _id: lead._id, status: lead.status } })
+    res.json({ success: true, lead: { _id: lead._id, status: lead.status, statusHistory: lead.statusHistory } })
   } catch (error) {
     logger.error('updateLeadStatus failed', error)
     res.status(500).json({ success: false, message: 'Failed to update lead' })
+  }
+}
+
+async function autoAssignLeadAfterCreate(lead: { _id: any; division: string; assignedStaff?: string }) {
+  if (lead.assignedStaff) return
+  try {
+    const staffName = await getNextStaffForAssignment(lead.division)
+    if (!staffName) return
+    const { Lead } = getDivisionModels(lead.division as 'digital' | 'print')
+    await Lead.updateOne({ _id: lead._id }, { $set: { assignedStaff: staffName } })
+    logger.info(`Lead ${lead._id} auto-assigned to ${staffName}`)
+  } catch (error) {
+    logger.error('autoAssignLeadAfterCreate failed', error)
   }
 }

@@ -20,6 +20,7 @@ export interface IQuoteCustomer {
 // the shared model.
 export interface IQuote extends Document {
   division: 'digital' | 'print'
+  projectId: string
   userId?: Types.ObjectId
   leadId?: Types.ObjectId
   clientRequestId?: string
@@ -80,6 +81,7 @@ const ResponseSchema = new Schema(
 const QuoteSchema = new Schema<IQuote>(
   {
     division: { type: String, enum: ['digital', 'print'], required: true },
+    projectId: { type: String, index: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     leadId: { type: Schema.Types.ObjectId, ref: 'Lead' },
     clientRequestId: { type: String, trim: true },

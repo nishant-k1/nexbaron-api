@@ -1,7 +1,10 @@
 import { Request, Response } from 'express'
+import { randomUUID } from 'crypto'
 import { getDivisionModels } from '../../models/registry'
 import { runtimeBrand } from '../../utils/runtime-brand'
 import { logger } from '../../utils/logger'
+import { getNextStaffForAssignment } from '../../leads/services/auto-assign'
+import { sendLeadAcknowledgment } from '../../leads/services/acknowledge'
 
 /**
  * POST /{division}/chat — customer sends a chat message.
@@ -10,25 +13,74 @@ import { logger } from '../../utils/logger'
 export async function customerSendMessage(req: Request, res: Response) {
   try {
     const division = runtimeBrand
-    const { ChatMessage } = getDivisionModels(division)
+    const { ChatMessage, Lead } = getDivisionModels(division)
+    const name = String(req.body.name || '').trim()
+    const phone = String(req.body.phone || '').trim()
+    const email = String(req.body.email || '').trim().toLowerCase()
+
+    let projectId: string | null = null
+
+    if (name && (email || phone)) {
+      const projectIdForLead = randomUUID()
+      const leadMatch: Record<string, unknown> = { division }
+      if (email) leadMatch.email = email
+      else leadMatch.phone = phone
+
+      const existingLead = await Lead.findOne(leadMatch).lean()
+      if (existingLead) {
+        projectId = existingLead.projectId
+      } else {
+        const newLead = await Lead.create({
+          division,
+          projectId: projectIdForLead,
+          source: 'chat',
+          name,
+          email: email || undefined,
+          phone: phone || undefined,
+          message: String(req.body.message || '').slice(0, 500),
+          status: 'new',
+        })
+        projectId = projectIdForLead
+        void autoAssignChatLead(newLead)
+        void sendLeadAcknowledgment(newLead)
+      }
+    }
 
     const message = await ChatMessage.create({
       division,
+      projectId: projectId || undefined,
       customerId: req.userId || undefined,
       sessionId: req.body.sessionId || undefined,
       sender: 'customer',
       message: String(req.body.message || '').slice(0, 2000),
       attachments: req.body.attachments || undefined,
-      name: req.body.name || undefined,
-      phone: req.body.phone || undefined,
-      email: req.body.email || undefined,
+      name: name || undefined,
+      phone: phone || undefined,
+      email: email || undefined,
       lastSeen: new Date(),
     })
 
-    res.status(201).json({ success: true, message: { id: message._id, createdAt: message.createdAt } })
+    res.status(201).json({
+      success: true,
+      message: { id: message._id, createdAt: message.createdAt },
+      ...(projectId ? { projectId } : {}),
+    })
   } catch (error) {
     logger.error('customerSendMessage failed', error)
     res.status(500).json({ success: false, message: 'Failed to save message' })
+  }
+}
+
+async function autoAssignChatLead(lead: { _id: any; division: string; assignedStaff?: string }) {
+  if (lead.assignedStaff) return
+  try {
+    const staffName = await getNextStaffForAssignment(lead.division)
+    if (!staffName) return
+    const { Lead } = getDivisionModels(lead.division as 'digital' | 'print')
+    await Lead.updateOne({ _id: lead._id }, { $set: { assignedStaff: staffName } })
+    logger.info(`Chat lead ${lead._id} auto-assigned to ${staffName}`)
+  } catch (error) {
+    logger.error('autoAssignChatLead failed', error)
   }
 }
 
@@ -310,6 +362,110 @@ export async function adminReplyToChat(req: Request, res: Response) {
     res.status(201).json({ success: true, message: reply })
   } catch (error) {
     logger.error('adminReplyToChat failed', error)
+    res.status(500).json({ success: false, message: 'Failed to send reply' })
+  }
+}
+
+/**
+ * GET /{division}/chat/project/:projectId — customer fetches project-scoped chat.
+ */
+export async function customerGetProjectChat(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const { ChatMessage } = getDivisionModels(division)
+    const projectId = String(req.params.projectId)
+
+    const filter: Record<string, unknown> = { division, projectId }
+    if (req.userId) {
+      filter.customerId = req.userId
+    } else if (req.query.sessionId) {
+      filter.sessionId = String(req.query.sessionId)
+    }
+
+    const messages = await ChatMessage.find(filter).sort({ createdAt: 1 }).limit(200).lean()
+    res.json({ success: true, messages })
+  } catch (error) {
+    logger.error('customerGetProjectChat failed', error)
+    res.status(500).json({ success: false, message: 'Failed to load project chat' })
+  }
+}
+
+/**
+ * POST /{division}/chat/project/:projectId — customer sends project-scoped message.
+ */
+export async function customerSendProjectMessage(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const { ChatMessage } = getDivisionModels(division)
+    const projectId = String(req.params.projectId)
+
+    const message = await ChatMessage.create({
+      division,
+      projectId,
+      customerId: req.userId || undefined,
+      sessionId: String(req.body.sessionId || ''),
+      sender: 'customer',
+      message: String(req.body.message || '').slice(0, 2000),
+      attachments: req.body.attachments || undefined,
+      name: req.body.name || undefined,
+      phone: req.body.phone || undefined,
+      email: req.body.email || undefined,
+      lastSeen: new Date(),
+    })
+
+    res.status(201).json({ success: true, message: { id: message._id, createdAt: message.createdAt } })
+  } catch (error) {
+    logger.error('customerSendProjectMessage failed', error)
+    res.status(500).json({ success: false, message: 'Failed to save message' })
+  }
+}
+
+/**
+ * GET /{division}/admin/chat/project/:projectId — admin fetches project chat.
+ */
+export async function adminGetProjectChat(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const { ChatMessage } = getDivisionModels(division)
+    const { projectId } = req.params
+
+    const messages = await ChatMessage.find({ division, projectId }).sort({ createdAt: 1 }).limit(200).lean()
+
+    await ChatMessage.updateMany(
+      { division, projectId, sender: 'customer', isRead: false },
+      { $set: { isRead: true } }
+    )
+
+    res.json({ success: true, messages })
+  } catch (error) {
+    logger.error('adminGetProjectChat failed', error)
+    res.status(500).json({ success: false, message: 'Failed to load project chat' })
+  }
+}
+
+/**
+ * POST /{division}/admin/chat/project/:projectId/reply — admin replies to project chat.
+ */
+export async function adminReplyToProjectChat(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const { ChatMessage } = getDivisionModels(division)
+    const projectId = String(req.params.projectId)
+
+    const reply = await ChatMessage.create({
+      division,
+      projectId,
+      customerId: String(req.body.customerId || ''),
+      sessionId: String(req.body.sessionId || ''),
+      sender: 'agent',
+      message: String(req.body.message || '').slice(0, 2000),
+      attachments: req.body.attachments || undefined,
+      isRead: false,
+    })
+
+    res.status(201).json({ success: true, message: reply })
+  } catch (error) {
+    logger.error('adminReplyToProjectChat failed', error)
     res.status(500).json({ success: false, message: 'Failed to send reply' })
   }
 }

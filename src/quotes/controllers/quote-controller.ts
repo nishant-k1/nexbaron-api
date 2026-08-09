@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { Types } from 'mongoose'
+import { randomUUID } from 'crypto'
 
 import { getDivisionModels } from '../../models/registry'
 import { QuoteStatus } from '../../models/quote.model'
@@ -145,6 +146,7 @@ export async function submitQuote(req: Request, res: Response) {
     const quoteNumber = await nextQuoteNumber(division, InvoiceCounter)
 
     // Mirror the checkout pipeline: surface the request in the CRM as a lead.
+    const projectId = randomUUID()
     const lead = await Lead.findOneAndUpdate(
       { division, email, phone: phone || '' },
       {
@@ -154,19 +156,26 @@ export async function submitQuote(req: Request, res: Response) {
           name,
           email,
           phone,
-company: division === 'print' ? (details.company as string | undefined) : undefined,
+          company: division === 'print' ? (details.company as string | undefined) : undefined,
           subject: division === 'digital' ? (selection.planIds as string[]).join(', ') : selection.product,
           message: String(details.notes || body.message || '').trim(),
           requirement: division === 'print' ? selection.product : undefined,
           quantity: division === 'print' ? String(selection.quantity) : undefined,
         },
-        $setOnInsert: { status: 'new' },
+        $setOnInsert: { status: 'new', projectId },
       },
       { upsert: true, setDefaultsOnInsert: true, new: true }
     )
 
+    // Pre-existing lead — backfill projectId
+    if (!lead.projectId) {
+      lead.projectId = projectId
+      await lead.save()
+    }
+
     const quote = await Quote.create({
       division,
+      projectId: lead.projectId || projectId,
       userId: req.userId ? new Types.ObjectId(req.userId) : undefined,
       leadId: lead._id,
       clientRequestId: clientRequestId || undefined,

@@ -9,6 +9,7 @@ export interface IChatAttachment {
 
 export interface IChatMessage extends Document {
   division: 'digital' | 'print'
+  projectId?: string
   customerId?: string // null for anonymous visitors
   sessionId?: string // anonymous session identifier
   sender: 'customer' | 'agent'
@@ -25,6 +26,7 @@ export interface IChatMessage extends Document {
 const chatMessageSchema = new Schema(
   {
     division: { type: String, required: true, enum: ['digital', 'print'] },
+    projectId: { type: String, default: null },
     customerId: { type: String, default: null },
     sessionId: { type: String, default: null },
     sender: { type: String, required: true, enum: ['customer', 'agent'] },

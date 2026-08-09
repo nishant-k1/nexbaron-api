@@ -9,6 +9,9 @@ import { createOnboardingDraftModel } from './onboarding-draft.model'
 import { createInvoiceCounterModel } from './invoice-counter.model'
 import { createQuoteModel } from './quote.model'
 import { createChatMessageModel } from './chat-message.model'
+import { createReminderModel } from './reminder.model'
+import { createRecurringServiceModel } from './recurring-service.model'
+import { createTestimonialModel } from './testimonial.model'
 import { runtimeBrand } from '../utils/runtime-brand'
 
 export interface DivisionModels {
@@ -22,6 +25,9 @@ export interface DivisionModels {
   InvoiceCounter: ReturnType<typeof createInvoiceCounterModel>
   Quote: ReturnType<typeof createQuoteModel>
   ChatMessage: ReturnType<typeof createChatMessageModel>
+  Reminder: ReturnType<typeof createReminderModel>
+  RecurringService: ReturnType<typeof createRecurringServiceModel>
+  Testimonial: ReturnType<typeof createTestimonialModel>
 }
 
 const _registry: Partial<Record<'digital' | 'print', DivisionModels>> = {}
@@ -44,6 +50,9 @@ export function registerDivisionModels(
     InvoiceCounter: createInvoiceCounterModel(conn),
     Quote: createQuoteModel(conn),
     ChatMessage: createChatMessageModel(conn),
+    Reminder: createReminderModel(conn),
+    RecurringService: createRecurringServiceModel(conn),
+    Testimonial: createTestimonialModel(conn),
   }
   _registry[division] = models
   return models

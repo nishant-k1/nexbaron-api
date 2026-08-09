@@ -4,6 +4,7 @@ export type LeadStatus =
   | 'new'
   | 'contacted'
   | 'qualified'
+  | 'unqualified'
   | 'proposal'
   | 'won'
   | 'lost'
@@ -11,6 +12,7 @@ export type LeadStatus =
 
 export interface ILead extends Document {
   division: 'digital' | 'print'
+  projectId: string
   source: string
   // Common contact fields
   name: string
@@ -35,8 +37,20 @@ export interface ILead extends Document {
   nextFollowUp?: Date
   tags: string[]
   notes: { text: string; staff?: string; at: Date }[]
-  statusHistory: { status: LeadStatus; at: Date }[]
+  statusHistory: { status: LeadStatus; by?: string; at: Date }[]
   clientRef?: string
+  // Qualification
+  budget?: string
+  hasDomain?: boolean
+  timeline?: string
+  rejectionReason?: string
+  competitorInfo?: string
+  // Referral
+  referredBy?: {
+    name: string
+    email?: string
+    projectId?: string
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -52,7 +66,8 @@ const LeadNoteSchema = new Schema(
 
 const LeadStatusHistorySchema = new Schema(
   {
-    status: { type: String, enum: ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'dormant'], required: true },
+    status: { type: String, enum: ['new', 'contacted', 'qualified', 'unqualified', 'proposal', 'won', 'lost', 'dormant'], required: true },
+    by: { type: String },
     at: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -61,6 +76,7 @@ const LeadStatusHistorySchema = new Schema(
 const LeadSchema = new Schema<ILead>(
   {
     division: { type: String, enum: ['digital', 'print'], required: true },
+    projectId: { type: String, index: true },
     source: { type: String, default: 'web' },
     name: { type: String, trim: true },
     email: { type: String, trim: true, lowercase: true, sparse: true },
@@ -76,13 +92,23 @@ const LeadSchema = new Schema<ILead>(
     quantity: { type: String, trim: true },
     deadline: { type: String, trim: true },
     deliveryPincode: { type: String, trim: true },
-    status: { type: String, enum: ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'dormant'], default: 'new' },
+    status: { type: String, enum: ['new', 'contacted', 'qualified', 'unqualified', 'proposal', 'won', 'lost', 'dormant'], default: 'new' },
     assignedStaff: { type: String },
     nextFollowUp: { type: Date },
     tags: { type: [String], default: [] },
     notes: { type: [LeadNoteSchema], default: [] },
     statusHistory: { type: [LeadStatusHistorySchema], default: [{ status: 'new', at: new Date() }] },
     clientRef: { type: String },
+    budget: { type: String, trim: true },
+    hasDomain: { type: Boolean },
+    timeline: { type: String, trim: true },
+    rejectionReason: { type: String, trim: true },
+    competitorInfo: { type: String, trim: true },
+    referredBy: {
+      name: { type: String, trim: true },
+      email: { type: String, trim: true, lowercase: true },
+      projectId: { type: String },
+    },
   },
   {
     timestamps: true,

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { randomUUID } from 'crypto'
 import { OrderStatus, PaymentMethod } from '../models/order.model'
 import { getDivisionModels } from '../../models/registry'
 import { logger } from '../../utils/logger'
@@ -84,6 +85,7 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
 
     if (!order) {
       order = await Order.create({
+        projectId: lead.projectId,
         leadId: lead._id,
         division: lead.division,
         customer: {
@@ -98,10 +100,12 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
         currency: 'INR',
         payments: [],
         amountPaid: 0,
+        stageHistory: [{ stage: 'pending', by: req.staffAuth?.name || 'system', at: new Date() }],
       })
     }
 
     // Record the payment and recompute totals/status.
+    const previousStatus = order.status
     order.payments.push({
       method,
       amount,
@@ -111,12 +115,15 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
     })
     order.amountPaid = order.payments.reduce((sum, p) => sum + p.amount, 0)
     order.status = order.amountPaid >= order.amount ? 'paid' : 'pending'
+    if (order.status !== previousStatus) {
+      order.stageHistory.push({ stage: order.status, by: req.staffAuth?.name || 'system', at: new Date() })
+    }
     await order.save()
 
     // The lead is now a paying customer.
     if (lead.status !== 'won') {
       lead.status = 'won'
-      lead.statusHistory.push({ status: 'won', at: new Date() })
+      lead.statusHistory.push({ status: 'won', by: req.staffAuth?.name, at: new Date() })
       await lead.save()
     }
 
@@ -127,14 +134,11 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
   }
 }
 
-/** Admin-only: update an order's status. */
+/** Admin-only: update order status, project fields, onboarding, revisions. */
 export async function updateOrderStatus(req: Request, res: Response) {
   try {
-    const status = req.body?.status as OrderStatus
-    if (!VALID_STATUSES.includes(status)) {
-      res.status(400).json({ success: false, message: 'Invalid order status' })
-      return
-    }
+    const body = (req.body ?? {}) as Record<string, any>
+
     if (!req.staffAuth) {
       res.status(401).json({ success: false, message: 'Authentication required' })
       return
@@ -149,11 +153,142 @@ export async function updateOrderStatus(req: Request, res: Response) {
       res.status(403).json({ success: false, message: 'Not authorized for this order' })
       return
     }
-    order.status = status
+
+    const previousStatus = order.status
+    if (typeof body.status === 'string' && VALID_STATUSES.includes(body.status as OrderStatus)) {
+      const nextStatus = body.status as OrderStatus
+      order.status = nextStatus
+      if (nextStatus !== previousStatus) {
+        order.stageHistory.push({ stage: nextStatus, by: req.staffAuth.name, at: new Date() })
+        // Auto-schedule follow-up + review request when project completes
+        if (nextStatus === 'delivered' && !order.followUpDate) {
+          const followUp = new Date()
+          followUp.setMonth(followUp.getMonth() + 3)
+          order.followUpDate = followUp
+          order.followUpType = 'checkin'
+        }
+        if (nextStatus === 'delivered' && !order.reviewRequestedAt) {
+          order.reviewRequestedAt = new Date()
+          order.reviewReceived = false
+        }
+      }
+    }
+
+    if (typeof body.followUpDate === 'string') order.followUpDate = new Date(body.followUpDate)
+    if (typeof body.followUpType === 'string' && ['review', 'upsell', 'referral', 'checkin'].includes(body.followUpType)) {
+      order.followUpType = body.followUpType as 'review' | 'upsell' | 'referral' | 'checkin'
+    }
+
+    if (typeof body.reviewRequestedAt === 'string') order.reviewRequestedAt = new Date(body.reviewRequestedAt)
+    if (typeof body.reviewReceived === 'boolean') order.reviewReceived = body.reviewReceived
+    if (typeof body.reviewRating === 'number') order.reviewRating = Math.min(5, Math.max(1, Math.floor(body.reviewRating)))
+    if (typeof body.reviewUrl === 'string') order.reviewUrl = body.reviewUrl.trim() || undefined
+
+    if (typeof body.assignedTeamMember === 'string') {
+      order.assignedTeamMember = body.assignedTeamMember.trim() || undefined
+    }
+
+    if (typeof body.stagingUrl === 'string') {
+      order.stagingUrl = body.stagingUrl.trim() || undefined
+    }
+
+    if (typeof body.paymentTerms === 'string') {
+      order.paymentTerms = body.paymentTerms.trim() || undefined
+    }
+
+    if (typeof body.notes === 'string') {
+      order.notes = body.notes.trim() || undefined
+    }
+
+    if (Array.isArray(body.onboardingChecklist)) {
+      order.onboardingChecklist = body.onboardingChecklist.map((item: any) => ({
+        item: String(item.item || ''),
+        done: Boolean(item.done),
+        note: item.note ? String(item.note).slice(0, 500) : undefined,
+      }))
+      order.markModified('onboardingChecklist')
+    }
+
+    if (body.revisions && (typeof body.revisions.used === 'number' || typeof body.revisions.max === 'number')) {
+      if (typeof body.revisions.used === 'number') order.revisions.used = Math.max(0, Math.floor(body.revisions.used))
+      if (typeof body.revisions.max === 'number') order.revisions.max = Math.max(1, Math.floor(body.revisions.max))
+      if (typeof body.revisions.feedback === 'string' && body.revisions.feedback.trim()) {
+        order.revisions.feedback.push({
+          text: body.revisions.feedback.trim(),
+          by: req.staffAuth.name,
+          at: new Date(),
+        })
+      }
+      order.markModified('revisions')
+    }
+
+    if (body.googleBusinessProfile) {
+      if (typeof body.googleBusinessProfile.created === 'boolean') order.googleBusinessProfile!.created = body.googleBusinessProfile.created
+      if (typeof body.googleBusinessProfile.verified === 'boolean') order.googleBusinessProfile!.verified = body.googleBusinessProfile.verified
+      order.markModified('googleBusinessProfile')
+    }
+
     await order.save()
     res.json({ success: true, order })
   } catch (error) {
     logger.error('updateOrderStatus failed', error)
     res.status(500).json({ success: false, message: 'Failed to update order' })
+  }
+}
+
+/**
+ * Repeat business — create a new project directly from an existing client,
+ * skipping the lead pipeline entirely since they are already known.
+ */
+export async function createProjectFromClient(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const body = req.body ?? {}
+    const { Order, Lead } = getDivisionModels(req.staffAuth.division)
+    const leadId = String(body.leadId || '').trim()
+    const email = String(body.email || '').trim().toLowerCase()
+
+    let lead
+    if (leadId) {
+      lead = await Lead.findById(leadId).lean()
+    } else if (email) {
+      lead = await Lead.findOne({ division: req.staffAuth.division, email }).sort({ createdAt: -1 }).lean()
+    }
+
+    if (!lead) {
+      res.status(404).json({ success: false, message: 'Existing customer not found. Provide a valid leadId or email.' })
+      return
+    }
+
+    const projectId = randomUUID()
+    const order = await Order.create({
+      projectId,
+      leadId: lead._id,
+      division: req.staffAuth.division,
+      customer: {
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        company: lead.company,
+        city: lead.city,
+      },
+      service: body.service || lead.plan || undefined,
+      amount: Number(body.amount) || 0,
+      currency: body.currency || 'INR',
+      status: body.status || 'pending',
+      items: Array.isArray(body.items) ? body.items : [],
+      notes: body.notes?.trim() || undefined,
+      stageHistory: [{ stage: body.status || 'pending', by: req.staffAuth.name, at: new Date() }],
+      assignedTeamMember: body.assignedTeamMember?.trim() || undefined,
+      paymentTerms: body.paymentTerms?.trim() || undefined,
+    })
+
+    res.status(201).json({ success: true, order })
+  } catch (error) {
+    logger.error('createProjectFromClient failed', error)
+    res.status(500).json({ success: false, message: 'Failed to create project' })
   }
 }

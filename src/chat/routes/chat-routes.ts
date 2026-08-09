@@ -10,6 +10,10 @@ import {
   adminListChats,
   adminGetConversation,
   adminReplyToChat,
+  customerGetProjectChat,
+  customerSendProjectMessage,
+  adminGetProjectChat,
+  adminReplyToProjectChat,
 } from '../controllers/chat-controller'
 
 import { optionalAuth } from '../../middleware/optional-auth'
@@ -28,3 +32,11 @@ export const adminChatRouter = Router()
 adminChatRouter.get('/chat', requireAdmin, requireDivision('digital', 'print'), adminListChats)
 adminChatRouter.get('/chat/:conversationId', requireAdmin, requireDivision('digital', 'print'), adminGetConversation)
 adminChatRouter.post('/chat/:conversationId/reply', requireAdmin, requireDivision('digital', 'print'), adminReplyToChat)
+
+// Project-scoped chat routes
+adminChatRouter.get('/chat/project/:projectId', requireAdmin, requireDivision('digital', 'print'), adminGetProjectChat)
+adminChatRouter.post('/chat/project/:projectId/reply', requireAdmin, requireDivision('digital', 'print'), adminReplyToProjectChat)
+
+// Customer project chat routes
+customerChatRouter.get('/chat/project/:projectId', optionalAuth, customerGetProjectChat)
+customerChatRouter.post('/chat/project/:projectId', optionalAuth, rateLimit({ windowMs: 10 * 60 * 1000, max: 60 }), customerSendProjectMessage)

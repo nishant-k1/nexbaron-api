@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { Types } from 'mongoose'
+import { randomUUID } from 'crypto'
 
 import { digitalCatalog } from '../../catalog/catalog'
 import { getDivisionModels } from '../../../../models/registry'
@@ -52,6 +53,7 @@ export async function createCheckout(req: Request, res: Response) {
     }
 
     // Create/upsert a pending lead; successful payment moves it to won.
+    const projectId = randomUUID()
     const lead = await Lead.findOneAndUpdate(
       {
         division: req.division,
@@ -70,10 +72,15 @@ export async function createCheckout(req: Request, res: Response) {
           subject: customer.services,
           message: customer.notes,
         },
-        $setOnInsert: { status: 'new' },
+        $setOnInsert: { status: 'new', projectId },
       },
       { upsert: true, setDefaultsOnInsert: true, new: true }
     )
+
+    if (!lead.projectId) {
+      lead.projectId = projectId
+      await lead.save()
+    }
 
     const invoiceNumber = await nextInvoiceNumber(InvoiceCounter)
     const razorpay = await createRazorpayOrder(computed.amount * 100, `NXB${Date.now()}`, {
@@ -94,6 +101,7 @@ export async function createCheckout(req: Request, res: Response) {
     })
 
     const order = await Order.create({
+      projectId: lead.projectId,
       userId: req.userId ? new Types.ObjectId(req.userId) : undefined,
       leadId: lead._id,
       division: req.division,
@@ -116,6 +124,7 @@ export async function createCheckout(req: Request, res: Response) {
       razorpay: { orderId: razorpay.id },
       billing: { address: customer.address },
       notes: customer.notes,
+      stageHistory: [{ stage: 'pending', by: 'system', at: new Date() }],
     })
 
     res.status(201).json({
@@ -366,12 +375,22 @@ async function finalizeOrder(order: IOrder, payment: { method: 'razorpay'; payme
     paymentId: payment.paymentId,
     signature: payment.signature,
   }
-  // Mark first two milestones as done (order created + payment received)
+  order.stageHistory.push({ stage: 'paid', by: 'system', at: new Date() })
   if (order.milestones && order.milestones.length > 0) {
     const ms = order.milestones
     if (ms[0]) ms[0].status = 'done'
     if (ms[1]) ms[1].status = 'done'
     order.markModified('milestones')
+  }
+  // Default onboarding checklist for digital orders
+  if (!order.onboardingChecklist || order.onboardingChecklist.length === 0) {
+    order.onboardingChecklist = [
+      { item: 'Logo received', done: false },
+      { item: 'Content / text received', done: false },
+      { item: 'Photos / images received', done: false },
+      { item: 'Business details confirmed', done: false },
+      { item: 'Domain access received', done: false },
+    ]
   }
   await order.save()
   const { Lead } = getDivisionModels(runtimeBrand)
