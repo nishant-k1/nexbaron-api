@@ -76,40 +76,43 @@ export async function submitQuote(req: Request, res: Response) {
     const details: Record<string, unknown> = {}
     let serverEstimate: ReturnType<typeof computePrintEstimate> | null = null
     if (division === 'print') {
-      const product = String(body.product || '').trim()
-      if (!PRINT_PRODUCTS.some((item) => item.id === product)) {
-        res.status(400).json({ success: false, message: 'Please choose a valid product' })
+      // Accept items array: [{ product, quantity }]
+      const items: { product: string; quantity: number }[] = Array.isArray(body.items)
+        ? body.items.map((it: any) => ({
+            product: String(it.product || '').trim(),
+            quantity: Number(it.quantity) || 0,
+          })).filter((it: any) => it.product && it.quantity >= 500 && it.quantity <= MAX_PRINT_QUANTITY)
+        : []
+
+      // Fallback to single product+quantity for backward compat
+      if (items.length === 0) {
+        const product = String(body.product || '').trim()
+        const quantity = Number(body.quantity)
+        if (product && quantity >= 500 && quantity <= MAX_PRINT_QUANTITY) {
+          items.push({ product, quantity })
+        }
+      }
+
+      if (items.length === 0) {
+        res.status(400).json({ success: false, message: 'Please choose at least one product with a valid quantity (min 500)' })
         return
       }
-      const quantity = Number(body.quantity)
-      if (!Number.isInteger(quantity) || quantity < 500 || quantity > MAX_PRINT_QUANTITY) {
-        res.status(400).json({
-          success: false,
-          message: `Quantity must be a whole number between 500 and ${MAX_PRINT_QUANTITY}`,
-        })
-        return
+
+      for (const item of items) {
+        if (!PRINT_PRODUCTS.some((p) => p.id === item.product)) {
+          res.status(400).json({ success: false, message: `Invalid product: ${item.product}` })
+          return
+        }
       }
-      const paperStock = String(body.paperStock || 'standard')
-      const finishing = String(body.finishing || 'none')
-      if (!PRINT_STOCK_TIERS.some((item) => item.id === paperStock)) {
-        res.status(400).json({ success: false, message: 'Please choose a valid paper stock' })
-        return
-      }
-      if (!PRINT_FINISHES.some((item) => item.id === finishing)) {
-        res.status(400).json({ success: false, message: 'Please choose a valid finish' })
-        return
-      }
+
       const estimate = computePrintEstimate({
-        product,
-        quantity,
-        stock: paperStock,
-        finishing,
+        product: items[0].product,
+        quantity: items[0].quantity,
+        stock: 'standard',
+        finishing: 'none',
       })
       serverEstimate = estimate
-      selection.product = product
-      selection.quantity = quantity
-      selection.paperStock = paperStock
-      selection.finishing = finishing
+      selection.items = items
       selection.estimatedPrice = estimate.estimatedPrice
       details.company = String(body.company || '').trim() || undefined
       details.deadline = String(body.deadline || '').trim() || undefined
