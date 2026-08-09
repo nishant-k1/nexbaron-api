@@ -12,6 +12,7 @@ export interface AdminTokenPayload {
   role: StaffRole
   division: StaffDivision
   name: string
+  jti?: string
   iat: number
   exp: number
 }
@@ -45,11 +46,15 @@ function create(payload: {
 }): string {
   if (payload.division !== runtimeBrand) throw new Error('Cannot issue an admin token for another brand')
   const now = Math.floor(Date.now() / 1000)
+  // jti makes every token unique — refresh tokens are hashed and stored with a
+  // unique index, so two issues within the same second must not collide.
+  const jti = crypto.randomBytes(16).toString('hex')
   const claims: AdminTokenPayload = {
     sub: payload.sub,
     role: payload.role,
     division: payload.division,
     name: payload.name,
+    jti,
     exp: now + payload.ttlSeconds,
     iat: now,
   }
