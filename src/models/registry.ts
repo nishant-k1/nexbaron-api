@@ -12,6 +12,7 @@ import { createChatMessageModel } from './chat-message.model'
 import { createReminderModel } from './reminder.model'
 import { createRecurringServiceModel } from './recurring-service.model'
 import { createTestimonialModel } from './testimonial.model'
+import { createCustomPlanModel } from './custom-plan.model'
 import { runtimeBrand } from '../utils/runtime-brand'
 
 export interface DivisionModels {
@@ -28,6 +29,7 @@ export interface DivisionModels {
   Reminder: ReturnType<typeof createReminderModel>
   RecurringService: ReturnType<typeof createRecurringServiceModel>
   Testimonial: ReturnType<typeof createTestimonialModel>
+  CustomPlan: ReturnType<typeof createCustomPlanModel>
 }
 
 const _registry: Partial<Record<'digital' | 'print', DivisionModels>> = {}
@@ -53,6 +55,7 @@ export function registerDivisionModels(
     Reminder: createReminderModel(conn),
     RecurringService: createRecurringServiceModel(conn),
     Testimonial: createTestimonialModel(conn),
+    CustomPlan: createCustomPlanModel(conn),
   }
   _registry[division] = models
   return models

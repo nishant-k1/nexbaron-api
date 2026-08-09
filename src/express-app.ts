@@ -23,6 +23,7 @@ import { adminReminderRouter } from './cron/admin-routes'
 import { adminRecurringRouter } from './cron/recurring-routes'
 import { testimonialRouter } from './cron/testimonial-routes'
 import { reportRouter } from './features/reports/routes/report-routes'
+import { customPlanAdminRouter } from './features/digital/catalog/routes/custom-plan-routes'
 import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
@@ -97,6 +98,7 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(`${brandBase}/admin`, adminRecurringRouter)
   app.use(`${brandBase}/admin`, testimonialRouter)
   app.use(`${brandBase}/admin`, reportRouter)
+  app.use(`${brandBase}/admin`, customPlanAdminRouter)
 }
 
 mountBrandRoutes(`/${runtimeBrand}`)
