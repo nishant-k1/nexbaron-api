@@ -17,18 +17,23 @@ export interface AuthCookies {
 }
 
 export function setAuthCookies(res: Response, tokens: AuthCookies): void {
+  // When sharing across subdomains (COOKIE_DOMAIN=.nexbaron.com), the cookie
+  // must be SameSite=None so it can be set and sent from cross-site origins
+  // (e.g. localhost dev servers, or the CRM on crm.nexbaron.com talking to
+  // chat.nexbaron.com).
+  const sameSite: 'lax' | 'none' = COOKIE_DOMAIN ? 'none' : 'lax'
   res.cookie(ACCESS_COOKIE, tokens.access, {
     httpOnly: true,
-    secure: IS_PROD,
-    sameSite: 'lax',
+    secure: IS_PROD || !!COOKIE_DOMAIN,
+    sameSite,
     path: COOKIE_PATH,
     domain: COOKIE_DOMAIN,
     maxAge: ACCESS_TOKEN_TTL_MS,
   })
   res.cookie(REFRESH_COOKIE, tokens.refresh, {
     httpOnly: true,
-    secure: IS_PROD,
-    sameSite: 'lax',
+    secure: IS_PROD || !!COOKIE_DOMAIN,
+    sameSite,
     path: COOKIE_PATH,
     domain: COOKIE_DOMAIN,
     maxAge: REFRESH_TOKEN_TTL_MS,
@@ -36,8 +41,9 @@ export function setAuthCookies(res: Response, tokens: AuthCookies): void {
 }
 
 export function clearAuthCookies(res: Response): void {
-  res.clearCookie(ACCESS_COOKIE, { path: COOKIE_PATH, domain: COOKIE_DOMAIN })
-  res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH, domain: COOKIE_DOMAIN })
+  const sameSite: 'lax' | 'none' = COOKIE_DOMAIN ? 'none' : 'lax'
+  res.clearCookie(ACCESS_COOKIE, { path: COOKIE_PATH, domain: COOKIE_DOMAIN, sameSite })
+  res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH, domain: COOKIE_DOMAIN, sameSite })
 }
 
 export function readAccessCookie(req: { cookies?: Record<string, string> }): string | undefined {
