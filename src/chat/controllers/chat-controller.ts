@@ -277,13 +277,22 @@ export async function adminListChats(req: Request, res: Response) {
     ])
 
     // Post-process: extract first non-null name/phone/email from each conversation
-    const result = conversations.map((c: any) => ({
-      ...c,
-      customerName: c.names?.find((n: any) => n) || null,
-      customerPhone: c.phones?.find((p: any) => p) || null,
-      customerEmail: c.emails?.find((e: any) => e) || null,
-      names: undefined, phones: undefined, emails: undefined,
-    }))
+    const now = Date.now()
+    const DAY_MS = 86400000
+    const result = conversations
+      .map((c: any) => ({
+        ...c,
+        customerName: c.names?.find((n: any) => n && !/@/.test(n) && n.length < 50) || null,
+        customerPhone: c.phones?.find((p: any) => p && /^[+\d]/.test(p)) || null,
+        customerEmail: c.emails?.find((e: any) => e && e.includes('@')) || null,
+        names: undefined, phones: undefined, emails: undefined,
+      }))
+      .filter((c: any) => {
+        const isIdentified = c.customerName || c.customerPhone || c.customerEmail
+        const isRecent = c.lastAt && (now - new Date(c.lastAt).getTime() < DAY_MS)
+        const hasUnread = c.unreadCount > 0
+        return isIdentified || isRecent || hasUnread
+      })
 
     res.json({ success: true, conversations: result })
   } catch (error) {
