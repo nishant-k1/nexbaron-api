@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { getDivisionModels } from '../../models/registry'
 import { runtimeBrand } from '../../utils/runtime-brand'
 import { canSendMail, sendMail } from '../../utils/mailer'
+import { logger } from '../../utils/logger'
 import { logoNx, NX_DIGITAL, NX_PRINT } from '../../utils/html'
 
 export const OTP_TTL_MS = Number(process.env.OTP_TTL_MS) || 10 * 60 * 1000
@@ -38,7 +39,7 @@ function generateCode(): string {
 
 export async function createOtp(
   target: string,
-  channel: 'email' | 'sms',
+  channel: 'email' | 'sms' | 'whatsapp',
   purpose: 'signup' | 'login',
   division: 'digital' | 'print'
 ): Promise<{ devCode?: string }> {
@@ -70,7 +71,7 @@ export async function createOtp(
 export async function verifyOtp(
   target: string,
   code: string,
-  channel: 'email' | 'sms',
+  channel: 'email' | 'sms' | 'whatsapp',
   purpose: 'signup' | 'login',
   division: 'digital' | 'print'
 ) {
@@ -187,15 +188,20 @@ function otpEmailHtml(code: string, purpose: string, expiresMinutes: number, bra
 
 async function deliverOtp(
   target: string,
-  channel: 'email' | 'sms',
+  channel: 'email' | 'sms' | 'whatsapp',
   code: string,
   purpose: 'signup' | 'login'
 ): Promise<void> {
   if (isDevMode()) return
-  if (channel === 'sms') {
-    throw new OtpRequestError('Phone verification is not configured for this deployment', 503)
+
+  if (channel === 'whatsapp') {
+    await deliverWhatsApp(target, code, purpose)
+    return
   }
 
+  if (channel === 'sms') {
+    throw new OtpRequestError('SMS verification is not configured for this deployment', 503)
+  }
 
   if (!canSendMail()) {
     throw new OtpRequestError('Email delivery is not configured', 503)
@@ -214,5 +220,54 @@ async function deliverOtp(
     })
   } catch {
     throw new OtpRequestError('Could not send the verification email', 502)
+  }
+}
+
+async function deliverWhatsApp(target: string, code: string, _purpose: string): Promise<void> {
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+
+  if (!phoneNumberId || !accessToken) {
+    throw new OtpRequestError('WhatsApp verification is not configured for this deployment', 503)
+  }
+
+  const phone = target.replace(/[^\d]/g, '')
+  const brand = runtimeBrand
+  const label = brand === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'template',
+        template: {
+          name: 'nexbaron_otp',
+          language: { code: 'en' },
+          components: [{
+            type: 'body',
+            parameters: [
+              { type: 'text', text: code },
+              { type: 'text', text: label },
+            ],
+          }],
+        },
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      logger.error('WhatsApp delivery failed', { status: res.status, error: err })
+      throw new OtpRequestError('Could not send WhatsApp message', 502)
+    }
+  } catch (error) {
+    if (error instanceof OtpRequestError) throw error
+    logger.error('WhatsApp delivery error', error)
+    throw new OtpRequestError('Could not send WhatsApp message', 502)
   }
 }

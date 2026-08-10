@@ -2,7 +2,7 @@ import { Schema, Document, Connection } from 'mongoose'
 
 export interface IOtp extends Document {
   target: string
-  channel: 'email' | 'phone' | 'sms'
+  channel: 'email' | 'phone' | 'sms' | 'whatsapp'
   codeHash: string
   purpose: 'signup' | 'login'
   division: 'digital' | 'print'
@@ -15,7 +15,7 @@ export interface IOtp extends Document {
 const OtpSchema = new Schema<IOtp>(
   {
     target: { type: String, required: true, trim: true, lowercase: true },
-    channel: { type: String, enum: ['email', 'phone', 'sms'], required: true },
+    channel: { type: String, enum: ['email', 'phone', 'sms', 'whatsapp'], required: true },
     codeHash: { type: String, required: true },
     purpose: { type: String, enum: ['signup', 'login'], default: 'signup' },
     division: { type: String, enum: ['digital', 'print'], default: 'digital' },

@@ -34,8 +34,8 @@ export async function requestOtp(req: Request, res: Response) {
   try {
     const { channel, target, purpose = 'signup' } = req.body ?? {}
 
-    if (channel !== 'email' && channel !== 'phone' && channel !== 'sms') {
-      res.status(400).json({ success: false, message: 'channel must be email, phone or sms' })
+    if (channel !== 'email' && channel !== 'phone' && channel !== 'sms' && channel !== 'whatsapp') {
+      res.status(400).json({ success: false, message: 'channel must be email, phone, sms or whatsapp' })
       return
     }
     if (!target) {
@@ -48,11 +48,12 @@ export async function requestOtp(req: Request, res: Response) {
     }
 
     const normalized = channel === 'email' ? normalizeEmail(target) : normalizePhone(target)
-    const otp = await createOtp(normalized, channel === 'email' ? 'email' : 'sms', purpose, runtimeBrand)
+    const otpChannel = channel === 'email' ? 'email' : channel === 'whatsapp' ? 'whatsapp' : 'sms'
+    const otp = await createOtp(normalized, otpChannel, purpose, runtimeBrand)
 
     res.status(200).json({
       success: true,
-      message: `Verification code sent to ${channel === 'email' ? 'your email' : 'your phone'}`,
+      message: `Verification code sent to ${channel === 'email' ? 'your email' : channel === 'whatsapp' ? 'your WhatsApp' : 'your phone'}`,
       target: normalized,
       ...(otp.devCode ? { devCode: otp.devCode } : {}),
     })
@@ -71,7 +72,7 @@ export async function verifyCode(req: Request, res: Response) {
   try {
     const { channel, target, code, name, purpose = 'signup' } = req.body ?? {}
 
-    if ((channel !== 'email' && channel !== 'phone' && channel !== 'sms') || !target || !code) {
+    if ((channel !== 'email' && channel !== 'phone' && channel !== 'sms' && channel !== 'whatsapp') || !target || !code) {
       res.status(400).json({ success: false, message: 'Missing verification code' })
       return
     }
@@ -84,7 +85,7 @@ export async function verifyCode(req: Request, res: Response) {
     const result = await verifyOtp(
       normalized,
       String(code),
-      channel === 'email' ? 'email' : 'sms',
+      channel === 'email' ? 'email' : channel === 'whatsapp' ? 'whatsapp' : 'sms',
       purpose,
       runtimeBrand
     )
