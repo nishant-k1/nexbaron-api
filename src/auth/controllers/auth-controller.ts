@@ -104,14 +104,6 @@ export async function verifyCode(req: Request, res: Response) {
     let user = await User.findOne(lookup)
 
     if (!user) {
-      if (purpose === 'login') {
-        res.status(400).json({
-          success: false,
-          message: 'No account found with this ' + (channel === 'email' ? 'email' : 'phone number') +
-            '. To create an account, choose a plan and submit your details on our website.',
-        })
-        return
-      }
       user = await User.create({
         name: name?.trim() || 'Customer',
         ...(channel === 'email' ? { email: normalized } : { phone: normalized }),
