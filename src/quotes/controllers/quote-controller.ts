@@ -117,6 +117,9 @@ export async function submitQuote(req: Request, res: Response) {
       details.company = String(body.company || '').trim() || undefined
       details.deadline = String(body.deadline || '').trim() || undefined
       details.deliveryPincode = String(body.deliveryPincode || '').trim() || undefined
+      details.address = String(body.address || '').trim() || undefined
+      details.city = String(body.city || '').trim() || undefined
+      details.state = String(body.state || '').trim() || undefined
       details.notes = String(body.notes || '').trim() || undefined
     } else {
       const planIds = Array.isArray(body.planIds) ? [...new Set(body.planIds.map(String).filter(Boolean))] : []
