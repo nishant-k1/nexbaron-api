@@ -27,6 +27,15 @@ export interface CatalogService {
   stage?: ServiceStage
 }
 
+export interface PlanPricing {
+  setup: number
+  monthly: number
+  annual: number
+  ownSetup: number
+  ownMonthly: number
+  ownAnnual: number
+}
+
 export interface CatalogPlan {
   id: string
   name: string
@@ -42,6 +51,7 @@ export interface CatalogPlan {
   foundationDays?: number
   expectations?: { label: string; note: string }[]
   minimumMonths?: number
+  pricing?: PlanPricing
 }
 
 export interface DigitalCatalog {
@@ -99,9 +109,26 @@ export function computeServiceAggregate(svc: CatalogService): ServiceAggregate {
 }
 
 export function enrichCatalog(catalog: DigitalCatalog): DigitalCatalog {
+  let cumSetup = 0
+  let cumMonthly = 0
+  let cumAnnual = 0
+
   for (const plan of catalog.plans) {
     for (const svc of [...plan.services, ...plan.addOns]) {
       svc.aggregate = computeServiceAggregate(svc)
+    }
+
+    // Base package price = services only (add-ons are optional extras chosen at checkout).
+    const ownSetup = plan.services.reduce((sum, svc) => sum + (svc.aggregate?.selling.setup ?? 0), 0)
+    const ownMonthly = plan.services.reduce((sum, svc) => sum + (svc.aggregate?.selling.monthly ?? 0), 0)
+    const ownAnnual = plan.services.reduce((sum, svc) => sum + (svc.aggregate?.selling.annual ?? 0), 0)
+
+    // The Custom plan is quote-based — no fixed price.
+    if (plan.id !== 'custom') {
+      cumSetup += ownSetup
+      cumMonthly += ownMonthly
+      cumAnnual += ownAnnual
+      plan.pricing = { setup: cumSetup, monthly: cumMonthly, annual: cumAnnual, ownSetup, ownMonthly, ownAnnual }
     }
   }
   return catalog
@@ -797,6 +824,26 @@ export function pickServices(ids: string[]): CatalogService[] {
     if (!svc) throw new Error(`Unknown service: ${id}`)
     return structuredClone(svc)
   })
+}
+
+export interface ServiceBundle {
+  services: CatalogService[]
+  addOns: CatalogService[]
+  pricing: { setup: number; monthly: number; annual: number }
+}
+
+export function resolveServiceBundle(serviceIds: string[], addOnIds: string[] = []): ServiceBundle {
+  const services = pickServices(serviceIds)
+  const addOns = pickServices(addOnIds)
+  for (const svc of [...services, ...addOns]) {
+    svc.aggregate = computeServiceAggregate(svc)
+  }
+  const pricing = {
+    setup: [...services, ...addOns].reduce((sum, svc) => sum + (svc.aggregate?.selling.setup ?? 0), 0),
+    monthly: [...services, ...addOns].reduce((sum, svc) => sum + (svc.aggregate?.selling.monthly ?? 0), 0),
+    annual: [...services, ...addOns].reduce((sum, svc) => sum + (svc.aggregate?.selling.annual ?? 0), 0),
+  }
+  return { services, addOns, pricing }
 }
 
 export const allServices = _serviceMap

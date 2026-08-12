@@ -15,6 +15,7 @@ import {
   type ServiceItem,
   type ServiceStage,
   type ServiceAggregate,
+  type PlanPricing,
 } from './catalog-master'
 
 export const digitalCatalog: DigitalCatalog = enrichCatalog({
@@ -27,4 +28,4 @@ export const digitalCatalog: DigitalCatalog = enrichCatalog({
 })
 
 export { enrichCatalog, computeItemSelling, computeServiceAggregate, pickServices, allServices }
-export type { DigitalCatalog, CatalogPlan, CatalogService, ServiceItem, ServiceStage, ServiceAggregate }
+export type { DigitalCatalog, CatalogPlan, CatalogService, ServiceItem, ServiceStage, ServiceAggregate, PlanPricing }

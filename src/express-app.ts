@@ -24,6 +24,7 @@ import { adminRecurringRouter } from './cron/recurring-routes'
 import { testimonialRouter } from './cron/testimonial-routes'
 import { reportRouter } from './features/reports/routes/report-routes'
 import { customPlanAdminRouter } from './features/digital/catalog/routes/custom-plan-routes'
+import { customPlanCustomerRouter } from './features/digital/catalog/routes/custom-plan-customer-routes'
 import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
@@ -83,6 +84,7 @@ function mountBrandRoutes(brandBase: string): void {
   if (runtimeBrand === 'digital') {
     app.use(`${brandBase}/drafts`, digitalDraftRouter)
     app.use(`${brandBase}/catalog`, catalogRouter)
+    app.use(`${brandBase}/custom-plan`, customPlanCustomerRouter)
     app.use(`${brandBase}/payments`, paymentRouter)
   } else {
     app.use(brandBase, printRouter)
