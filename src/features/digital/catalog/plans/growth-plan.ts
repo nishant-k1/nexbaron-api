@@ -9,8 +9,8 @@ export const growthPlan: CatalogPlan = {
   timeline: 'Live in 2–3 days · ranking builds over 4–8 weeks',
   featured: true,
   inherited: { label: 'Everything in Launch' },
-  services: pickServices(['gbp-optimise', 'local-seo', 'whatsapp-book', 'reviews', 'social', 'seo-report']),
-  addOns: pickServices(['google-ads-setup', 'meta-ads-setup', 'email-marketing-setup', 'sms-marketing', 'growth-city']),
+  services: pickServices(['gbp-optimise', 'local-seo', 'whatsapp-book', 'reviews', 'social', 'seo-report', 'gbp-monthly']),
+  addOns: pickServices(['google-ads-setup', 'meta-ads-setup', 'email-marketing-setup', 'sms-marketing', 'blog-content', 'qr-suite', 'festive-campaign', 'growth-city']),
   ctaLabel: 'Get Growth',
   minimumMonths: 3,
 }

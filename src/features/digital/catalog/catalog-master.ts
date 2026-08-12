@@ -484,6 +484,73 @@ _register('email-marketing', _def('Email Marketing Management — Campaigns + Op
   _item('Performance analytics report', 0, 0,    100, 100, 100, 300),
 ]))
 
+// --- Launch add-ons (continued) ---
+
+_register('staff-training', _def('Staff Handover Training — 1–2 Hour Session', [
+  _item('WhatsApp Business reply guide + templates', 0, 0,    100, 100, 100, 300),
+  _item('GBP posting guide (offers, photos, replies)', 0, 0,    100, 100, 100, 300),
+  _item('Basic website CMS walkthrough', 0, 0,    100, 100, 100, 300),
+  _item('SMS / email campaign dashboard overview', 0, 0,    100, 100, 50,  200),
+  _item('Live session delivery (1–2 hrs)', 0, 0,    100, 100, 150, 500),
+  _item('Quick reference cheat sheet (PDF)', 0, 0,    100, 100, 50,  200),
+], { deliverDays: 1 }))
+
+_register('brochure-pdf', _def('Brochure / Catalog PDF — WhatsApp Optimized', [
+  _item('Design — 4 page A4 / digital layout', 0, 0,    100, 100, 200, 600),
+  _item('Content writing — services + about + contact', 0, 0,    100, 100, 150, 500),
+  _item('Stock / client photo sourcing (8 images)', 0, 200,  0,  50),
+  _item('PDF compression for WhatsApp sharing', 0, 0,    100, 100, 50,  200),
+  _item('Mobile + print optimized export', 0, 0,    100, 100, 50,  200),
+], { deliverDays: 1, stage: 'design' }))
+
+_register('ordering-page', _def('Online Ordering Page — WhatsApp Form', [
+  _item('Order form design (items, quantity, note)', 0, 0,    100, 100, 100, 300),
+  _item('Form fields — name, phone, address, special request', 0, 0,    100, 100, 50,  200),
+  _item('WhatsApp submission integration', 0, 0,    100, 100, 100, 300),
+  _item('Order confirmation auto-reply template', 0, 0,    100, 100, 50,  200),
+  _item('Deploy + testing', 0, 0,    100, 100, 50,  200),
+], { deliverDays: 1, stage: 'build' }))
+
+// --- Growth services (continued) ---
+
+_register('gbp-monthly', _def('Monthly GBP Management — Posts + Offers + Review Replies', [
+  _item('Weekly business posts (4/mo) — offers, updates, photos', 0, 0,    100, 100, 150, 500),
+  _item('Photo optimization + geo-tagging for each post', 0, 0,    100, 100, 50,  200),
+  _item('Offer / promotion post design (Canva)', 0, 0,    100, 100, 100, 300),
+  _item('Review reply drafting (all reviews)', 0, 0,    100, 100, 100, 300),
+  _item('Q&A section monitoring + replies', 0, 0,    100, 100, 50,  200),
+  _item('Monthly GBP insights report + recommendations', 0, 0,    100, 100, 100, 300),
+], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
+
+// --- Growth add-ons (continued) ---
+
+_register('blog-content', _def('Blog / Content Writing — 2–4 Posts/Month', [
+  _item('Topic research + keyword selection', 0, 0,    100, 100, 100, 300),
+  _item('Writing — 600–800 words per post', 0, 0,    100, 100, 150, 500),
+  _item('Featured image sourcing + optimization', 0, 200,  0,  50),
+  _item('On-page SEO — headings, meta, internal links', 0, 0,    100, 100, 100, 300),
+  _item('Publishing + formatting on website', 0, 0,    100, 100, 50,  200),
+  _item('Monthly content performance report', 0, 0,    100, 100, 50,  200),
+], { deliverDays: 0.25, parallel: true }))
+
+_register('qr-suite', _def('QR Suite — Menu + UPI Payment + WhatsApp', [
+  _item('QR code generation (mobile-responsive)', 0, 0,    0,  0,   0,   0),
+  _item('Menu landing page design (responsive)', 0, 0,    100, 100, 150, 500),
+  _item('UPI payment link / QR integration', 0, 0,    0,  0,   0,   0),
+  _item('WhatsApp click-to-chat QR link', 0, 0,    0,  0,   0,   0),
+  _item('Printable A4 PDF with all 3 QR codes', 0, 0,    100, 100, 100, 400),
+  _item('Sticker / table stand design (print-ready)', 0, 0,    100, 100, 100, 300),
+], { deliverDays: 1, stage: 'design' }))
+
+_register('festive-campaign', _def('Festive Campaign Pack — Diwali / Holi / New Year', [
+  _item('Campaign theme design + branding', 0, 0,    100, 100, 200, 600),
+  _item('Social media posts (5) — Instagram + Facebook', 0, 0,    100, 100, 200, 600),
+  _item('Email blast template + send', 0, 0,    100, 100, 150, 400),
+  _item('SMS broadcast template + send', 0, 0,    100, 100, 100, 300),
+  _item('WhatsApp Business broadcast template', 0, 0,    100, 100, 100, 300),
+  _item('Festive offer / discount creative (2 variants)', 0, 0,    100, 100, 100, 300),
+], { deliverDays: 2, stage: 'design', clientCostNote: 'SMS credits billed separately (~₹0.25–0.50/msg per broadcast)' }))
+
 // ---------------------------------------------------------------------------
 // Build the lookup map
 // ---------------------------------------------------------------------------
