@@ -124,5 +124,22 @@ export const digitalCatalog: DigitalCatalog = {
       ],
       ctaLabel: 'Get Scale',
     },
+    {
+      id: 'custom',
+      name: 'Custom',
+      oneTime: 0,
+      monthly: 0,
+      monthlyName: '',
+      tagline: 'Not finding what you need? Let\'s build it together.',
+      icon: 'MessageSquare',
+      timeline: 'We\'ll scope and quote within 2 days',
+      services: [
+        { id: 'custom-mix', label: 'Pick services from any plan', price: 0, type: 'oneTime' },
+        { id: 'custom-new', label: 'Request services not listed above', price: 0, type: 'oneTime' },
+        { id: 'custom-quote', label: 'Receive a custom quote within 48h', price: 0, type: 'oneTime' },
+      ],
+      addOns: [],
+      ctaLabel: 'Contact Us',
+    },
   ],
 }
