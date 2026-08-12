@@ -18,6 +18,7 @@ export interface ComputedOrder {
   planName: string
   amount: number
   monthlyTotal: number
+  annualTotal: number
   items: IOrderItem[]
   launchDays: number
   launchDate: Date
@@ -25,11 +26,6 @@ export interface ComputedOrder {
 }
 
 const LAUNCH_FIXED_DAYS = 4
-
-function planUpToIndex(planId: string): { plans: typeof digitalCatalog.plans; index: number } {
-  const idx = digitalCatalog.plans.findIndex((p) => p.id === planId)
-  return { plans: digitalCatalog.plans.slice(0, idx + 1), index: idx }
-}
 
 function collectItems(
   service: CatalogService,
@@ -39,21 +35,19 @@ function collectItems(
   const items: IOrderItem[] = []
   for (const item of service.service.items) {
     const sell = computeItemSelling(item)
-    const isOnetime = item.costPrice.monthly === 0 && item.costPrice.annual > 0
-    const isRecurring = item.costPrice.monthly > 0
 
-    if (isOnetime && sell.annual > 0) {
+    if (sell.setup > 0) {
       items.push({
         kind,
         planId,
         label: `${service.service.label} — ${item.label}`,
         billingCycle: 'setup',
-        price: sell.annual * quantity,
-        costPrice: item.costPrice.annual * quantity,
+        price: sell.setup * quantity,
+        costPrice: item.costPrice.setup * quantity,
         quantity,
       })
     }
-    if (isRecurring && sell.monthly > 0) {
+    if (sell.monthly > 0) {
       items.push({
         kind,
         planId,
@@ -61,6 +55,17 @@ function collectItems(
         billingCycle: 'monthly',
         price: sell.monthly * quantity,
         costPrice: item.costPrice.monthly * quantity,
+        quantity,
+      })
+    }
+    if (sell.annual > 0) {
+      items.push({
+        kind,
+        planId,
+        label: `${service.service.label} — ${item.label}`,
+        billingCycle: 'annual',
+        price: sell.annual * quantity,
+        costPrice: item.costPrice.annual * quantity,
         quantity,
       })
     }
@@ -77,6 +82,7 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
 
   let amount = 0
   let monthlyTotal = 0
+  let annualTotal = 0
   const items: IOrderItem[] = []
 
   const timelineServices: { parallel?: boolean; deliverDays?: number }[] = []
@@ -98,6 +104,7 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
       for (const x of collectItems(svc, 1, { kind: 'service', planId: plan.id })) {
         items.push(x)
         if (x.billingCycle === 'setup') amount += x.price
+        else if (x.billingCycle === 'annual') annualTotal += x.price
         else monthlyTotal += x.price
       }
 
@@ -116,6 +123,7 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
       for (const x of collectItems(addon, qty, { kind: 'addon', planId: plan.id })) {
         items.push(x)
         if (x.billingCycle === 'setup') amount += x.price
+        else if (x.billingCycle === 'annual') annualTotal += x.price
         else monthlyTotal += x.price
       }
 
@@ -140,6 +148,7 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
     planName: chosenPlan.name,
     amount,
     monthlyTotal,
+    annualTotal,
     items,
     launchDays,
     launchDate,
