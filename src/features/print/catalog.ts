@@ -40,7 +40,7 @@ export const PRINT_CATEGORIES = [
 
 export const PRINT_PRODUCTS: PrintProduct[] = [
   {
-    id: 'visiting-cards', label: 'Visiting Cards', basePrice: 499, minQuantity: 500,
+    id: 'visiting-cards', label: 'Visiting Cards', basePrice: 499, minQuantity: 1,
     slug: 'visiting-cards', category: 'Stationery & Cards',
     tagline: 'Your first impression, in print',
     description: 'Premium visiting cards crafted on quality stocks with premium finishes — from spot UV to gold foil — so your business feels established the moment your card is handed over.',
@@ -52,7 +52,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Most Popular',
   },
   {
-    id: 'card-holders', label: 'Card Holders', basePrice: 799, minQuantity: 500,
+    id: 'card-holders', label: 'Card Holders', basePrice: 799, minQuantity: 1,
     slug: 'card-holders', category: 'Stationery & Cards',
     tagline: 'Carry and present cards with class',
     description: 'Printed and branded card holders that keep visiting cards crisp, organized, and ready to present — ideal for sales teams, executives, and corporate gifting.',
@@ -64,7 +64,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Corporate Favourite',
   },
   {
-    id: 'pamphlets-posters', label: 'Pamphlets & Posters', basePrice: 1499, minQuantity: 500,
+    id: 'pamphlets-posters', label: 'Pamphlets & Posters', basePrice: 1499, minQuantity: 1,
     slug: 'pamphlets-posters', category: 'Marketing & Labels',
     tagline: 'Marketing that gets noticed',
     description: 'Vibrant pamphlets, leaflets, and posters printed on quality paper stocks — built to be distributed, posted, and remembered.',
@@ -76,7 +76,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'High Volume',
   },
   {
-    id: 'stickers-labels', label: 'Stickers & Labels', basePrice: 799, minQuantity: 500,
+    id: 'stickers-labels', label: 'Stickers & Labels', basePrice: 799, minQuantity: 1,
     slug: 'stickers-labels', category: 'Marketing & Labels',
     tagline: 'Brand every surface',
     description: 'Custom stickers and labels for products, packaging, promotions, and events — die-cut to any shape and finished to withstand daily handling.',
@@ -88,7 +88,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Custom Cut',
   },
   {
-    id: 'pens', label: 'Pens', basePrice: 1999, minQuantity: 500,
+    id: 'pens', label: 'Pens', basePrice: 1999, minQuantity: 1,
     slug: 'pens', category: 'Marketing & Labels',
     tagline: 'Giveaways that keep your name in hand',
     description: 'Branded promotional pens with your logo and message printed or engraved — the classic corporate giveaway that keeps working long after the meeting.',
@@ -100,7 +100,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Promo Classic',
   },
   {
-    id: 'sample-files', label: 'Sample Files', basePrice: 1499, minQuantity: 500,
+    id: 'sample-files', label: 'Sample Files', basePrice: 1499, minQuantity: 1,
     slug: 'sample-files', category: 'Marketing & Labels',
     tagline: 'Show your range in one place',
     description: 'Printed sample files that showcase your product range, materials, and finishes — the essential sales tool for dealers, distributors, and export teams.',
@@ -112,7 +112,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Sales Tool',
   },
   {
-    id: 'letter-heads', label: 'Letter Heads', basePrice: 899, minQuantity: 500,
+    id: 'letter-heads', label: 'Letter Heads', basePrice: 899, minQuantity: 1,
     slug: 'letter-heads', category: 'Business & Billing',
     tagline: 'Professional correspondence, branded to match your company image',
     description: 'Branded letterheads on premium writing paper that make every official correspondence look considered and professional.',
@@ -124,7 +124,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Business Essential',
   },
   {
-    id: 'envelopes', label: 'Envelopes', basePrice: 899, minQuantity: 500,
+    id: 'envelopes', label: 'Envelopes', basePrice: 899, minQuantity: 1,
     slug: 'envelopes', category: 'Business & Billing',
     tagline: 'Brand the first thing they touch',
     description: 'Branded envelopes in every size — from daily correspondence to premium invitations — printed with your logo and finished for a premium first touch.',
@@ -136,7 +136,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Business Essential',
   },
   {
-    id: 'files', label: 'Files', basePrice: 999, minQuantity: 500,
+    id: 'files', label: 'Files', basePrice: 999, minQuantity: 1,
     slug: 'files', category: 'Business & Billing',
     tagline: 'Organized offices, branded files',
     description: 'Printed office files and folders with your branding — built to organize documents and reinforce your identity in every office and client meeting.',
@@ -148,7 +148,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Office Ready',
   },
   {
-    id: 'tags', label: 'Tags', basePrice: 599, minQuantity: 500,
+    id: 'tags', label: 'Tags', basePrice: 599, minQuantity: 1,
     slug: 'tags', category: 'Business & Billing',
     tagline: 'Labels, price tags & more',
     description: 'Printed tags for products, pricing, luggage, and events — die-cut, punched, and finished exactly to your specification.',
@@ -160,7 +160,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Custom',
   },
   {
-    id: 'bill-books', label: 'Bill Books', basePrice: 1499, minQuantity: 500,
+    id: 'bill-books', label: 'Bill Books', basePrice: 1499, minQuantity: 1,
     slug: 'bill-books', category: 'Business & Billing',
     tagline: 'Billing made professional',
     description: 'Numbered bill books and invoice pads with carbon or NCR copies — the dependable daily billing tool for shops, clinics, and service businesses.',
@@ -172,7 +172,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Daily Essential',
   },
   {
-    id: 'digital-paper-printing', label: 'Digital Paper Printing', basePrice: 499, minQuantity: 500,
+    id: 'digital-paper-printing', label: 'Digital Paper Printing', basePrice: 499, minQuantity: 1,
     slug: 'digital-paper-printing', category: 'Business & Billing',
     tagline: 'High-quality digital prints on demand',
     description: 'Quick, high-quality digital paper printing for documents, reports, presentations, and small marketing runs — from a few copies to larger batches.',
@@ -184,7 +184,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'On Demand',
   },
   {
-    id: 'atm-pouches', label: 'ATM Pouches', basePrice: 1199, minQuantity: 500,
+    id: 'atm-pouches', label: 'ATM Pouches', basePrice: 1199, minQuantity: 1,
     slug: 'atm-pouches', category: 'Specialty Print',
     tagline: 'Trusted cash handling',
     description: 'Printed ATM pouches and cash-handling bags for banks and businesses — produced with secure, tamper-evident options on reliable materials.',
@@ -196,7 +196,7 @@ export const PRINT_PRODUCTS: PrintProduct[] = [
     badge: 'Institutional',
   },
   {
-    id: 'shooting-targets', label: 'Shooting Targets', basePrice: 999, minQuantity: 500,
+    id: 'shooting-targets', label: 'Shooting Targets', basePrice: 999, minQuantity: 1,
     slug: 'shooting-targets', category: 'Specialty Print',
     tagline: 'Precise targets, consistent quality',
     description: 'Printed shooting targets for ranges, clubs, and training — produced on consistent stock with precise ring reproduction for dependable practice.',

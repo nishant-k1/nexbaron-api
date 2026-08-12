@@ -81,14 +81,14 @@ export async function submitQuote(req: Request, res: Response) {
         ? body.items.map((it: any) => ({
             product: String(it.product || '').trim(),
             quantity: Number(it.quantity) || 0,
-          })).filter((it: any) => it.product && it.quantity >= 500 && it.quantity <= MAX_PRINT_QUANTITY)
+          })        ).filter((it: any) => it.product && it.quantity >= 1 && it.quantity <= MAX_PRINT_QUANTITY)
         : []
 
       // Fallback to single product+quantity for backward compat
       if (items.length === 0) {
         const product = String(body.product || '').trim()
         const quantity = Number(body.quantity)
-        if (product && quantity >= 500 && quantity <= MAX_PRINT_QUANTITY) {
+        if (product && quantity >= 1 && quantity <= MAX_PRINT_QUANTITY) {
           items.push({ product, quantity })
         }
       }
