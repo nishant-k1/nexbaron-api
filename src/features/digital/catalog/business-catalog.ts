@@ -1,4 +1,4 @@
-import { resolveServiceBundle, type CatalogService } from './catalog-master'
+import { resolveServiceBundle, type Service } from './service-catalog'
 
 export type BusinessTier = 'tier1' | 'tier2'
 
@@ -17,8 +17,8 @@ export interface BusinessType {
 }
 
 export interface ResolvedBusiness extends BusinessType {
-  services: CatalogService[]
-  addOns: CatalogService[]
+  services: Service[]
+  addOns: Service[]
   pricing: { setup: number; monthly: number; annual: number }
 }
 
@@ -31,6 +31,11 @@ export const BUSINESS_CATEGORIES = [
   'Home Services',
   'Professional Services',
   'Creative & Events',
+  'Pets & Veterinary',
+  'Automotive Sales',
+  'Home & Construction',
+  'Travel & Transport',
+  'Repairs & Maintenance',
 ] as const
 
 // Single source of truth for the businesses we serve. Each type references
@@ -89,6 +94,32 @@ export const BUSINESS_TYPES: BusinessType[] = [
     recommendedPlan: 'growth',
     serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
     addOnIds: ['appointment-booking', 'meta-ads-management', 'sms-marketing'],
+  },
+  {
+    id: 'cloud-kitchens', slug: 'cloud-kitchens', label: 'Cloud Kitchens & Tiffin Services',
+    category: 'Food & Hospitality', tier: 'tier1', icon: 'CookingPot',
+    tagline: 'Daily orders and meal plans booked on WhatsApp.',
+    problems: [
+      'Regulars calling to place repeat orders?',
+      'Weekly meal plans hard to manage over calls?',
+      'Your kitchen invisible to hungry locals?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
+    addOnIds: ['sms-marketing'],
+  },
+  {
+    id: 'caterers', slug: 'caterers', label: 'Caterers',
+    category: 'Food & Hospitality', tier: 'tier2', icon: 'ChefHat',
+    tagline: 'Menus, reviews and proposals that win every event.',
+    problems: [
+      'Event enquiries scattered across calls and DMs?',
+      'Your menus and past events not visible?',
+      'Proposals taking too long to send?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'reviews', 'social', 'brochure-pdf'],
+    addOnIds: ['festive-campaign'],
   },
 
   // --- Beauty & Wellness ---
@@ -159,6 +190,58 @@ export const BUSINESS_TYPES: BusinessType[] = [
     serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'appointment-booking'],
     addOnIds: ['ai-chatbot', 'email-marketing-setup', 'sms-marketing'],
   },
+  {
+    id: 'dentists', slug: 'dentists', label: 'Dentists & Dental Clinics',
+    category: 'Healthcare', tier: 'tier1', icon: 'SmilePlus',
+    tagline: 'Bookings, reminders and reviews that keep chairs full.',
+    problems: [
+      'Patients forgetting check-ups and follow-ups?',
+      'Too many calls just to book a slot?',
+      'Your clinic not showing for "dentist near me"?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
+    addOnIds: ['whatsapp-book', 'sms-marketing'],
+  },
+  {
+    id: 'diagnostic-labs', slug: 'diagnostic-labs', label: 'Diagnostic Labs & Pathology',
+    category: 'Healthcare', tier: 'tier2', icon: 'Microscope',
+    tagline: 'Reports delivered on WhatsApp and bookings made in seconds.',
+    problems: [
+      'Patients calling to check timings and report status?',
+      'Home collection requests scattered across calls?',
+      'Your lab invisible to local searches?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'appointment-booking'],
+    addOnIds: ['sms-marketing', 'ai-chatbot'],
+  },
+  {
+    id: 'opticians', slug: 'opticians', label: 'Opticians & Eye Care',
+    category: 'Healthcare', tier: 'tier1', icon: 'Glasses',
+    tagline: 'A storefront that turns walk-ins into repeat buyers.',
+    problems: [
+      'Customers asking for frames on WhatsApp?',
+      'Eye-test appointments hard to manage?',
+      'New collections not reaching regulars?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
+    addOnIds: ['reviews'],
+  },
+  {
+    id: 'physiotherapy', slug: 'physiotherapy', label: 'Physiotherapy Centres',
+    category: 'Healthcare', tier: 'tier1', icon: 'Activity',
+    tagline: 'Sessions booked and rehab plans shared without phone tag.',
+    problems: [
+      'Patients missing recovery sessions?',
+      'Booking slots over back-and-forth calls?',
+      'Your expertise not visible to new patients?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
+    addOnIds: ['sms-marketing'],
+  },
 
   // --- Education ---
   {
@@ -199,6 +282,45 @@ export const BUSINESS_TYPES: BusinessType[] = [
     recommendedPlan: 'growth',
     serviceIds: ['website', 'gbp-optimise', 'reviews', 'social'],
     addOnIds: ['ai-lead-qualifier', 'email-marketing-setup'],
+  },
+  {
+    id: 'dance-music', slug: 'dance-music', label: 'Dance & Music Academies',
+    category: 'Education', tier: 'tier1', icon: 'Music',
+    tagline: 'Demo videos and trial bookings that fill every batch.',
+    problems: [
+      'Parents judging your academy by a few clips?',
+      'Trial classes hard to schedule over the phone?',
+      'Your best performances hidden across apps?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'social-reels'],
+    addOnIds: ['appointment-booking'],
+  },
+  {
+    id: 'daycares', slug: 'daycares', label: 'Daycares & Play Schools',
+    category: 'Education', tier: 'tier1', icon: 'Baby',
+    tagline: 'Trust built online before parents ever visit.',
+    problems: [
+      'Parents comparing daycares online first?',
+      'Enquiries lost after hours?',
+      'Your safety and activities not visible?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
+    addOnIds: ['reviews'],
+  },
+  {
+    id: 'skill-centres', slug: 'skill-centres', label: 'Skill & Certification Centres',
+    category: 'Education', tier: 'tier2', icon: 'Award',
+    tagline: 'Course enquiries captured and nurtured into enrolments.',
+    problems: [
+      'Enquiries going cold between calls and DMs?',
+      'Courses and fees hard to find online?',
+      'Placements and results not showcased?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
+    addOnIds: ['email-marketing-setup', 'ai-lead-qualifier'],
   },
 
   // --- Retail ---
@@ -254,6 +376,45 @@ export const BUSINESS_TYPES: BusinessType[] = [
     serviceIds: ['website', 'gbp-optimise', 'reviews', 'ordering-page'],
     addOnIds: ['sms-marketing'],
   },
+  {
+    id: 'jewellers', slug: 'jewellers', label: 'Jewellers & Gold Retailers',
+    category: 'Retail', tier: 'tier2', icon: 'Gem',
+    tagline: 'Collections that shine online and bring festive footfall.',
+    problems: [
+      'Customers asking to see new designs on WhatsApp?',
+      'Festive buyers picking the store that shows up first?',
+      'Your craftsmanship invisible to new buyers?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'social-reels'],
+    addOnIds: ['ai-product-photos', 'festive-campaign'],
+  },
+  {
+    id: 'electronics-mobile', slug: 'electronics-mobile', label: 'Electronics & Mobile Stores',
+    category: 'Retail', tier: 'tier1', icon: 'Tablet',
+    tagline: 'Stock, offers and UPI orders on one WhatsApp link.',
+    problems: [
+      'Customers calling to check models and prices?',
+      'New arrivals not reaching your regulars?',
+      'Nearby shoppers can\'t find you online?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
+    addOnIds: ['ai-product-photos'],
+  },
+  {
+    id: 'hardware-paint', slug: 'hardware-paint', label: 'Hardware & Paint Shops',
+    category: 'Retail', tier: 'tier1', icon: 'Paintbrush',
+    tagline: 'Contractors and DIYers find you for every "near me" search.',
+    problems: [
+      'Contractors asking for quotes on WhatsApp?',
+      'Stock and shades hard to share online?',
+      'Your store not ranking for local searches?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
+    addOnIds: ['reviews'],
+  },
 
   // --- Home Services ---
   {
@@ -295,6 +456,19 @@ export const BUSINESS_TYPES: BusinessType[] = [
     serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
     addOnIds: ['sms-marketing'],
   },
+  {
+    id: 'cleaning-services', slug: 'cleaning-services', label: 'Cleaning Services',
+    category: 'Home Services', tier: 'tier1', icon: 'Sparkles',
+    tagline: 'Bookings and reminders that keep your calendar full.',
+    problems: [
+      'Customers calling to schedule and reschedule?',
+      'Repeat bookings hard to track?',
+      'Nearby customers can\'t find you online?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
+    addOnIds: ['reviews'],
+  },
 
   // --- Professional Services ---
   {
@@ -322,6 +496,45 @@ export const BUSINESS_TYPES: BusinessType[] = [
     recommendedPlan: 'growth',
     serviceIds: ['website', 'gbp-optimise', 'local-seo', 'social', 'brochure-pdf'],
     addOnIds: ['ai-lead-qualifier', 'meta-ads-setup'],
+  },
+  {
+    id: 'astrologers', slug: 'astrologers', label: 'Astrologers & Vastu Consultants',
+    category: 'Professional Services', tier: 'tier1', icon: 'Moon',
+    tagline: 'Consultations booked and trust built before the first call.',
+    problems: [
+      'Clients hesitant to book without seeing credentials?',
+      'Consultations hard to schedule over the phone?',
+      'Your expertise invisible online?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
+    addOnIds: ['reviews'],
+  },
+  {
+    id: 'consultants-freelancers', slug: 'consultants-freelancers', label: 'Consultants & Freelancers',
+    category: 'Professional Services', tier: 'tier1', icon: 'Briefcase',
+    tagline: 'A credible footprint that wins clients while you work.',
+    problems: [
+      'Looking unestablished to new clients?',
+      'Enquiries lost after you close for the day?',
+      'No time to maintain an online presence?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'business-email'],
+    addOnIds: ['blog-content'],
+  },
+  {
+    id: 'insurance-agents', slug: 'insurance-agents', label: 'Insurance Agents & Advisors',
+    category: 'Professional Services', tier: 'tier1', icon: 'ShieldCheck',
+    tagline: 'Leads qualified and policies explained before the call.',
+    problems: [
+      'Prospects comparing agents online first?',
+      'Follow-ups slipping through the cracks?',
+      'Your products and track record not visible?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'business-email'],
+    addOnIds: ['ai-lead-qualifier'],
   },
 
   // --- Creative & Events ---
@@ -363,6 +576,172 @@ export const BUSINESS_TYPES: BusinessType[] = [
     recommendedPlan: 'launch',
     serviceIds: ['website', 'gbp', 'whatsapp', 'analytics', 'branding-identity'],
     addOnIds: ['business-email'],
+  },
+
+  // --- Pets & Veterinary ---
+  {
+    id: 'vets', slug: 'vets', label: 'Veterinary Clinics',
+    category: 'Pets & Veterinary', tier: 'tier2', icon: 'PawPrint',
+    tagline: 'Appointments, reminders and records that care for every pet.',
+    problems: [
+      'Pet parents forgetting vaccinations and follow-ups?',
+      'Booking slots over back-and-forth calls?',
+      'Your clinic not ranking for local searches?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'appointment-booking'],
+    addOnIds: ['sms-marketing', 'ai-chatbot'],
+  },
+  {
+    id: 'pet-shops', slug: 'pet-shops', label: 'Pet Shops & Grooming',
+    category: 'Pets & Veterinary', tier: 'tier1', icon: 'Dog',
+    tagline: 'Products, grooming and bookings on one WhatsApp link.',
+    problems: [
+      'Customers asking what\'s in stock on WhatsApp?',
+      'Grooming appointments hard to schedule?',
+      'New arrivals not reaching pet parents?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
+    addOnIds: ['ai-product-photos'],
+  },
+
+  // --- Automotive Sales ---
+  {
+    id: 'car-bike-dealers', slug: 'car-bike-dealers', label: 'Car & Bike Dealerships',
+    category: 'Automotive Sales', tier: 'tier2', icon: 'CarFront',
+    tagline: 'Showroom enquiries captured and followed up automatically.',
+    problems: [
+      'Serious buyers going cold after they enquire?',
+      'Stock and offers invisible to local buyers?',
+      'Test drives scattered across calls?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
+    addOnIds: ['ai-lead-qualifier', 'meta-ads-setup'],
+  },
+  {
+    id: 'used-car-dealers', slug: 'used-car-dealers', label: 'Used Car Dealers',
+    category: 'Automotive Sales', tier: 'tier1', icon: 'CarTaxiFront',
+    tagline: 'Inventory that sells itself on WhatsApp and Instagram.',
+    problems: [
+      'Buyers asking for photos and history on WhatsApp?',
+      'New stock not reaching serious buyers?',
+      'Your trustworthiness not visible online?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'social-reels'],
+    addOnIds: ['ai-product-photos'],
+  },
+
+  // --- Home & Construction ---
+  {
+    id: 'interior-designers', slug: 'interior-designers', label: 'Interior Designers',
+    category: 'Home & Construction', tier: 'tier2', icon: 'Sofa',
+    tagline: 'Portfolios and project pages that win premium clients.',
+    problems: [
+      'Clients judging you by a few photos?',
+      'Enquiries scattered across calls and DMs?',
+      'Your portfolio not showcasing your range?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'social-reels', 'brochure-pdf'],
+    addOnIds: ['ai-lead-qualifier', 'meta-ads-setup'],
+  },
+  {
+    id: 'contractors-builders', slug: 'contractors-builders', label: 'Contractors & Builders',
+    category: 'Home & Construction', tier: 'tier2', icon: 'HardHat',
+    tagline: 'Project pages and instant enquiries that never slip.',
+    problems: [
+      'Serious clients going cold after they enquire?',
+      'Past projects not showcasing your capability?',
+      'Your firm invisible to local searches?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'reviews', 'brochure-pdf'],
+    addOnIds: ['ai-lead-qualifier'],
+  },
+  {
+    id: 'furniture-showrooms', slug: 'furniture-showrooms', label: 'Furniture Showrooms',
+    category: 'Home & Construction', tier: 'tier1', icon: 'Armchair',
+    tagline: 'A catalogue that brings buyers to your showroom.',
+    problems: [
+      'Customers asking to see collections on WhatsApp?',
+      'New arrivals not reaching your regulars?',
+      'Your designs invisible to new buyers?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
+    addOnIds: ['ai-product-photos'],
+  },
+
+  // --- Travel & Transport ---
+  {
+    id: 'travel-agencies', slug: 'travel-agencies', label: 'Travel Agencies',
+    category: 'Travel & Transport', tier: 'tier2', icon: 'Plane',
+    tagline: 'Packages that sell themselves and enquiries that never slip.',
+    problems: [
+      'Travellers comparing agencies online first?',
+      'Enquiries going cold after hours?',
+      'Your packages not reaching serious planners?',
+    ],
+    recommendedPlan: 'growth',
+    serviceIds: ['website', 'gbp-optimise', 'social', 'blog-content'],
+    addOnIds: ['meta-ads-setup', 'email-marketing-setup'],
+  },
+  {
+    id: 'packers-movers', slug: 'packers-movers', label: 'Packers & Movers',
+    category: 'Travel & Transport', tier: 'tier1', icon: 'Truck',
+    tagline: 'Move requests and quotes booked in seconds.',
+    problems: [
+      'Customers asking for quotes on WhatsApp?',
+      'Requests scattered across calls and DMs?',
+      'Your reliability not visible to new customers?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'reviews'],
+    addOnIds: ['delivery-tracking'],
+  },
+
+  // --- Repairs & Maintenance ---
+  {
+    id: 'mobile-repair', slug: 'mobile-repair', label: 'Mobile & Electronics Repair',
+    category: 'Repairs & Maintenance', tier: 'tier1', icon: 'Smartphone',
+    tagline: 'Drop-off slots and status updates on WhatsApp.',
+    problems: [
+      'Customers calling to check repair status?',
+      'Walk-ins hard to manage over calls?',
+      'Your shop not ranking for "repair near me"?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'reviews'],
+    addOnIds: ['qr-suite'],
+  },
+  {
+    id: 'ac-appliance-repair', slug: 'ac-appliance-repair', label: 'AC & Appliance Repair',
+    category: 'Repairs & Maintenance', tier: 'tier1', icon: 'Snowflake',
+    tagline: 'Service visits booked and reminders sent automatically.',
+    problems: [
+      'Emergency calls going to whoever answers first?',
+      'Service visits hard to schedule?',
+      'Your work and reviews not visible?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
+    addOnIds: ['sms-marketing'],
+  },
+  {
+    id: 'pest-control', slug: 'pest-control', label: 'Pest Control',
+    category: 'Repairs & Maintenance', tier: 'tier1', icon: 'Bug',
+    tagline: 'AMC renewals and bookings that keep clients coming back.',
+    problems: [
+      'Customers forgetting repeat treatments?',
+      'Bookings scattered across calls?',
+      'Nearby customers can\'t find you online?',
+    ],
+    recommendedPlan: 'launch',
+    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
+    addOnIds: ['sms-marketing'],
   },
 ]
 

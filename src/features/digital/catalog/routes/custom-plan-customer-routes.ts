@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../../../../middleware/require-auth'
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
-import { resolveServiceBundle } from '../catalog-master'
+import { resolveServiceBundle } from '../service-catalog'
 
 export const customPlanCustomerRouter = Router()
 

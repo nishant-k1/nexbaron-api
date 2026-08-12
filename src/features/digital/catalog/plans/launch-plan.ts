@@ -1,7 +1,7 @@
-import type { CatalogPlan } from '../catalog-master'
-import { pickServices } from '../catalog-master'
+import type { Plan } from '../service-catalog'
+import { pickServices } from '../service-catalog'
 
-export const launchPlan: CatalogPlan = {
+export const launchPlan: Plan = {
   id: 'launch',
   name: 'Launch',
   tagline: 'A professional website for your business.',

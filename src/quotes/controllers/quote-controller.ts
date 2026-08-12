@@ -7,9 +7,9 @@ import { QuoteStatus } from '../../models/quote.model'
 import { logger } from '../../utils/logger'
 import { escapeRegex } from '../../utils/regex'
 import { requireAuthenticated } from '../../middleware/require-authenticated'
-import { computePrintEstimate } from '../../features/print/catalog'
-import { PRINT_FINISHES, PRINT_PRODUCTS, PRINT_STOCK_TIERS } from '../../features/print/catalog'
-import { digitalCatalog } from '../../features/digital/catalog/catalog'
+import { computePrintEstimate } from '../../features/print/product-catalog'
+import { PRINT_FINISHES, PRINT_PRODUCTS, PRINT_STOCK_TIERS } from '../../features/print/product-catalog'
+import { PLAN_CATALOG } from '../../features/digital/catalog/plan-catalog'
 import { nextQuoteNumber, sendQuoteEmail, whatsAppDelivery, quoteHtml } from '../services/quote-service'
 import { runtimeBrand } from '../../utils/runtime-brand'
 import { stringParam } from '../../utils/route-param'
@@ -124,7 +124,7 @@ export async function submitQuote(req: Request, res: Response) {
         res.status(400).json({ success: false, message: 'Please choose at least one service' })
         return
       }
-      const validPlanIds = new Set(digitalCatalog.plans.map((plan) => plan.id))
+      const validPlanIds = new Set(PLAN_CATALOG.plans.map((plan) => plan.id))
       if (planIds.some((id) => !validPlanIds.has(id))) {
         res.status(400).json({ success: false, message: 'Please choose valid digital services' })
         return
@@ -132,7 +132,7 @@ export async function submitQuote(req: Request, res: Response) {
       const addOnIds = Array.isArray(body.addOnIds)
         ? [...new Set(body.addOnIds.map(String).filter(Boolean))]
         : []
-      const validAddOnIds = new Set(digitalCatalog.plans.flatMap((plan) => plan.addOns.map((addOn) => addOn.id)))
+      const validAddOnIds = new Set(PLAN_CATALOG.plans.flatMap((plan) => plan.addOns.map((addOn) => addOn.id)))
       if (addOnIds.some((id) => !validAddOnIds.has(id))) {
         res.status(400).json({ success: false, message: 'Please choose valid digital add-ons' })
         return

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireAdmin, requireDivision } from '../../../../admin/middleware/require-admin'
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
-import { allServices, computeServiceAggregate, resolveServiceBundle } from '../catalog-master'
+import { SERVICES, computeServiceAggregate, resolveServiceBundle } from '../service-catalog'
 
 export const customPlanAdminRouter = Router()
 
@@ -13,7 +13,7 @@ function stringList(value: unknown): string[] {
 // Master catalog — the rep browses every service to build a custom plan.
 customPlanAdminRouter.get('/master-services', requireAdmin, requireDivision('digital'), async (_req, res) => {
   try {
-    const services = Object.values(allServices).map((svc) => {
+    const services = SERVICES.map((svc) => {
       const clone = structuredClone(svc)
       clone.aggregate = computeServiceAggregate(svc)
       return clone

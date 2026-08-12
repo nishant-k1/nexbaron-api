@@ -1,4 +1,4 @@
-import { digitalCatalog, enrichCatalog, computeItemSelling, CatalogService } from '../../catalog/catalog'
+import { PLAN_CATALOG, enrichCatalog, computeItemSelling, Service } from '../../catalog/plan-catalog'
 import { IOrderItem } from '../../../../orders/models/order.model'
 
 export interface PlanSelectionInput {
@@ -28,19 +28,19 @@ export interface ComputedOrder {
 const LAUNCH_FIXED_DAYS = 4
 
 function collectItems(
-  service: CatalogService,
+  service: Service,
   quantity: number,
   { kind, planId }: { kind: IOrderItem['kind']; planId: string }
 ): IOrderItem[] {
   const items: IOrderItem[] = []
-  for (const item of service.service.items) {
+  for (const item of service.items) {
     const sell = computeItemSelling(item)
 
     if (sell.setup > 0) {
       items.push({
         kind,
         planId,
-        label: `${service.service.label} — ${item.label}`,
+        label: `${service.label} — ${item.label}`,
         billingCycle: 'setup',
         price: sell.setup * quantity,
         costPrice: item.costPrice.setup * quantity,
@@ -51,7 +51,7 @@ function collectItems(
       items.push({
         kind,
         planId,
-        label: `${service.service.label} — ${item.label}`,
+        label: `${service.label} — ${item.label}`,
         billingCycle: 'monthly',
         price: sell.monthly * quantity,
         costPrice: item.costPrice.monthly * quantity,
@@ -62,7 +62,7 @@ function collectItems(
       items.push({
         kind,
         planId,
-        label: `${service.service.label} — ${item.label}`,
+        label: `${service.label} — ${item.label}`,
         billingCycle: 'annual',
         price: sell.annual * quantity,
         costPrice: item.costPrice.annual * quantity,
@@ -74,7 +74,7 @@ function collectItems(
 }
 
 export function computeOrder(selections: SelectionsInput, from = new Date()): ComputedOrder {
-  const catalog = enrichCatalog(digitalCatalog)
+  const catalog = enrichCatalog(PLAN_CATALOG)
   const selPlanId = selections.planId
   const chosenIndex = catalog.plans.findIndex((p) => p.id === selPlanId)
   const chosenPlan = catalog.plans[chosenIndex]

@@ -1,7 +1,7 @@
-import type { CatalogPlan } from '../catalog-master'
-import { pickServices } from '../catalog-master'
+import type { Plan } from '../service-catalog'
+import { pickServices } from '../service-catalog'
 
-export const customPlan: CatalogPlan = {
+export const customPlan: Plan = {
   id: 'custom',
   name: 'Custom',
   tagline: 'Not finding what you need? Let\'s build it together.',
@@ -9,9 +9,9 @@ export const customPlan: CatalogPlan = {
   timeline: 'We\'ll scope and quote within 2 days',
   services: [
     ...pickServices(['custom-software', 'billing-invoicing', 'inventory', 'staff-attendance', 'loyalty-rewards', 'delivery-tracking', 'membership']),
-    { id: 'custom-mix', service: { label: 'Pick services from any plan', items: [] } },
-    { id: 'custom-new', service: { label: 'Request services not listed above', items: [] } },
-    { id: 'custom-quote', service: { label: 'Receive a custom quote within 48h', items: [] } },
+    { id: 'custom-mix', label: 'Pick services from any plan', items: [] },
+    { id: 'custom-new', label: 'Request services not listed above', items: [] },
+    { id: 'custom-quote', label: 'Receive a custom quote within 48h', items: [] },
   ],
   addOns: [],
   ctaLabel: 'Contact Us',

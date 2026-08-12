@@ -1,8 +1,8 @@
 import PDFDocument from 'pdfkit'
 import { Model } from 'mongoose'
 
-import { digitalCatalog } from '../../features/digital/catalog/catalog'
-import { productLabel } from '../../features/print/catalog'
+import { PLAN_CATALOG } from '../../features/digital/catalog/plan-catalog'
+import { getProductLabel } from '../../features/print/product-catalog'
 import { logger } from '../../utils/logger'
 import { IQuote } from '../../models/quote.model'
 import { canSendMail, sendMail } from '../../utils/mailer'
@@ -62,19 +62,19 @@ export function selectionSummary(quote: IQuote): string {
     const planIds = Array.isArray(quote.selection?.planIds) ? (quote.selection.planIds as string[]) : []
     const addOnIds = Array.isArray(quote.selection?.addOnIds) ? (quote.selection.addOnIds as string[]) : []
     const plans = planIds
-      .map((id) => digitalCatalog.plans.find((p) => p.id === id)?.name ?? id)
+      .map((id) => PLAN_CATALOG.plans.find((p) => p.id === id)?.name ?? id)
       .join(', ')
     const addOns = addOnIds
       .map((id) => {
-        const p = digitalCatalog.plans.flatMap((pl) => pl.addOns).find((a) => a.id === id)
-        return p?.service.label ?? id
+        const p = PLAN_CATALOG.plans.flatMap((pl) => pl.addOns).find((a) => a.id === id)
+        return p?.label ?? id
       })
       .join(', ')
     return [plans && `Plans: ${plans}`, addOns && `Add-ons: ${addOns}`].filter(Boolean).join('\n') || '—'
   }
   const product = String(quote.selection?.product ?? '')
   const quantity = String(quote.selection?.quantity ?? '')
-  return [product && productLabel(product), quantity && `${quantity} units`].filter(Boolean).join('\n') || '—'
+  return [product && getProductLabel(product), quantity && `${quantity} units`].filter(Boolean).join('\n') || '—'
 }
 
 function brandInfo(quote: IQuote) {
