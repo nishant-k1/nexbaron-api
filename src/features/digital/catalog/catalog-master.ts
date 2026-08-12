@@ -669,22 +669,22 @@ _register('ai-product-photos', _def('AI Product Photos — Studio Quality Withou
 // --- Custom / Premium services ---
 
 _register('custom-software', _def('Custom Software Development — Dashboards, CRMs, Internal Tools', [
-  _s('Requirements gathering + scope document', 2000),
-  _s('UI/UX design — wireframes + high-fidelity mockups', 2000),
-  _s('Frontend development — React / Next.js dashboard', 4000),
-  _s('Backend API development — REST / WebSocket endpoints', 6000),
-  _s('Database design — schema + indexing + migrations', 2000),
-  _s('Authentication — login, roles, permissions, 2FA', 2000),
-  _s('Admin panel — CRUD tables, filters, export, dashboards', 4000),
-  _s('Third-party integrations — payment, email, SMS, WhatsApp', 2000),
-  _s('File upload + storage — images, PDFs, documents', 1200),
-  _s('Real-time features — live chat, notifications, status updates', 2000),
-  _s('PDF / report generation — invoices, analytics, exports', 1200),
-  _s('Testing + QA — unit, integration, E2E', 2000),
-  _s('CI/CD + deployment — staging + production on client infra', 1200),
-  _s('Documentation — API docs, user guide, admin manual', 800),
-  _s('30 days post-launch support + bug fixes', 1200),
-  _s('Knowledge transfer + handover session (2 hrs)', 800),
+  _s('Discovery + scope document', 2000),
+  _s('Screen designs + clickable mockups', 2000),
+  _s('Customer-facing screens & dashboards', 4000),
+  _s('Business rules & data processing', 6000),
+  _s('Data storage & organization', 2000),
+  _s('Staff login & role-based access', 2000),
+  _s('Admin panel — manage records, filter, export', 4000),
+  _s('Integrations — payments, email, SMS, WhatsApp', 2000),
+  _s('File uploads — images, PDFs, documents', 1200),
+  _s('Live updates — chat, notifications, statuses', 2000),
+  _s('Reports & invoices (PDF)', 1200),
+  _s('Testing before launch', 2000),
+  _s('Deployment — staging + live setup', 1200),
+  _s('User guide & admin manual', 800),
+  _s('30-day support after launch', 1200),
+  _s('Team training & handover session', 800),
 ], { clientCostNote: 'All prices are estimates. Final quote depends on project scope. Infrastructure costs (hosting, database, domain) are billed separately by the client.' }))
 
 // ---------------------------------------------------------------------------
