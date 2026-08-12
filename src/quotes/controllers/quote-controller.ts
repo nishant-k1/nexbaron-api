@@ -25,20 +25,15 @@ function isObjectId(value: string | undefined): value is string {
 // token's division. Email always comes from the signed-in account (compulsory).
 export async function submitQuote(req: Request, res: Response) {
   try {
-    if (!requireAuthenticated(req, res)) return
     const division = runtimeBrand
     const body = (req.body ?? {}) as Record<string, any>
 
     const { User, Lead, Quote, InvoiceCounter } = getDivisionModels(division)
-    if (!isObjectId(req.userId)) {
-      res.status(401).json({ success: false, message: 'Invalid authentication subject' })
-      return
-    }
-    const user = await User.findById(req.userId)
-    if (!user || user.division !== division) {
-      res.status(401).json({ success: false, message: 'Account unavailable' })
-      return
-    }
+
+    // Optional account link — guests may request a quote without signing in.
+    const user = (req.userId && isObjectId(req.userId))
+      ? await User.findById(req.userId).then((found) => (found && found.division === division ? found : null))
+      : null
 
     const clientRequestId = typeof body.clientRequestId === 'string' ? body.clientRequestId.trim() : ''
     if (clientRequestId && !/^[A-Za-z0-9_-]{16,100}$/.test(clientRequestId)) {
@@ -46,7 +41,9 @@ export async function submitQuote(req: Request, res: Response) {
       return
     }
     if (clientRequestId) {
-      const existing = await Quote.findOne({ userId: user._id, clientRequestId })
+      const existing = user
+        ? await Quote.findOne({ userId: user._id, clientRequestId })
+        : await Quote.findOne({ 'customer.email': String(body.email || '').trim().toLowerCase(), clientRequestId })
       if (existing) {
         res.json({
           success: true,

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth } from '../../middleware/require-auth'
+import { optionalAuth, requireAuth } from '../../middleware/require-auth'
 import { requireAdmin, requireDivision, requireRole } from '../../admin/middleware/require-admin'
 import { rateLimit } from '../../utils/rate-limit'
 import {
@@ -12,10 +12,10 @@ import {
   updateQuote,
 } from '../controllers/quote-controller'
 
-// Customer-facing. Mounted only under the runtime brand; auth also enforces
-// that the signed token belongs to that brand.
+// Customer-facing. Mounted only under the runtime brand; auth is optional on
+// submit so guests can request a quote, while signed-in accounts are linked.
 export const customerQuoteRouter = Router()
-customerQuoteRouter.post('/quotes', requireAuth, rateLimit({ windowMs: 10 * 60 * 1000, max: 30 }), submitQuote)
+customerQuoteRouter.post('/quotes', optionalAuth, rateLimit({ windowMs: 10 * 60 * 1000, max: 30 }), submitQuote)
 customerQuoteRouter.get('/quotes/mine', requireAuth, myQuotes)
 
 // Staff-facing. Mounted at /<brand>/admin/quotes.

@@ -32,3 +32,22 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   req.division = runtimeBrand
   next()
 }
+
+// Like requireAuth, but does not reject unauthenticated requests. Used for
+// public endpoints (e.g. quote submission) that optionally link a record to
+// the signed-in account when a valid token is present.
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization
+  const token = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined
+
+  if (token) {
+    const payload = verifyToken(token)
+    if (payload) {
+      req.userId = payload.sub
+      req.auth = payload
+      req.division = runtimeBrand
+    }
+  }
+
+  next()
+}
