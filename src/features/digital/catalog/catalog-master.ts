@@ -640,6 +640,27 @@ _register('ai-product-photos', _def('AI Product Photos — Studio Quality Withou
   _item('Web + social media optimized delivery', 0, 0,    100, 100, 50,  200),
 ], { deliverDays: 2, stage: 'design' }))
 
+// --- Custom / Premium services ---
+
+_register('custom-software', _def('Custom Software Development — Dashboards, CRMs, Internal Tools', [
+  _item('Requirements gathering + scope document', 0, 0,    100, 100, 500, 2000),
+  _item('UI/UX design — wireframes + high-fidelity mockups', 0, 0,    100, 100, 500, 2000),
+  _item('Frontend development — React / Next.js dashboard', 0, 0,    100, 100, 1000, 4000),
+  _item('Backend API development — REST / WebSocket endpoints', 0, 0,    100, 100, 1500, 6000),
+  _item('Database design — schema + indexing + migrations', 0, 0,    100, 100, 500, 2000),
+  _item('Authentication — login, roles, permissions, 2FA', 0, 0,    100, 100, 500, 2000),
+  _item('Admin panel — CRUD tables, filters, export, dashboards', 0, 0,    100, 100, 1000, 4000),
+  _item('Third-party integrations — payment, email, SMS, WhatsApp', 0, 0,    100, 100, 500, 2000),
+  _item('File upload + storage — images, PDFs, documents', 0, 0,    100, 100, 300, 1200),
+  _item('Real-time features — live chat, notifications, status updates', 0, 0,    100, 100, 500, 2000),
+  _item('PDF / report generation — invoices, analytics, exports', 0, 0,    100, 100, 300, 1200),
+  _item('Testing + QA — unit, integration, E2E', 0, 0,    100, 100, 500, 2000),
+  _item('CI/CD + deployment — staging + production on client infra', 0, 0,    100, 100, 300, 1200),
+  _item('Documentation — API docs, user guide, admin manual', 0, 0,    100, 100, 200, 800),
+  _item('30 days post-launch support + bug fixes', 0, 0,    100, 100, 300, 1200),
+  _item('Knowledge transfer + handover session (2 hrs)', 0, 0,    100, 100, 200, 800),
+], { clientCostNote: 'All prices are estimates. Final quote depends on project scope. Infrastructure costs (hosting, database, domain) are billed separately by the client.' }))
+
 // ---------------------------------------------------------------------------
 // Build the lookup map
 // ---------------------------------------------------------------------------
