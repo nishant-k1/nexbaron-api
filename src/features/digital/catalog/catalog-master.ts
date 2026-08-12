@@ -495,6 +495,17 @@ _register('staff-training', _def('Staff Handover Training — 1–2 Hour Session
   _item('Quick reference cheat sheet (PDF)', 0, 0,    100, 100, 50,  200),
 ], { deliverDays: 1 }))
 
+_register('branding-identity', _def('Logo & Branding — Identity + Guidelines', [
+  _item('Logo design — 3 concepts + 2 revisions', 0, 0,    100, 100, 200, 600),
+  _item('Color palette — primary + secondary + accent', 0, 0,    100, 100, 50,  200),
+  _item('Typography selection — heading + body fonts', 0, 0,    0,  0,   0,   0),
+  _item('Logo variations — light/dark BG + icon-only', 0, 0,    100, 100, 100, 300),
+  _item('Favicon + app icon generation (all sizes)', 0, 0,    100, 100, 50,  200),
+  _item('Social media profile picture versions', 0, 0,    100, 100, 50,  200),
+  _item('Brand guidelines one-pager (PDF)', 0, 0,    100, 100, 100, 300),
+  _item('Source files — AI/SVG/PNG — delivered via drive', 0, 0,    0,  0,   0,   0),
+], { deliverDays: 3, stage: 'design' }))
+
 _register('brochure-pdf', _def('Brochure / Catalog PDF — WhatsApp Optimized', [
   _item('Design — 4 page A4 / digital layout', 0, 0,    100, 100, 200, 600),
   _item('Content writing — services + about + contact', 0, 0,    100, 100, 150, 500),
