@@ -40,9 +40,29 @@ export interface DigitalCatalog {
   plans: CatalogPlan[]
 }
 
-export const digitalCatalog: DigitalCatalog = {
-  version: '2.0.0',
-  updatedAt: '2026-08-07T00:00:00.000Z',
+const customPlan: CatalogPlan = {
+  id: 'custom',
+  name: 'Custom',
+  oneTime: 0,
+  monthly: 0,
+  monthlyName: '',
+  tagline: 'Not finding what you need? Let\'s build it together.',
+  icon: 'MessageSquare',
+  timeline: 'We\'ll scope and quote within 2 days',
+  services: [
+    { id: 'custom-mix', label: 'Pick services from any plan', price: 0, type: 'oneTime' },
+    { id: 'custom-new', label: 'Request services not listed above', price: 0, type: 'oneTime' },
+    { id: 'custom-quote', label: 'Receive a custom quote within 48h', price: 0, type: 'oneTime' },
+  ],
+  addOns: [],
+  ctaLabel: 'Contact Us',
+}
+
+// ── v1 — Traditional agency pricing (higher setup, lower monthly) ──
+
+export const digitalCatalogV1: DigitalCatalog = {
+  version: '1.0.0',
+  updatedAt: '2026-08-12T00:00:00.000Z',
   currency: 'INR',
   plans: [
     {
@@ -123,22 +143,99 @@ export const digitalCatalog: DigitalCatalog = {
       ],
       ctaLabel: 'Get Scale',
     },
-    {
-      id: 'custom',
-      name: 'Custom',
-      oneTime: 0,
-      monthly: 0,
-      monthlyName: '',
-      tagline: 'Not finding what you need? Let\'s build it together.',
-      icon: 'MessageSquare',
-      timeline: 'We\'ll scope and quote within 2 days',
-      services: [
-        { id: 'custom-mix', label: 'Pick services from any plan', price: 0, type: 'oneTime' },
-        { id: 'custom-new', label: 'Request services not listed above', price: 0, type: 'oneTime' },
-        { id: 'custom-quote', label: 'Receive a custom quote within 48h', price: 0, type: 'oneTime' },
-      ],
-      addOns: [],
-      ctaLabel: 'Contact Us',
-    },
+    customPlan,
   ],
 }
+
+// ── v2 — AI-era pricing (minimal setup, higher monthly management) ──
+
+export const digitalCatalogV2: DigitalCatalog = {
+  version: '2.0.0',
+  updatedAt: '2026-08-12T00:00:00.000Z',
+  currency: 'INR',
+  plans: [
+    {
+      id: 'launch',
+      name: 'Launch',
+      oneTime: 999,
+      monthly: 999,
+      monthlyName: 'Care',
+      tagline: 'A professional website for your business.',
+      icon: 'Rocket',
+      timeline: 'Live in 2–3 days',
+      services: [
+        { id: 'website', label: 'Website — Up to 5 Pages', price: 400, carePrice: 300, type: 'oneTime', deliverDays: 1, stage: 'build' },
+        { id: 'whatsapp', label: 'WhatsApp Chat Button', price: 99, carePrice: 99, type: 'oneTime', deliverDays: 0, stage: 'build' },
+        { id: 'maps', label: 'Google Maps Business Listing', price: 200, carePrice: 250, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
+        { id: 'gbp', label: 'Google Business Profile — Setup & Verify', price: 100, carePrice: 150, type: 'oneTime', deliverDays: 0.5, parallel: true, stage: 'setup' },
+        { id: 'analytics', label: 'Visit Analytics', price: 200, carePrice: 200, type: 'oneTime', deliverDays: 0.5, parallel: true, stage: 'setup' },
+      ],
+      addOns: [
+        { id: 'launch-pages', label: 'Extra pages', price: 199, type: 'oneTime', unitLabel: 'per page', deliverDays: 0.25, stage: 'build' },
+        { id: 'launch-photos', label: 'Additional photos', price: 99, type: 'oneTime', deliverDays: 0.25, stage: 'build' },
+        { id: 'launch-domain', label: 'Domain setup', price: 199, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
+      ],
+      ctaLabel: 'Get Launch',
+    },
+    {
+      id: 'growth',
+      name: 'Growth',
+      oneTime: 1999,
+      monthly: 2199,
+      monthlyName: 'Growth Care',
+      tagline: 'Get found on Google and booked on WhatsApp.',
+      icon: 'TrendingUp',
+      timeline: 'Live in 2–3 days · ranking builds over 4–8 weeks',
+      featured: true,
+      inherited: { label: 'Everything in Launch', oneTime: 999, monthly: 999 },
+      services: [
+        { id: 'gbp-optimise', label: 'Google Business Profile — Optimize & Rank', price: 400, carePrice: 300, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
+        { id: 'local-seo', label: 'Local SEO — Google Maps Ranking', price: 200, carePrice: 250, type: 'oneTime', deliverDays: 0, stage: 'setup' },
+        { id: 'whatsapp-book', label: 'WhatsApp Business — Auto-reply & Booking', price: 200, carePrice: 200, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
+        { id: 'reviews', label: 'Review Generation & Management', price: 100, carePrice: 200, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
+        { id: 'social', label: 'Social Media — 8 Posts/month', price: 50, carePrice: 150, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
+        { id: 'seo-report', label: 'Monthly SEO Health Report', price: 50, carePrice: 100, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
+      ],
+      addOns: [
+        { id: 'growth-ads', label: 'Google Ads setup', price: 999, type: 'oneTime', deliverDays: 1, stage: 'build' },
+        { id: 'growth-city', label: 'Cover another city', price: 500, type: 'monthly', deliverDays: 0.25, parallel: true, stage: 'setup' },
+      ],
+      ctaLabel: 'Get Growth',
+    },
+    {
+      id: 'scale',
+      name: 'Scale',
+      oneTime: 2999,
+      monthly: 4499,
+      monthlyName: 'Business Partner',
+      tagline: 'A dedicated team managing your online growth.',
+      icon: 'Building2',
+      timeline: 'Kick-off call within 3 days',
+      timelineMode: 'phased',
+      foundationDays: 30,
+      inherited: { label: 'Everything in Growth', oneTime: 1999, monthly: 2199 },
+      expectations: [
+        { label: 'First 30 days', note: 'Audit, strategy, and your growth plan for the year.' },
+        { label: 'Dedicated manager', note: 'One person who knows your business. Monthly strategy calls.' },
+      ],
+      services: [
+        { id: 'account-manager', label: 'Dedicated Growth Manager', price: 250, carePrice: 600, type: 'oneTime' },
+        { id: 'unlimited-updates', label: 'Content & Page Updates — Unlimited', price: 200, carePrice: 400, type: 'oneTime' },
+        { id: 'social-reels', label: 'Social Media — Reels & Stories', price: 200, carePrice: 350, type: 'oneTime' },
+        { id: 'google-ads', label: 'Google Ads — Campaign Setup & Run', price: 200, carePrice: 500, type: 'oneTime', deliverDays: 1, stage: 'build' },
+        { id: 'competitor', label: 'Competitor & Market Analysis', price: 100, carePrice: 250, type: 'oneTime' },
+        { id: 'strategy', label: 'Monthly Strategy Call & Report', price: 50, carePrice: 200, type: 'oneTime' },
+      ],
+      addOns: [
+        { id: 'scale-priority', label: 'Same-day priority support', price: 499, type: 'monthly' },
+        { id: 'scale-multi', label: 'Multi-location', price: 1499, type: 'oneTime', deliverDays: 1, stage: 'build' },
+      ],
+      ctaLabel: 'Get Scale',
+    },
+    customPlan,
+  ],
+}
+
+// Switch via CATALOG_VERSION env var: "v2" for AI-era pricing, default to v1
+export const digitalCatalog: DigitalCatalog =
+  process.env.CATALOG_VERSION === 'v2' ? digitalCatalogV2 : digitalCatalogV1
