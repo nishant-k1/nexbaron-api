@@ -10,7 +10,7 @@ export const growthPlan: CatalogPlan = {
   featured: true,
   inherited: { label: 'Everything in Launch' },
   services: pickServices(['gbp-optimise', 'local-seo', 'whatsapp-book', 'reviews', 'social', 'seo-report']),
-  addOns: pickServices(['google-ads-setup', 'meta-ads-setup', 'growth-city']),
+  addOns: pickServices(['google-ads-setup', 'meta-ads-setup', 'email-marketing-setup', 'sms-marketing', 'growth-city']),
   ctaLabel: 'Get Growth',
   minimumMonths: 3,
 }

@@ -151,6 +151,8 @@ export const sharedInfra: DigitalCatalog['sharedInfra'] = [
   { category: 'Docs & Tasks', label: 'Notion Free', monthlyCost: 0, upgradePath: 'Notion Plus', upgradeCost: 500 },
   { category: 'Email API', label: 'Resend Free', monthlyCost: 0, upgradePath: 'Resend Team', upgradeCost: 1700 },
   { category: 'Client Chat', label: 'WhatsApp Business', monthlyCost: 0, upgradePath: 'WATI / Interakt', upgradeCost: 500 },
+  { category: 'Email Marketing', label: 'Brevo Free', monthlyCost: 0, upgradePath: 'Brevo Starter', upgradeCost: 2100 },
+  { category: 'SMS', label: 'Twilio PAYG (~500 msgs)', monthlyCost: 250, upgradePath: 'Textlocal Pro', upgradeCost: 1500 },
 ]
 
 // ---------------------------------------------------------------------------
@@ -435,6 +437,52 @@ _register('scale-multi', _def('Multi-location', [
   _item('Location schema + geo sitemap',    0, 0,    100, 100, 100, 300),
   _item('BrightLocal citation tool',      150, 1500, 30, 30),
 ], { deliverDays: 1, stage: 'build' }))
+
+// --- Launch add-ons (continued) ---
+
+_register('business-email', _def('Business Email Setup', [
+  _item('Zoho Mail account setup + domain verification', 0, 0,    100, 100, 150, 500),
+  _item('DNS MX record configuration', 0, 0,    100, 100, 50,  200),
+  _item('SPF + DKIM + DMARC email authentication', 0, 0,    100, 100, 50,  200),
+  _item('Email signature design + setup', 0, 0,    100, 100, 50,  200),
+  _item('Forwarding rules + aliases', 0, 0,    100, 100, 50,  150),
+  _item('IMAP/SMTP guide for mobile + desktop', 0, 0,    100, 100, 50,  150),
+], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
+
+// --- Growth add-ons (continued) ---
+
+_register('email-marketing-setup', _def('Email Marketing Setup — Templates + Automation + List Import', [
+  _item('Platform setup (Brevo/Mailchimp/MailerLite)', 0, 1300, 0, 30),
+  _item('Branded newsletter template (HTML)', 0, 0,    100, 100, 200, 600),
+  _item('Subscriber list import + segmentation', 0, 0,    100, 100, 100, 300),
+  _item('Welcome email automation flow', 0, 0,    100, 100, 100, 400),
+  _item('Signup form embed on website', 0, 0,    100, 100, 50,  200),
+  _item('GDPR / opt-in compliance setup', 0, 0,    100, 100, 50,  200),
+  _item('Test send + deliverability check', 0, 0,    0,  0,   0,   0),
+], { deliverDays: 0.5, stage: 'build' }))
+
+_register('sms-marketing', _def('SMS Marketing — Campaigns + Automation + DND Compliance', [
+  _item('SMS platform setup (Twilio/Textlocal/Exotel)', 0, 0,    0,  0,   0,   0),
+  _item('DND scrub + TRAI compliance registration', 0, 0,    100, 100, 100, 300),
+  _item('Message templates — appointment, offer, reminder', 0, 0,    100, 100, 100, 400),
+  _item('DLT template registration (India)', 0, 0,    100, 100, 100, 300),
+  _item('Campaign scheduling + automation', 0, 0,    100, 100, 50,  200),
+  _item('Opt-out / STOP handling in templates', 0, 0,    100, 100, 25,  100),
+  _item('SMS sending costs (~500 msgs/month)', 250, 2500, 30, 30),
+  _item('Monthly delivery + conversion report', 0, 0,    100, 100, 50,  200),
+], { clientCostNote: 'SMS credits paid directly to provider (~₹0.25–0.50/msg). Estimated 500 msgs = ~₹200/mo.' }))
+
+// --- Scale services (continued) ---
+
+_register('email-marketing', _def('Email Marketing Management — Campaigns + Optimization + Reporting', [
+  _item('Monthly newsletter campaigns (2–4 sends)', 0, 0,    100, 100, 200, 600),
+  _item('Content + copywriting for campaigns', 0, 0,    100, 100, 150, 500),
+  _item('Template updates + seasonal designs', 0, 0,    100, 100, 100, 400),
+  _item('A/B subject line testing + optimization', 0, 0,    100, 100, 100, 300),
+  _item('List cleaning + inactive subscriber pruning', 0, 0,    100, 100, 50,  200),
+  _item('Re-engagement campaign (quarterly)', 0, 0,    100, 100, 75,  250),
+  _item('Performance analytics report', 0, 0,    100, 100, 100, 300),
+]))
 
 // ---------------------------------------------------------------------------
 // Build the lookup map
