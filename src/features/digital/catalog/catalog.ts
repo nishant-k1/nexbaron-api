@@ -71,7 +71,7 @@ export const digitalCatalog: DigitalCatalog = {
       id: 'growth',
       name: 'Growth',
       oneTime: 12499,
-      monthly: 2499,
+      monthly: 1249,
       monthlyName: 'Growth Care',
       tagline: 'Get found on Google and booked on WhatsApp.',
       icon: 'TrendingUp',
