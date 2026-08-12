@@ -314,12 +314,12 @@ export const digitalCatalogV3: DigitalCatalog = {
         { label: 'Dedicated manager', note: 'One person who knows your business. Monthly strategy calls.' },
       ],
       services: [
-        { id: 'account-manager', label: 'Dedicated Growth Manager', price: 1000, carePrice: 800, type: 'oneTime' },
+        { id: 'account-manager', label: 'Dedicated Growth Manager', price: 1000, carePrice: 700, type: 'oneTime' },
         { id: 'unlimited-updates', label: 'Content & Page Updates — Unlimited', price: 800, carePrice: 500, type: 'oneTime' },
         { id: 'social-reels', label: 'Social Media — Reels & Stories', price: 800, carePrice: 400, type: 'oneTime' },
-        { id: 'google-ads', label: 'Google Ads — Campaign Setup & Run', price: 800, carePrice: 500, type: 'oneTime', deliverDays: 1, stage: 'build' },
+        { id: 'google-ads', label: 'Google Ads — Campaign Setup & Run', price: 800, carePrice: 550, type: 'oneTime', deliverDays: 1, stage: 'build' },
         { id: 'competitor', label: 'Competitor & Market Analysis', price: 350, carePrice: 150, type: 'oneTime' },
-        { id: 'strategy', label: 'Monthly Strategy Call & Report', price: 250, carePrice: 150, type: 'oneTime' },
+        { id: 'strategy', label: 'Monthly Strategy Call & Report', price: 250, carePrice: 200, type: 'oneTime' },
       ],
       addOns: [
         { id: 'scale-priority', label: 'Same-day priority support', price: 999, type: 'monthly' },
