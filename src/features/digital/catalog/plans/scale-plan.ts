@@ -17,7 +17,7 @@ export const scalePlan: CatalogPlan = {
   services: pickServices([
     'account-manager', 'unlimited-updates', 'social-reels',
     'google-ads-management', 'meta-ads-management', 'email-marketing',
-    'competitor', 'strategy',
+    'competitor',
   ]),
   addOns: pickServices(['scale-priority', 'scale-multi']),
   ctaLabel: 'Get Scale',

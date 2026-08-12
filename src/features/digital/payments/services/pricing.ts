@@ -90,16 +90,16 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
   for (let i = 0; i <= chosenIndex; i++) {
     const plan = catalog.plans[i]
     const sel = selections.plans[plan.id] ?? { selected: [], addOns: [], addOnCounts: {}, inheritedOn: true }
-    const excluded = new Set(sel.selected)
+    const selected = new Set(sel.selected)
     const chosenAddOns = new Set(sel.addOns)
     const addOnCounts = sel.addOnCounts ?? {}
     const include = i === chosenIndex || sel.inheritedOn
     if (!include) continue
 
-    // Services
+    // Services — `selected` holds the ids the client chose to KEEP (default: all).
     for (const svc of plan.services) {
-      const isExcluded = excluded.has(svc.id)
-      if (i === chosenIndex && isExcluded) continue
+      const isSelected = selected.has(svc.id)
+      if (i === chosenIndex && !isSelected) continue
 
       for (const x of collectItems(svc, 1, { kind: 'service', planId: plan.id })) {
         items.push(x)

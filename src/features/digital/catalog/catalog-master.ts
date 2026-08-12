@@ -265,24 +265,18 @@ _register('website', _def('Website — Up to 5 Pages', [
 
 _register('whatsapp', _def('WhatsApp Chat Button', [
   _f('WhatsApp Business Account'),
-  _s('Chat widget embed', 200),
-  _s('Click-to-chat deep link', 200),
+  _s('Chat bubble + pre-chat name/phone form', 300),
+  _s('Click-to-chat deep link + offline message', 250),
   _mc('WA API conversation costs', 50, 40, 500),
-  _s('Responsive testing', 150),
+  _s('Chat click tracking + analytics', 100),
+  _s('Mobile + desktop testing', 150),
 ], { deliverDays: 0, stage: 'build' }))
 
-_register('maps', _def('Google Maps Business Listing', [
-  _f('Google Maps Platform'),
-  _s('Business profile verification', 300),
-  _s('Business info setup', 200),
-  _s('Category optimization', 200),
-  _s('Photo upload + optimization', 300),
-  _s('Service area geo-config', 300),
-], { deliverDays: 0.5, stage: 'setup' }))
-
 _register('gbp', _def('Google Business Profile — Setup & Verify', [
-  _s('Postcard verification handling', 300),
-  _s('Business hours setup', 200),
+  _s('Business verification (postcard handling)', 300),
+  _s('Business info + hours setup', 250),
+  _s('Category + service area setup', 300),
+  _s('Photo upload + optimization', 300),
   _s('Q&A section pre-population', 300),
   _s('Review response templates', 200),
   _s('Product/menu section setup', 300),
@@ -324,14 +318,15 @@ _register('launch-domain', _def('Domain setup', [
 // --- SEO & local ranking ---
 
 _register('gbp-optimise', _def('Google Business Profile — Optimize & Rank', [
-  _m('Weekly GBP posts (4/mo)', 800),
+  _m('Weekly GBP posts (4/mo) — offers, updates, photos', 800),
   _m('Photo optimization + geo-tagging', 300),
-  _m('Review generation campaign', 400),
+  _m('Offer / promotion post design (Canva)', 300),
+  _m('Review generation campaign + reply drafting', 400),
+  _m('Q&A section monitoring + replies', 200),
   _m('Competitor GBP analysis (top 3)', 300),
-  _m('Category optimization', 200),
   _mc('Google Maps ranking tracker', 200, 40, 2000),
   _mc('Local Falcon rank checker', 150, 30, 1500),
-  _m('Monthly performance report', 200),
+  _m('Monthly performance report', 300),
 ], { deliverDays: 0.5, stage: 'setup' }))
 
 _register('local-seo', _def('Local SEO — Google Maps Ranking', [
@@ -356,13 +351,13 @@ _register('whatsapp-book', _def('WhatsApp Business — Auto-reply & Booking', [
 ], { deliverDays: 0.5, stage: 'setup' }))
 
 _register('reviews', _def('Review Generation & Management', [
-  _f('Review link generator'),
+  _f('Review link generator + Google redirect'),
   _mc('SMS review requests (Twilio)', 150, 40, 1500),
-  _m('Email review template + auto', 200),
+  _m('WhatsApp + email review request automation', 300),
   _f('Review monitoring (alerts)'),
-  _m('Positive review showcase', 200),
-  _m('Negative review response tmpl', 200),
-  _m('Monthly review report', 200),
+  _m('5-star thank-you + review showcase on website', 300),
+  _m('Negative feedback private redirect', 300),
+  _m('Monthly review performance dashboard', 200),
 ], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
 
 _register('social', _def('Social Media — 8 Posts/month', [
@@ -426,10 +421,11 @@ _register('growth-city', _def('Cover another city', [
 _register('account-manager', _def('Dedicated Growth Manager', [
   _f('Slack/WhatsApp priority channel'),
   _m('Monthly 1-hr strategy call', 500),
+  _m('Strategy deck + KPI report (10 slides)', 500),
   _m('Quarterly business review deck', 400),
   _f('Notion/Linear task management'),
   _m('4-hr response SLA (biz hrs)', 300),
-  _m('Weekly async update', 200),
+  _m('Weekly async update + action items', 300),
 ]))
 
 _register('unlimited-updates', _def('Content & Page Updates — Unlimited', [
@@ -487,15 +483,6 @@ _register('competitor', _def('Competitor & Market Analysis', [
   _m('Gap analysis — services you lack', 300),
   _m('PDF report with exec summary', 300),
   _mc('SimilarWeb traffic estimation', 100, 30, 1000),
-]))
-
-_register('strategy', _def('Monthly Strategy Call & Report', [
-  _m('Data gathering (analytics+SEO+soc)', 300),
-  _m('KPI tracking spreadsheet update', 200),
-  _m('Strategy deck — 10 slides', 500),
-  _m('1-hr video call + screen share', 400),
-  _m('Call recording + shared notes', 200),
-  _m('Next month action items doc', 300),
 ]))
 
 // --- Priority & multi-location ---
@@ -561,24 +548,7 @@ _register('ordering-page', _def('Online Ordering Page — WhatsApp Form', [
   _s('Deploy + testing', 200),
 ], { deliverDays: 1, stage: 'build' }))
 
-_register('live-chat-widget',   _def('Live Chat on WhatsApp', [
-  _s('WhatsApp chat bubble embed on website', 200),
-  _s('Pre-chat name + phone capture form', 150),
-  _s('Offline / after-hours message template', 100),
-  _s('Mobile + desktop responsive testing', 100),
-  _s('Chat click tracking + analytics tag', 100),
-], { deliverDays: 0.25, parallel: true, stage: 'build' }))
-
 // --- SEO & local ranking (continued) ---
-
-_register('gbp-monthly',   _def('Monthly Google Business Profile — Posts + Offers + Review Replies', [
-  _m('Weekly business posts (4/mo) — offers, updates, photos', 500),
-  _m('Photo optimization + geo-tagging for each post', 200),
-  _m('Offer / promotion post design (Canva)', 300),
-  _m('Review reply drafting (all reviews)', 300),
-  _m('Q&A section monitoring + replies', 200),
-  _m('Monthly GBP insights report + recommendations', 300),
-], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
 
 // --- Marketing & campaigns ---
 
@@ -649,17 +619,6 @@ _register('appointment-booking',   _def('Online Appointment Booking Page', [
   _s('Admin dashboard walkthrough + guide', 200),
   _s('Mobile + desktop testing', 100),
 ], { deliverDays: 1.5, stage: 'build' }))
-
-_register('customer-feedback', _def('Customer Feedback System — Google Review Automation', [
-  _f('Review link generator (Google short URL)'),
-  _m('WhatsApp review request automation (post-service)', 300),
-  _m('Email review request template + schedule', 300),
-  _f('Google review redirect + star prompt'),
-  _m('5-star response flow (thank you + share)', 200),
-  _m('Negative feedback redirect (private form)', 300),
-  _m('Review showcase widget on website', 300),
-  _m('Monthly review performance dashboard', 200),
-], { deliverDays: 0.5, parallel: true, stage: 'setup' }))
 
 // --- AI services ---
 
