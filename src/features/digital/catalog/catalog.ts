@@ -7,11 +7,13 @@ export interface CatalogService {
   label: string
   price: number
   type: BillingType
+  cost?: number
   unitLabel?: string
   deliverDays?: number
   parallel?: boolean
   stage?: ServiceStage
   carePrice?: number
+  monthlyCost?: number
 }
 
 export interface CatalogPlan {
@@ -32,6 +34,7 @@ export interface CatalogPlan {
   foundationDays?: number
   expectations?: { label: string; note: string }[]
   minimumMonths?: number
+  annualMonthly?: number
 }
 
 export interface DigitalCatalog {
@@ -257,11 +260,11 @@ export const digitalCatalogV3: DigitalCatalog = {
       icon: 'Rocket',
       timeline: 'Live in 2–3 days',
       services: [
-        { id: 'website', label: 'Website — Up to 5 Pages', price: 2500, carePrice: 575, type: 'oneTime', deliverDays: 1, stage: 'build' },
-        { id: 'whatsapp', label: 'WhatsApp Chat Button', price: 499, carePrice: 115, type: 'oneTime', deliverDays: 0, stage: 'build' },
-        { id: 'maps', label: 'Google Maps Business Listing', price: 1000, carePrice: 230, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
-        { id: 'gbp', label: 'Google Business Profile — Setup & Verify', price: 500, carePrice: 115, type: 'oneTime', deliverDays: 0.5, parallel: true, stage: 'setup' },
-        { id: 'analytics', label: 'Visit Analytics', price: 500, carePrice: 114, type: 'oneTime', deliverDays: 0.5, parallel: true, stage: 'setup' },
+        { id: 'website', label: 'Website — Up to 5 Pages', price: 2500, cost: 1500, carePrice: 575, monthlyCost: 400, type: 'oneTime', deliverDays: 1, stage: 'build' },
+        { id: 'whatsapp', label: 'WhatsApp Chat Button', price: 499, cost: 200, carePrice: 115, monthlyCost: 50, type: 'oneTime', deliverDays: 0, stage: 'build' },
+        { id: 'maps', label: 'Google Maps Business Listing', price: 1000, cost: 600, carePrice: 230, monthlyCost: 100, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
+        { id: 'gbp', label: 'Google Business Profile — Setup & Verify', price: 500, cost: 400, carePrice: 115, monthlyCost: 113, type: 'oneTime', deliverDays: 0.5, parallel: true, stage: 'setup' },
+        { id: 'analytics', label: 'Visit Analytics', price: 500, cost: 400, carePrice: 114, monthlyCost: 100, type: 'oneTime', deliverDays: 0.5, parallel: true, stage: 'setup' },
       ],
       addOns: [
         { id: 'launch-pages', label: 'Extra pages', price: 299, type: 'oneTime', unitLabel: 'per page', deliverDays: 0.25, stage: 'build' },
@@ -270,6 +273,7 @@ export const digitalCatalogV3: DigitalCatalog = {
       ],
       ctaLabel: 'Get Launch',
       minimumMonths: 3,
+      annualMonthly: 999,
     },
     {
       id: 'growth',
@@ -283,12 +287,12 @@ export const digitalCatalogV3: DigitalCatalog = {
       featured: true,
       inherited: { label: 'Everything in Launch', oneTime: 4999, monthly: 1149 },
       services: [
-        { id: 'gbp-optimise', label: 'Google Business Profile — Optimize & Rank', price: 1200, carePrice: 1200, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
-        { id: 'local-seo', label: 'Local SEO — Google Maps Ranking', price: 500, carePrice: 900, type: 'oneTime', deliverDays: 0, stage: 'setup' },
-        { id: 'whatsapp-book', label: 'WhatsApp Business — Auto-reply & Booking', price: 500, carePrice: 700, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
-        { id: 'reviews', label: 'Review Generation & Management', price: 300, carePrice: 650, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
-        { id: 'social', label: 'Social Media — 8 Posts/month', price: 250, carePrice: 500, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
-        { id: 'seo-report', label: 'Monthly SEO Health Report', price: 250, carePrice: 400, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
+        { id: 'gbp-optimise', label: 'Google Business Profile — Optimize & Rank', price: 1200, cost: 500, carePrice: 1200, monthlyCost: 800, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
+        { id: 'local-seo', label: 'Local SEO — Google Maps Ranking', price: 500, cost: 300, carePrice: 900, monthlyCost: 600, type: 'oneTime', deliverDays: 0, stage: 'setup' },
+        { id: 'whatsapp-book', label: 'WhatsApp Business — Auto-reply & Booking', price: 500, cost: 300, carePrice: 700, monthlyCost: 400, type: 'oneTime', deliverDays: 0.5, stage: 'setup' },
+        { id: 'reviews', label: 'Review Generation & Management', price: 300, cost: 200, carePrice: 650, monthlyCost: 350, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
+        { id: 'social', label: 'Social Media — 8 Posts/month', price: 250, cost: 150, carePrice: 500, monthlyCost: 300, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
+        { id: 'seo-report', label: 'Monthly SEO Health Report', price: 250, cost: 150, carePrice: 400, monthlyCost: 200, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
       ],
       addOns: [
         { id: 'growth-ads', label: 'Google Ads setup', price: 999, type: 'oneTime', deliverDays: 1, stage: 'build' },
@@ -296,6 +300,7 @@ export const digitalCatalogV3: DigitalCatalog = {
       ],
       ctaLabel: 'Get Growth',
       minimumMonths: 3,
+      annualMonthly: 4599,
     },
     {
       id: 'scale',
@@ -314,12 +319,12 @@ export const digitalCatalogV3: DigitalCatalog = {
         { label: 'Dedicated manager', note: 'One person who knows your business. Monthly strategy calls.' },
       ],
       services: [
-        { id: 'account-manager', label: 'Dedicated Growth Manager', price: 1000, carePrice: 700, type: 'oneTime' },
-        { id: 'unlimited-updates', label: 'Content & Page Updates — Unlimited', price: 800, carePrice: 500, type: 'oneTime' },
-        { id: 'social-reels', label: 'Social Media — Reels & Stories', price: 800, carePrice: 400, type: 'oneTime' },
-        { id: 'google-ads', label: 'Google Ads — Campaign Setup & Run', price: 800, carePrice: 550, type: 'oneTime', deliverDays: 1, stage: 'build' },
-        { id: 'competitor', label: 'Competitor & Market Analysis', price: 350, carePrice: 150, type: 'oneTime' },
-        { id: 'strategy', label: 'Monthly Strategy Call & Report', price: 250, carePrice: 200, type: 'oneTime' },
+        { id: 'account-manager', label: 'Dedicated Growth Manager', price: 1000, cost: 400, carePrice: 700, monthlyCost: 500, type: 'oneTime' },
+        { id: 'unlimited-updates', label: 'Content & Page Updates — Unlimited', price: 800, cost: 300, carePrice: 500, monthlyCost: 350, type: 'oneTime' },
+        { id: 'social-reels', label: 'Social Media — Reels & Stories', price: 800, cost: 300, carePrice: 400, monthlyCost: 250, type: 'oneTime' },
+        { id: 'google-ads', label: 'Google Ads — Campaign Setup & Run', price: 800, cost: 250, carePrice: 550, monthlyCost: 300, type: 'oneTime', deliverDays: 1, stage: 'build' },
+        { id: 'competitor', label: 'Competitor & Market Analysis', price: 350, cost: 100, carePrice: 150, monthlyCost: 100, type: 'oneTime' },
+        { id: 'strategy', label: 'Monthly Strategy Call & Report', price: 250, cost: 50, carePrice: 200, monthlyCost: 100, type: 'oneTime' },
       ],
       addOns: [
         { id: 'scale-priority', label: 'Same-day priority support', price: 999, type: 'monthly' },
@@ -327,6 +332,7 @@ export const digitalCatalogV3: DigitalCatalog = {
       ],
       ctaLabel: 'Get Scale',
       minimumMonths: 3,
+      annualMonthly: 6699,
     },
     customPlan,
   ],
