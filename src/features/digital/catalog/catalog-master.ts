@@ -522,6 +522,14 @@ _register('ordering-page', _def('Online Ordering Page — WhatsApp Form', [
   _item('Deploy + testing', 0, 0,    100, 100, 50,  200),
 ], { deliverDays: 1, stage: 'build' }))
 
+_register('live-chat-widget', _def('Live Chat → WhatsApp Widget', [
+  _item('WhatsApp chat bubble embed on website', 0, 0,    100, 100, 50,  200),
+  _item('Pre-chat name + phone capture form', 0, 0,    100, 100, 50,  150),
+  _item('Offline / after-hours message template', 0, 0,    100, 100, 25,  100),
+  _item('Mobile + desktop responsive testing', 0, 0,    100, 100, 25,  100),
+  _item('Chat click tracking + analytics tag', 0, 0,    100, 100, 25,  100),
+], { deliverDays: 0.25, parallel: true, stage: 'build' }))
+
 // --- Growth services (continued) ---
 
 _register('gbp-monthly', _def('Monthly GBP Management — Posts + Offers + Review Replies', [
@@ -561,6 +569,27 @@ _register('festive-campaign', _def('Festive Campaign Pack — Diwali / Holi / Ne
   _item('WhatsApp Business broadcast template', 0, 0,    100, 100, 100, 300),
   _item('Festive offer / discount creative (2 variants)', 0, 0,    100, 100, 100, 300),
 ], { deliverDays: 2, stage: 'design', clientCostNote: 'SMS credits billed separately (~₹0.25–0.50/msg per broadcast)' }))
+
+_register('appointment-booking', _def('Appointment Booking Page — Calendly-style Booking', [
+  _item('Booking page design (branded, responsive)', 0, 0,    100, 100, 150, 500),
+  _item('Time slot + availability configuration', 0, 0,    100, 100, 100, 300),
+  _item('Service / treatment selection menu', 0, 0,    100, 100, 100, 300),
+  _item('WhatsApp + email booking confirmation', 0, 0,    100, 100, 100, 300),
+  _item('Google Calendar auto-sync', 0, 0,    0,  0,   0,   0),
+  _item('Admin dashboard walkthrough + guide', 0, 0,    100, 100, 50,  200),
+  _item('Mobile + desktop testing', 0, 0,    100, 100, 25,  100),
+], { deliverDays: 1.5, stage: 'build' }))
+
+_register('customer-feedback', _def('Customer Feedback System — Google Review Automation', [
+  _item('Review link generator (Google short URL)', 0, 0,    0,  0,   0,   0),
+  _item('WhatsApp review request automation (post-service)', 0, 0,    100, 100, 100, 300),
+  _item('Email review request template + schedule', 0, 0,    100, 100, 100, 300),
+  _item('Google review redirect + star prompt', 0, 0,    0,  0,   0,   0),
+  _item('5-star response flow (thank you + share)', 0, 0,    100, 100, 50,  200),
+  _item('Negative feedback redirect (private form)', 0, 0,    100, 100, 100, 300),
+  _item('Review showcase widget on website', 0, 0,    100, 100, 100, 300),
+  _item('Monthly review performance dashboard', 0, 0,    100, 100, 50,  200),
+], { deliverDays: 0.5, parallel: true, stage: 'setup' }))
 
 // ---------------------------------------------------------------------------
 // Build the lookup map
