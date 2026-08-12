@@ -8,7 +8,7 @@ export const customPlan: CatalogPlan = {
   icon: 'MessageSquare',
   timeline: 'We\'ll scope and quote within 2 days',
   services: [
-    ...pickServices(['custom-software']),
+    ...pickServices(['custom-software', 'billing-invoicing', 'inventory', 'staff-attendance']),
     { id: 'custom-mix', service: { label: 'Pick services from any plan', items: [] } },
     { id: 'custom-new', service: { label: 'Request services not listed above', items: [] } },
     { id: 'custom-quote', service: { label: 'Receive a custom quote within 48h', items: [] } },

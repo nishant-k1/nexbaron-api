@@ -702,6 +702,36 @@ _register('custom-software', _def('Custom Software Development — Dashboards, C
   _s('Team training & handover session', 800),
 ], { clientCostNote: 'All prices are estimates. Final quote depends on project scope. Infrastructure costs (hosting, database, domain) are billed separately by the client.' }))
 
+_register('billing-invoicing', _def('Billing & GST Invoicing', [
+  _s('GST invoices — CGST, SGST & IGST breakdown', 2000),
+  _s('Customer & item management', 1500),
+  _s('Payment tracking — paid, pending, overdue', 1000),
+  _s('UPI / payment links on every invoice', 1000),
+  _s('Recurring invoices for subscriptions', 1000),
+  _s('Invoice email + WhatsApp share', 800),
+  _s('Reports — revenue, outstanding, GST summary', 1000),
+], { clientCostNote: 'All prices are estimates. Final quote depends on project scope. Payment gateway fees billed separately by Razorpay.' }))
+
+_register('inventory', _def('Inventory & Stock Management', [
+  _s('Product catalog — name, price, category', 1500),
+  _s('Stock in / stock out tracking', 1200),
+  _s('Low-stock alerts', 800),
+  _s('Purchase orders', 1000),
+  _s('Supplier management', 800),
+  _s('Stock valuation report', 800),
+  _s('Barcode / QR scanning', 800),
+], { clientCostNote: 'All prices are estimates. Final quote depends on project scope.' }))
+
+_register('staff-attendance', _def('Staff Attendance & Payroll', [
+  _s('Staff profiles', 800),
+  _s('Clock-in / clock-out — web or QR', 1500),
+  _s('Leave & holiday calendar', 1000),
+  _s('Shift management', 1000),
+  _s('Attendance reports — daily & monthly', 1000),
+  _s('Salary calculation', 1000),
+  _s('Payroll summary export (Excel)', 800),
+], { clientCostNote: 'All prices are estimates. Final quote depends on project scope.' }))
+
 // ---------------------------------------------------------------------------
 // Build the lookup map
 // ---------------------------------------------------------------------------
