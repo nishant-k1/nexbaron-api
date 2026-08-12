@@ -199,6 +199,13 @@ export const sharedInfra: DigitalCatalog['sharedInfra'] = [
 
 // ---------------------------------------------------------------------------
 // ALL SERVICE DEFINITIONS — single source of truth
+//
+// Naming convention:
+//   - service label (the `_def` first arg) is PUBLIC — what the client sees.
+//     Always plain business language, never technical jargon.
+//   - items are the technical breakdown underneath — real costs, tools, and
+//     steps that keep the service running. Jargon is fine here; the client
+//     only sees the friendly label on top.
 // ---------------------------------------------------------------------------
 
 // --- Launch plan services ---
@@ -354,7 +361,7 @@ _register('seo-report', _def('Monthly SEO Health Report', [
 
 // --- Growth plan add-ons ---
 
-_register('google-ads-setup', _def('Google Ads Setup — Search + Maps + PMax + YouTube', [
+_register('google-ads-setup',   _def('Google Ads Setup — Search, Maps & Video', [
   _f('Google Ads account + conversion tracking'),
   _s('Search Ads — keyword research + text ad copy', 600),
   _s('Maps / Local Services Ads — listing + geo-setup', 500),
@@ -417,7 +424,7 @@ _register('social-reels', _def('Social Media — Reels & Stories', [
   _m('Posting schedule + tracking', 200),
 ]))
 
-_register('google-ads-management', _def('Google Ads Management — Search + Maps + PMax + YouTube', [
+_register('google-ads-management',   _def('Google Ads Management — Search, Maps & Video', [
   _m('Search Ads — weekly bid + keyword optimization', 500),
   _m('Maps Ads — geo-performance tuning', 400),
   _m('Performance Max — asset refresh + optimization', 400),
@@ -429,7 +436,7 @@ _register('google-ads-management', _def('Google Ads Management — Search + Maps
   _m('Monthly ads performance report', 300),
 ], { deliverDays: 1, stage: 'build', clientCostNote: 'Ad budget paid directly to Google (~₹5K–25K/mo recommended)' }))
 
-_register('meta-ads-management', _def('Meta Ads Management — FB + IG + WhatsApp + Messenger', [
+_register('meta-ads-management',   _def('Meta Ads Management — Facebook + Instagram + WhatsApp + Messenger', [
   _m('Facebook — weekly bid + audience optimization', 400),
   _m('Instagram — creative refresh + Reels ad optimization', 400),
   _mc('WhatsApp — WATI/Interakt platform', 500, 40, 5000),
@@ -527,7 +534,7 @@ _register('ordering-page', _def('Online Ordering Page — WhatsApp Form', [
   _s('Deploy + testing', 200),
 ], { deliverDays: 1, stage: 'build' }))
 
-_register('live-chat-widget', _def('Live Chat → WhatsApp Widget', [
+_register('live-chat-widget',   _def('Live Chat on WhatsApp', [
   _s('WhatsApp chat bubble embed on website', 200),
   _s('Pre-chat name + phone capture form', 150),
   _s('Offline / after-hours message template', 100),
@@ -537,7 +544,7 @@ _register('live-chat-widget', _def('Live Chat → WhatsApp Widget', [
 
 // --- Growth services (continued) ---
 
-_register('gbp-monthly', _def('Monthly GBP Management — Posts + Offers + Review Replies', [
+_register('gbp-monthly',   _def('Monthly Google Business Profile — Posts + Offers + Review Replies', [
   _m('Weekly business posts (4/mo) — offers, updates, photos', 500),
   _m('Photo optimization + geo-tagging for each post', 200),
   _m('Offer / promotion post design (Canva)', 300),
@@ -558,7 +565,7 @@ _register('email-marketing-setup', _def('Email Marketing Setup — Templates + A
   _f('Test send + deliverability check'),
 ], { deliverDays: 0.5, stage: 'build' }))
 
-_register('sms-marketing', _def('SMS Marketing — Campaigns + Automation + DND Compliance', [
+_register('sms-marketing',   _def('SMS Marketing — Offers, Reminders & Alerts', [
   _f('SMS platform setup (Twilio/Textlocal/Exotel)'),
   _s('DND scrub + TRAI compliance registration', 300),
   _s('Message templates — appointment, offer, reminder', 400),
@@ -596,7 +603,7 @@ _register('festive-campaign', _def('Festive Campaign Pack — Diwali / Holi / Ne
   _s('Festive offer / discount creative (2 variants)', 300),
 ], { deliverDays: 2, stage: 'design', clientCostNote: 'SMS credits billed separately (~₹0.25–0.50/msg per broadcast)' }))
 
-_register('appointment-booking', _def('Appointment Booking Page — Calendly-style Booking', [
+_register('appointment-booking',   _def('Online Appointment Booking Page', [
   _s('Booking page design (branded, responsive)', 500),
   _s('Time slot + availability configuration', 300),
   _s('Service / treatment selection menu', 300),
@@ -638,7 +645,7 @@ _register('ai-content', _def('AI Content Writer — Blogs + Social Captions + Em
   _m('Human review + polishing before publish', 300),
 ], { deliverDays: 0.25, parallel: true }))
 
-_register('ai-review-manager', _def('AI Review Manager — Auto-Reply + Sentiment + Summary', [
+_register('ai-review-manager',   _def('AI Review Manager — Auto-Replies + Monthly Summary', [
   _mc('OpenAI API credits + usage (~5K tokens/mo)', 100, 30, 1000),
   _f('Review monitoring — Google + Facebook + Justdial'),
   _s('Auto-response prompt engineering (per platform)', 500),
