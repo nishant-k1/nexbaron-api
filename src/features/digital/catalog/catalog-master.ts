@@ -565,6 +565,16 @@ _register('email-marketing-setup', _def('Email Marketing Setup — Templates + A
   _f('Test send + deliverability check'),
 ], { deliverDays: 0.5, stage: 'build' }))
 
+_register('email-marketing', _def('Email Marketing Management — Campaigns + Optimization + Reporting', [
+  _m('Monthly newsletter campaigns (2–4 sends)', 600),
+  _m('Content + copywriting for campaigns', 500),
+  _m('Template updates + seasonal designs', 400),
+  _m('A/B subject line testing + optimization', 300),
+  _m('List cleaning + inactive subscriber pruning', 200),
+  _m('Re-engagement campaign (quarterly)', 250),
+  _m('Performance analytics report', 300),
+]))
+
 _register('sms-marketing',   _def('SMS Marketing — Offers, Reminders & Alerts', [
   _f('SMS platform setup (Twilio/Textlocal/Exotel)'),
   _s('DND scrub + TRAI compliance registration', 300),
