@@ -84,7 +84,7 @@ export async function nextInvoiceNumber(InvoiceCounter: Model<any>) {
 }
 
 function invoiceHtml(order: IOrder, invoiceNumber: string): string {
-  const items = (order.items ?? []).filter((item) => item.type === 'oneTime')
+  const items = (order.items ?? []).filter((item) => item.billingCycle === 'setup')
   // Catalog prices are charged as displayed, so split GST out of the paid total.
   const total = order.amount
   const taxable = Math.round((total * 100) / 118)

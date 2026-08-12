@@ -35,16 +35,16 @@ customPlanAdminRouter.post('/custom-plans', requireAdmin, requireDivision('digit
     }
     const services = (Array.isArray(body.services) ? body.services : []).map((s: any) => ({
       id: s.id || randomUUID(),
-      label: String(s.label || ''),
+      service: { label: String(s.label || s.service?.label || '') },
       price: Number(s.price) || 0,
-      type: s.type === 'monthly' ? 'monthly' : 'oneTime' as const,
+      billingCycle: ['monthly', 'annual'].includes(s.billingCycle) ? s.billingCycle : 'setup' as const,
       unitLabel: s.unitLabel || undefined,
     }))
     const addOns = (Array.isArray(body.addOns) ? body.addOns : []).map((a: any) => ({
       id: a.id || randomUUID(),
-      label: String(a.label || ''),
+      service: { label: String(a.label || a.service?.label || '') },
       price: Number(a.price) || 0,
-      type: a.type === 'monthly' ? 'monthly' : 'oneTime' as const,
+      billingCycle: ['monthly', 'annual'].includes(a.billingCycle) ? a.billingCycle : 'setup' as const,
       unitLabel: a.unitLabel || undefined,
     }))
     const { CustomPlan } = getDivisionModels(req.staffAuth.division)
@@ -78,9 +78,9 @@ customPlanAdminRouter.patch('/custom-plans/:id', requireAdmin, requireDivision('
     if (Array.isArray(body.services)) {
       plan.services = body.services.map((s: any) => ({
         id: s.id || randomUUID(),
-        label: String(s.label || ''),
+        service: { label: String(s.label || s.service?.label || '') },
         price: Number(s.price) || 0,
-        type: s.type === 'monthly' ? 'monthly' : 'oneTime' as const,
+        billingCycle: ['monthly', 'annual'].includes(s.billingCycle) ? s.billingCycle : 'setup' as const,
         unitLabel: s.unitLabel || undefined,
       }))
       plan.markModified('services')
@@ -88,9 +88,9 @@ customPlanAdminRouter.patch('/custom-plans/:id', requireAdmin, requireDivision('
     if (Array.isArray(body.addOns)) {
       plan.addOns = body.addOns.map((a: any) => ({
         id: a.id || randomUUID(),
-        label: String(a.label || ''),
+        service: { label: String(a.label || a.service?.label || '') },
         price: Number(a.price) || 0,
-        type: a.type === 'monthly' ? 'monthly' : 'oneTime' as const,
+        billingCycle: ['monthly', 'annual'].includes(a.billingCycle) ? a.billingCycle : 'setup' as const,
         unitLabel: a.unitLabel || undefined,
       }))
       plan.markModified('addOns')

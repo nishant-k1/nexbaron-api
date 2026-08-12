@@ -67,7 +67,7 @@ export function selectionSummary(quote: IQuote): string {
     const addOns = addOnIds
       .map((id) => {
         const p = digitalCatalog.plans.flatMap((pl) => pl.addOns).find((a) => a.id === id)
-        return p?.label ?? id
+        return p?.service.label ?? id
       })
       .join(', ')
     return [plans && `Plans: ${plans}`, addOns && `Add-ons: ${addOns}`].filter(Boolean).join('\n') || '—'

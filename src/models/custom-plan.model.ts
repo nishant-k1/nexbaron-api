@@ -1,10 +1,13 @@
 import { Schema, Document, Connection } from 'mongoose'
+import { BillingCycle } from '../orders/models/order.model'
 
 export interface ICustomPlanService {
   id: string
-  label: string
+  service: {
+    label: string
+  }
   price: number
-  type: 'oneTime' | 'monthly'
+  billingCycle: BillingCycle
   unitLabel?: string
 }
 
@@ -20,9 +23,11 @@ export interface ICustomPlan extends Document {
 const CustomPlanServiceSchema = new Schema<ICustomPlanService>(
   {
     id: { type: String, required: true, trim: true },
-    label: { type: String, required: true, trim: true },
+    service: {
+      label: { type: String, required: true, trim: true },
+    },
     price: { type: Number, required: true, min: 0 },
-    type: { type: String, enum: ['oneTime', 'monthly'], required: true },
+    billingCycle: { type: String, enum: ['setup', 'monthly', 'annual'], required: true },
     unitLabel: { type: String, trim: true },
   },
   { _id: false }

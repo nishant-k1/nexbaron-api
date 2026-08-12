@@ -173,7 +173,7 @@ export async function myOrder(req: Request, res: Response) {
           { label: 'Payment completed', done: order.status === 'paid' || order.status === 'in_progress' || order.status === 'delivered' },
         ]
         if (plan) {
-          for (const s of plan.services) steps.push({ label: s.label, done: order.status === 'delivered' })
+          for (const s of plan.services) steps.push({ label: s.service.label, done: order.status === 'delivered' })
         }
         const doneCount = steps.filter((s) => s.done).length
 

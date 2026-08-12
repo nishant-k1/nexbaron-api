@@ -22,12 +22,15 @@ export interface IPayment {
   recordedBy?: string
 }
 
+export type BillingCycle = 'setup' | 'monthly' | 'annual'
+
 export interface IOrderItem {
   kind: 'plan' | 'service' | 'addon'
   planId: string
   label: string
-  type: 'oneTime' | 'monthly'
+  billingCycle: BillingCycle
   price: number
+  costPrice?: number
   quantity: number
 }
 
@@ -138,8 +141,9 @@ const OrderItemSchema = new Schema<IOrderItem>(
     kind: { type: String, enum: ['plan', 'service', 'addon'], required: true },
     planId: { type: String, required: true, trim: true },
     label: { type: String, required: true, trim: true },
-    type: { type: String, enum: ['oneTime', 'monthly'], required: true },
+    billingCycle: { type: String, enum: ['setup', 'monthly', 'annual'], required: true },
     price: { type: Number, required: true, min: 0 },
+    costPrice: { type: Number, min: 0 },
     quantity: { type: Number, required: true, min: 1, default: 1 },
   },
   { _id: false }

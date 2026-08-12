@@ -1,4 +1,4 @@
-import { digitalCatalog, CatalogPlan } from '../../catalog/catalog'
+import { digitalCatalog, enrichCatalog, computeItemSelling, CatalogService } from '../../catalog/catalog'
 import { IOrderItem } from '../../../../orders/models/order.model'
 
 export interface PlanSelectionInput {
@@ -16,9 +16,8 @@ export interface SelectionsInput {
 export interface ComputedOrder {
   planId: string
   planName: string
-  oneTimeTotal: number
-  monthlyTotal: number
   amount: number
+  monthlyTotal: number
   items: IOrderItem[]
   launchDays: number
   launchDate: Date
@@ -27,119 +26,124 @@ export interface ComputedOrder {
 
 const LAUNCH_FIXED_DAYS = 4
 
-export function computeOrder(selections: SelectionsInput, from = new Date()): ComputedOrder {
-  const planId = selections.planId
-  const planByIndex: { plan: CatalogPlan; oneTimeLive: number }[] = []
-  const chosenIndex = digitalCatalog.plans.findIndex((p) => p.id === planId)
+function planUpToIndex(planId: string): { plans: typeof digitalCatalog.plans; index: number } {
+  const idx = digitalCatalog.plans.findIndex((p) => p.id === planId)
+  return { plans: digitalCatalog.plans.slice(0, idx + 1), index: idx }
+}
 
-  for (const plan of digitalCatalog.plans) {
-    const sel = selections.plans[plan.id] ?? { selected: [], addOns: [], addOnCounts: {}, inheritedOn: true }
-    const selected = new Set(sel.selected)
-    const addOns = new Set(sel.addOns)
-    const addOnCounts = sel.addOnCounts ?? {}
-
-    // Removed own services reduce the headline total.
-    const ownOffOneTime = plan.services
-      .filter((s) => s.type === 'oneTime' && !selected.has(s.id))
-      .reduce((sum, s) => sum + s.price, 0)
-
-    let inheritedOneTime = 0
-    const lower = planByIndex[planByIndex.length - 1]
-    if (lower) {
-      const lowerReduction = lower.plan.oneTime - lower.oneTimeLive
-      inheritedOneTime = sel.inheritedOn ? lowerReduction : lower.plan.oneTime
-    }
-
-    const addOnOneTime = plan.addOns
-      .filter((s) => s.type === 'oneTime' && addOns.has(s.id))
-      .reduce((sum, s) => sum + s.price * (addOnCounts[s.id] ?? 1), 0)
-
-    const oneTimeLive = Math.max(0, plan.oneTime - ownOffOneTime - inheritedOneTime + addOnOneTime)
-    planByIndex.push({ plan, oneTimeLive })
-  }
-
-  const chosen = planByIndex[chosenIndex]!
-  const chosenSel = selections.plans[planId] ?? { selected: [], addOns: [], addOnCounts: {}, inheritedOn: true }
-  const chosenSelected = new Set(chosenSel.selected)
-
-  // Items list (authoritative) for the chosen plan: inherited lower services + own + add-ons.
+function collectItems(
+  service: CatalogService,
+  quantity: number,
+  { kind, planId }: { kind: IOrderItem['kind']; planId: string }
+): IOrderItem[] {
   const items: IOrderItem[] = []
+  for (const item of service.service.items) {
+    const sell = computeItemSelling(item)
+    const isOnetime = item.costPrice.monthly === 0 && item.costPrice.annual > 0
+    const isRecurring = item.costPrice.monthly > 0
+
+    if (isOnetime && sell.annual > 0) {
+      items.push({
+        kind,
+        planId,
+        label: `${service.service.label} — ${item.label}`,
+        billingCycle: 'setup',
+        price: sell.annual * quantity,
+        costPrice: item.costPrice.annual * quantity,
+        quantity,
+      })
+    }
+    if (isRecurring && sell.monthly > 0) {
+      items.push({
+        kind,
+        planId,
+        label: `${service.service.label} — ${item.label}`,
+        billingCycle: 'monthly',
+        price: sell.monthly * quantity,
+        costPrice: item.costPrice.monthly * quantity,
+        quantity,
+      })
+    }
+  }
+  return items
+}
+
+export function computeOrder(selections: SelectionsInput, from = new Date()): ComputedOrder {
+  const catalog = enrichCatalog(digitalCatalog)
+  const selPlanId = selections.planId
+  const chosenIndex = catalog.plans.findIndex((p) => p.id === selPlanId)
+  const chosenPlan = catalog.plans[chosenIndex]
+  if (!chosenPlan) throw new Error(`Unknown plan: ${selPlanId}`)
+
+  let amount = 0
+  let monthlyTotal = 0
+  const items: IOrderItem[] = []
+
+  const timelineServices: { parallel?: boolean; deliverDays?: number }[] = []
+
   for (let i = 0; i <= chosenIndex; i++) {
-    const entry = planByIndex[i]!
-    const sel = selections.plans[entry.plan.id]
-    const selected = new Set(sel?.selected ?? [])
-    const addOns = new Set(sel?.addOns ?? [])
-    const addOnCounts = sel?.addOnCounts ?? {}
-    const includePlan = i === chosenIndex ? true : sel?.inheritedOn ?? true
+    const plan = catalog.plans[i]
+    const sel = selections.plans[plan.id] ?? { selected: [], addOns: [], addOnCounts: {}, inheritedOn: true }
+    const excluded = new Set(sel.selected)
+    const chosenAddOns = new Set(sel.addOns)
+    const addOnCounts = sel.addOnCounts ?? {}
+    const include = i === chosenIndex || sel.inheritedOn
+    if (!include) continue
 
-    if (i < chosenIndex && !includePlan) continue
+    // Services
+    for (const svc of plan.services) {
+      const isExcluded = excluded.has(svc.id)
+      if (i === chosenIndex && isExcluded) continue
 
-    for (const s of entry.plan.services) {
-      if (i === chosenIndex ? selected.has(s.id) : includePlan) {
-        items.push({
-          kind: 'service',
-          planId: entry.plan.id,
-          label: s.label,
-          type: s.type,
-          price: s.price,
-          quantity: 1,
-        })
+      for (const x of collectItems(svc, 1, { kind: 'service', planId: plan.id })) {
+        items.push(x)
+        if (x.billingCycle === 'setup') amount += x.price
+        else monthlyTotal += x.price
+      }
+
+      if (i === chosenIndex) {
+        timelineServices.push(svc)
+      } else {
+        if (svc.deliverDays !== undefined) timelineServices.push(svc)
       }
     }
-    for (const a of entry.plan.addOns) {
-      if (addOns.has(a.id)) {
-        items.push({
-          kind: 'addon',
-          planId: entry.plan.id,
-          label: a.label,
-          type: a.type,
-          price: a.price,
-          quantity: Math.max(1, addOnCounts[a.id] ?? 1),
-        })
+
+    // Add-ons
+    for (const addon of plan.addOns) {
+      if (!chosenAddOns.has(addon.id)) continue
+      const qty = Math.max(1, addOnCounts[addon.id] ?? 1)
+
+      for (const x of collectItems(addon, qty, { kind: 'addon', planId: plan.id })) {
+        items.push(x)
+        if (x.billingCycle === 'setup') amount += x.price
+        else monthlyTotal += x.price
+      }
+
+      for (let c = 0; c < qty; c++) {
+        timelineServices.push(addon)
       }
     }
   }
 
-  // Launch timeline from the chosen plan's critical path.
-  const services: { parallel?: boolean; deliverDays?: number }[] = []
-  for (let i = 0; i <= chosenIndex; i++) {
-    const entry = planByIndex[i]!
-    const sel = selections.plans[entry.plan.id]
-    const selected = new Set(sel?.selected ?? [])
-    const addOns = new Set(sel?.addOns ?? [])
-    const addOnCounts = sel?.addOnCounts ?? {}
-    const include = i === chosenIndex || (sel?.inheritedOn ?? true)
-    if (i < chosenIndex && !include) continue
-    if (i === chosenIndex) {
-      for (const s of entry.plan.services) if (selected.has(s.id)) services.push(s)
-      for (const a of entry.plan.addOns) {
-        if (addOns.has(a.id)) {
-          for (let c = 0; c < Math.max(1, addOnCounts[a.id] ?? 1); c++) services.push(a)
-        }
-      }
-    } else {
-      for (const s of entry.plan.services) services.push(s)
-    }
-  }
-  const critical = services
+  // Critical path: sum deliverDays for non-parallel items
+  const critical = timelineServices
     .filter((s) => !s.parallel && (s.deliverDays ?? 0) > 0)
     .reduce((sum, s) => sum + (s.deliverDays ?? 0), 0)
 
-  const phased = chosen.plan.timelineMode === 'phased'
-  const launchDays = phased ? chosen.plan.foundationDays ?? 30 : Math.max(1, Math.round(LAUNCH_FIXED_DAYS + critical))
+  const phased = chosenPlan.timelineMode === 'phased'
+  const launchDays = phased ? chosenPlan.foundationDays ?? 30 : Math.max(1, Math.round(LAUNCH_FIXED_DAYS + critical))
   const launchDate = new Date(from)
   launchDate.setDate(launchDate.getDate() + launchDays)
 
   return {
-    planId: chosen.plan.id,
-    planName: chosen.plan.name,
-    oneTimeTotal: chosen.oneTimeLive,
-    monthlyTotal: Math.max(0, planByIndex[chosenIndex]!.plan.monthly),
-    amount: chosen.oneTimeLive,
+    planId: chosenPlan.id,
+    planName: chosenPlan.name,
+    amount,
+    monthlyTotal,
     items,
     launchDays,
     launchDate,
-    timelineMode: chosen.plan.timelineMode,
+    timelineMode: chosenPlan.timelineMode,
   }
 }
 
