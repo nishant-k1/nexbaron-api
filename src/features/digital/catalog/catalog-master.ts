@@ -208,7 +208,7 @@ export const sharedInfra: DigitalCatalog['sharedInfra'] = [
 //     only sees the friendly label on top.
 // ---------------------------------------------------------------------------
 
-// --- Launch plan services ---
+// --- Website & online presence ---
 
 _register('website', _def('Website — Up to 5 Pages', [
   _sc('Domain Registration', 800, 30),
@@ -271,7 +271,7 @@ _register('analytics', _def('Visit Analytics', [
   _s('UTM parameter standardization', 200),
 ], { deliverDays: 0.5, parallel: true, stage: 'setup' }))
 
-// --- Launch plan add-ons ---
+// --- Website add-ons ---
 
 _register('launch-pages', _def('Extra pages', [
   _s('Content writing (500 words)', 200),
@@ -294,7 +294,7 @@ _register('launch-domain', _def('Domain setup', [
   _s('SSL auto-renewal verification', 200),
 ], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
 
-// --- Growth plan services ---
+// --- SEO & local ranking ---
 
 _register('gbp-optimise', _def('Google Business Profile — Optimize & Rank', [
   _m('Weekly GBP posts (4/mo)', 800),
@@ -359,7 +359,7 @@ _register('seo-report', _def('Monthly SEO Health Report', [
   _m('PDF report generation (branded)', 200),
 ], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
 
-// --- Growth plan add-ons ---
+// --- Advertising — setup ---
 
 _register('google-ads-setup',   _def('Google Ads Setup — Search, Maps & Video', [
   _f('Google Ads account + conversion tracking'),
@@ -394,7 +394,7 @@ _register('growth-city', _def('Cover another city', [
   _mc('BrightLocal citation tool', 100, 30, 1000),
 ], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
 
-// --- Scale plan services ---
+// --- Ongoing management ---
 
 _register('account-manager', _def('Dedicated Growth Manager', [
   _f('Slack/WhatsApp priority channel'),
@@ -471,7 +471,7 @@ _register('strategy', _def('Monthly Strategy Call & Report', [
   _m('Next month action items doc', 300),
 ]))
 
-// --- Scale plan add-ons ---
+// --- Priority & multi-location ---
 
 _register('scale-priority', _def('Same-day priority support', [
   _f('Priority queue in support system'),
@@ -487,7 +487,7 @@ _register('scale-multi', _def('Multi-location', [
   _mc('BrightLocal citation tool', 150, 30, 1500),
 ], { deliverDays: 1, stage: 'build' }))
 
-// --- Launch add-ons (continued) ---
+// --- Website add-ons (continued) ---
 
 _register('business-email', _def('Business Email Setup', [
   _s('Zoho Mail account setup + domain verification', 500),
@@ -542,7 +542,7 @@ _register('live-chat-widget',   _def('Live Chat on WhatsApp', [
   _s('Chat click tracking + analytics tag', 100),
 ], { deliverDays: 0.25, parallel: true, stage: 'build' }))
 
-// --- Growth services (continued) ---
+// --- SEO & local ranking (continued) ---
 
 _register('gbp-monthly',   _def('Monthly Google Business Profile — Posts + Offers + Review Replies', [
   _m('Weekly business posts (4/mo) — offers, updates, photos', 500),
@@ -553,7 +553,7 @@ _register('gbp-monthly',   _def('Monthly Google Business Profile — Posts + Off
   _m('Monthly GBP insights report + recommendations', 300),
 ], { deliverDays: 0.25, parallel: true, stage: 'setup' }))
 
-// --- Growth add-ons (continued) ---
+// --- Marketing & campaigns ---
 
 _register('email-marketing-setup', _def('Email Marketing Setup — Templates + Automation + List Import', [
   _sc('Platform setup (Brevo/Mailchimp/MailerLite)', 1300, 30),
@@ -673,7 +673,7 @@ _register('ai-product-photos', _def('AI Product Photos — Studio Quality Withou
   _s('Web + social media optimized delivery', 200),
 ], { deliverDays: 2, stage: 'design' }))
 
-// --- Custom / Premium services ---
+// --- Custom software tools ---
 
 _register('custom-software', _def('Custom Software Development — Dashboards, CRMs, Internal Tools', [
   _s('Discovery + scope document', 2000),
