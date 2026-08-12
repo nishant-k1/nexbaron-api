@@ -31,6 +31,7 @@ export interface CatalogPlan {
   timelineMode?: 'phased'
   foundationDays?: number
   expectations?: { label: string; note: string }[]
+  minimumMonths?: number
 }
 
 export interface DigitalCatalog {
@@ -176,6 +177,7 @@ export const digitalCatalogV2: DigitalCatalog = {
         { id: 'launch-domain', label: 'Domain setup', price: 199, type: 'oneTime', deliverDays: 0.25, parallel: true, stage: 'setup' },
       ],
       ctaLabel: 'Get Launch',
+      minimumMonths: 3,
     },
     {
       id: 'growth',
@@ -201,6 +203,7 @@ export const digitalCatalogV2: DigitalCatalog = {
         { id: 'growth-city', label: 'Cover another city', price: 500, type: 'monthly', deliverDays: 0.25, parallel: true, stage: 'setup' },
       ],
       ctaLabel: 'Get Growth',
+      minimumMonths: 3,
     },
     {
       id: 'scale',
@@ -231,6 +234,7 @@ export const digitalCatalogV2: DigitalCatalog = {
         { id: 'scale-multi', label: 'Multi-location', price: 1499, type: 'oneTime', deliverDays: 1, stage: 'build' },
       ],
       ctaLabel: 'Get Scale',
+      minimumMonths: 3,
     },
     customPlan,
   ],
