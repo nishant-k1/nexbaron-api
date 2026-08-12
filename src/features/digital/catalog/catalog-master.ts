@@ -591,6 +591,55 @@ _register('customer-feedback', _def('Customer Feedback System — Google Review 
   _item('Monthly review performance dashboard', 0, 0,    100, 100, 50,  200),
 ], { deliverDays: 0.5, parallel: true, stage: 'setup' }))
 
+// --- AI services ---
+
+_register('ai-chatbot', _def('AI Chatbot — WhatsApp + Website 24/7 Auto-Reply', [
+  _item('WATI / Interakt AI bot subscription', 500, 5000, 40, 40),
+  _item('FAQ knowledge base setup (50+ Q&A)', 0, 0,    100, 100, 150, 500),
+  _item('Business context + tone prompt engineering', 0, 0,    100, 100, 100, 300),
+  _item('24/7 auto-reply flow — greeting + FAQ + handoff', 0, 0,    100, 100, 100, 400),
+  _item('Fallback to human trigger setup', 0, 0,    100, 100, 50,  200),
+  _item('Monthly conversation review + prompt tuning', 0, 0,    100, 100, 100, 300),
+], { deliverDays: 1.5, parallel: true }))
+
+_register('ai-content', _def('AI Content Writer — Blogs + Social Captions + Emails', [
+  _item('OpenAI API credits + usage (~20K tokens/mo)', 200, 2000, 30, 30),
+  _item('Brand voice + style guide prompt setup', 0, 0,    100, 100, 100, 400),
+  _item('Blog post generation + editing (4/month)', 0, 0,    100, 100, 150, 500),
+  _item('Social media caption generation (8/month)', 0, 0,    100, 100, 100, 400),
+  _item('Email newsletter draft generation (2/month)', 0, 0,    100, 100, 100, 300),
+  _item('SEO keyword + meta description generation', 0, 0,    100, 100, 50,  200),
+  _item('Human review + polishing before publish', 0, 0,    100, 100, 100, 300),
+], { deliverDays: 0.25, parallel: true }))
+
+_register('ai-review-manager', _def('AI Review Manager — Auto-Reply + Sentiment + Summary', [
+  _item('OpenAI API credits + usage (~5K tokens/mo)', 100, 1000, 30, 30),
+  _item('Review monitoring — Google + Facebook + Justdial', 0, 0,    0,  0,   0,   0),
+  _item('Auto-response prompt engineering (per platform)', 0, 0,    100, 100, 150, 500),
+  _item('Positive review — thank you + upsell reply', 0, 0,    100, 100, 50,  200),
+  _item('Negative review — empathetic + resolution reply', 0, 0,    100, 100, 100, 300),
+  _item('Sentiment analysis + escalation rules', 0, 0,    100, 100, 100, 300),
+  _item('Monthly review sentiment report', 0, 0,    100, 100, 100, 300),
+], { deliverDays: 0.5, parallel: true }))
+
+_register('ai-lead-qualifier', _def('AI Lead Qualifier — Auto-Questions + Scoring on WhatsApp', [
+  _item('WATI / Interakt bot flow + OpenAI integration', 500, 5000, 40, 40),
+  _item('Qualification script — budget, timeline, requirements', 0, 0,    100, 100, 150, 500),
+  _item('Intent detection prompt setup', 0, 0,    100, 100, 100, 300),
+  _item('Lead scoring rules — hot/warm/cold', 0, 0,    100, 100, 100, 300),
+  _item('Hot lead → instant WhatsApp notification to you', 0, 0,    100, 100, 50,  200),
+  _item('Monthly conversion + lead quality report', 0, 0,    100, 100, 100, 300),
+], { deliverDays: 1, parallel: true }))
+
+_register('ai-product-photos', _def('AI Product Photos — Studio Quality Without Photoshoot', [
+  _item('Product photo guidelines — angles, lighting instructions', 0, 0,    100, 100, 50,  200),
+  _item('Midjourney / DALL-E prompt engineering per product', 0, 0,    100, 100, 100, 300),
+  _item('Background generation + product placement (10 photos)', 0, 0,    100, 100, 150, 500),
+  _item('AI generation credits (Midjourney/DALL-E)', 150, 1500, 30, 30),
+  _item('Manual edits + color correction + resize', 0, 0,    100, 100, 100, 300),
+  _item('Web + social media optimized delivery', 0, 0,    100, 100, 50,  200),
+], { deliverDays: 2, stage: 'design' }))
+
 // ---------------------------------------------------------------------------
 // Build the lookup map
 // ---------------------------------------------------------------------------
