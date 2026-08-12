@@ -56,8 +56,8 @@ export const digitalCatalog: DigitalCatalog = {
       timeline: 'Live in 5–7 days',
       services: [
         { id: 'website', label: 'Website — Up to 5 Pages', price: 2500, carePrice: 199, type: 'oneTime', deliverDays: 3, stage: 'build' },
-        { id: 'maps', label: 'Google Maps Business Listing', price: 1000, carePrice: 175, type: 'oneTime', deliverDays: 1, stage: 'setup' },
         { id: 'whatsapp', label: 'WhatsApp Chat Button', price: 499, carePrice: 50, type: 'oneTime', deliverDays: 0, stage: 'build' },
+        { id: 'maps', label: 'Google Maps Business Listing', price: 1000, carePrice: 175, type: 'oneTime', deliverDays: 1, stage: 'setup' },
         { id: 'gbp', label: 'Google Business Profile — Setup & Verify', price: 500, carePrice: 50, type: 'oneTime', deliverDays: 1, parallel: true, stage: 'setup' },
         { id: 'analytics', label: 'Visit Analytics', price: 500, carePrice: 150, type: 'oneTime', deliverDays: 1, parallel: true, stage: 'setup' },
       ],
