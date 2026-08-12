@@ -732,6 +732,35 @@ _register('staff-attendance', _def('Staff Attendance & Payroll', [
   _s('Payroll summary export (Excel)', 800),
 ], { clientCostNote: 'All prices are estimates. Final quote depends on project scope.' }))
 
+_register('loyalty-rewards', _def('Loyalty & Rewards Program', [
+  _s('Points on every visit / purchase', 1500),
+  _s('Digital punch card — buy 5 get 1 free', 1000),
+  _s('Referral rewards — friend signup bonus', 1000),
+  _s('Member tiers — silver / gold / platinum', 800),
+  _s('Reward redemption tracking', 800),
+  _s('WhatsApp + email reward notifications', 800),
+  _s('Loyalty analytics report', 800),
+], { clientCostNote: 'All prices are estimates. Final quote depends on project scope.' }))
+
+_register('delivery-tracking', _def('Delivery Tracking', [
+  _s('Order status flow — placed → out → delivered', 1500),
+  _s('Driver assignment', 1000),
+  _s('Customer tracking link (live status)', 1000),
+  _s('WhatsApp delivery updates', 800),
+  _s('Delivery zones / pincode setup', 800),
+  _s('Delivery analytics report', 800),
+], { clientCostNote: 'All prices are estimates. Final quote depends on project scope.' }))
+
+_register('membership', _def('Membership Management', [
+  _s('Membership plans — monthly / quarterly / annual', 1500),
+  _s('Member signup & profile', 1000),
+  _s('Renewal reminders', 1000),
+  _s('Expiry alerts', 800),
+  _s('Payment collection (UPI links)', 800),
+  _s('Usage / attendance tracking', 1000),
+  _s('Membership reports', 800),
+], { clientCostNote: 'All prices are estimates. Final quote depends on project scope.' }))
+
 // ---------------------------------------------------------------------------
 // Build the lookup map
 // ---------------------------------------------------------------------------
