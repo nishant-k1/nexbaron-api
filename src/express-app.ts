@@ -27,6 +27,8 @@ import { customPlanAdminRouter } from './features/digital/catalog/routes/custom-
 import { customPlanCustomerRouter } from './features/digital/catalog/routes/custom-plan-customer-routes'
 import { businessRouter } from './features/digital/catalog/routes/business-routes'
 import { serviceRouter } from './features/digital/catalog/routes/service-routes'
+import { businessProfileRouter } from './features/digital/routes/business-profile-routes'
+import { printBusinessProfileRouter } from './features/print/routes/business-profile-routes'
 import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
@@ -90,8 +92,10 @@ function mountBrandRoutes(brandBase: string): void {
     app.use(`${brandBase}/payments`, paymentRouter)
     app.use(`${brandBase}`, businessRouter)
     app.use(`${brandBase}`, serviceRouter)
+    app.use(`${brandBase}`, businessProfileRouter)
   } else {
     app.use(brandBase, printRouter)
+    app.use(brandBase, printBusinessProfileRouter)
   }
 
   app.use(`${brandBase}/admin/auth`, adminAuthRouter)
