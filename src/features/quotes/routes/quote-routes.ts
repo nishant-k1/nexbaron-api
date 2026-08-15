@@ -1,0 +1,27 @@
+import { Router } from 'express'
+import { optionalAuth, requireAuth } from '../../../middleware/require-auth'
+import { requireAdmin, requireDivision, requireRole } from '../../admin/middleware/require-admin'
+import { rateLimit } from '../../../utils/rate-limit'
+import {
+  getQuote,
+  listQuotes,
+  myQuotes,
+  previewQuote,
+  sendQuote,
+  submitQuote,
+  updateQuote,
+} from '../controllers/quote-controller'
+
+// Customer-facing. Mounted only under the runtime brand; auth is optional on
+// submit so guests can request a quote, while signed-in accounts are linked.
+export const customerQuoteRouter = Router()
+customerQuoteRouter.post('/quotes', optionalAuth, rateLimit({ windowMs: 10 * 60 * 1000, max: 30 }), submitQuote)
+customerQuoteRouter.get('/quotes/mine', requireAuth, myQuotes)
+
+// Staff-facing. Mounted at /<brand>/admin/quotes.
+export const adminQuoteRouter = Router()
+adminQuoteRouter.get('/', requireAdmin, requireDivision('digital', 'print'), listQuotes)
+adminQuoteRouter.get('/:id', requireAdmin, requireDivision('digital', 'print'), getQuote)
+adminQuoteRouter.get('/:id/preview', requireAdmin, requireDivision('digital', 'print'), previewQuote)
+adminQuoteRouter.patch('/:id', requireAdmin, requireDivision('digital', 'print'), updateQuote)
+adminQuoteRouter.post('/:id/send', requireAdmin, requireDivision('digital', 'print'), requireRole('owner', 'admin'), sendQuote)

@@ -26,32 +26,47 @@ No tests, no linter config. Verify with `npm run build` (tsc strict).
 api/index.ts            Vercel serverless entry (memoized DB promise)
 src/index.ts            long-running server entry
 src/express-app.ts      app factory: middleware chain + route mounts
-src/models/             division-agnostic model factories + registry
-src/features/
-  shared/middleware/    customer JWT (hand-rolled HS256) + requireAuth
+src/middleware/         shared HTTP middleware (customer JWT, requireAuth, error/not-found handlers)
+src/models/             ALL Mongoose model factories + registry (runtime-scoped)
+src/utils/              shared utilities (database, mailer, logger, rate-limit, ...)
+src/features/           every business feature (feature-based folders)
   admin/                staff auth (bcrypt + cookie JWTs, hashed rotating refresh tokens), staff CRUD
-  digital/auth/         customer OTP + Google sign-in
-  digital/catalog/      plan catalog (single source of truth for pricing)
-  digital/onboarding/   per-user checkout drafts
-  digital/payments/     Razorpay create-order/verify/webhook + GST invoice email
-  print/                print catalog + estimate computation
+  auth/                 customer OTP + Google sign-in
+  chat/                 live chat + R2 attachments
+  cron/                 scheduled job routes (reminders, recurring, testimonials)
+  digital/
+    business-profile.ts       our own NAP/geo (served at GET /digital/business)
+    catalog/                  single source of truth for pricing + marketing copy
+      service-items-pricing-catalog.ts    services + cost items + margins
+      service-package-pricing-catalog.ts  plans/packages
+      service-content.ts                  per-service marketing copy (keyed by service id)
+      business-catalog.ts                 who-we-help
+      plan-defs/                          individual plan definitions
+      routes/                             catalog/service/business/custom-plan handlers
+    onboarding/            per-user checkout drafts
+    payments/              Razorpay create-order/verify/webhook + GST invoice email
+    routes/                business-profile route
   leads/                public contact forms -> Lead (runtime-scoped digital/print routes)
   orders/               admin order/payment management
+  print/                print catalog + estimate computation + business profile
+  projects/             project pipeline (customer tracker + admin)
   quotes/               quote request pipeline (customer submit + admin price/send)
+  reports/              admin reports
+  shared/               cross-feature shared types (e.g. BusinessProfile)
 scripts/                seed-admin, division DB migration
 ```
 
 ### Auth (two independent systems)
 
-- **Customer**: Bearer JWT, hand-rolled HMAC-SHA256 in `src/features/shared/middleware/jwt.ts` (no jsonwebtoken lib). Production requires an explicit `JWT_SECRET`; issued by OTP verify and Google sign-in. `requireAuth` sets `req.userId`/`req.division`.
+- **Customer**: Bearer JWT, hand-rolled HMAC-SHA256 in `src/middleware/jwt.ts` (no jsonwebtoken lib). Production requires an explicit `JWT_SECRET`; issued by OTP verify and Google sign-in. `requireAuth` sets `req.userId`/`req.division`.
 - **Staff/admin**: bcrypt passwords; hand-rolled admin JWTs (access 15min cookie, refresh 30d cookie, httpOnly, sameSite lax). Cookie names include the runtime brand. Refresh tokens are stored sha256-hashed with rotation. Roles `owner > admin > staff`; `requireAdmin`/`requireRole`/`requireDivision` middleware; all admin data access is runtime-scoped.
 
 ### Integrations (all via global `fetch`, no SDKs)
 
-- **Razorpay** (`digital/payments/services/razorpay.ts`): order creation, HMAC signature checks, webhook. Development fallback returns fake `order_dev_*` ids; production requires valid credentials and webhook secret.
-- **Cloudflare R2** (`chat/services/r2-service.ts`): chat attachments. Per-division Cloudflare accounts/buckets (env `R2_*_DIGITAL`/`R2_*_PRINT`). Server mints **hand-rolled SigV4 presigned PUT URLs** (no SDK) via `POST /<brand>/upload`; the browser PUTs bytes straight to R2, then stores the permanent public URL in the chat message. Downloads go through `GET /<brand>/chat/download` (validates the URL is under our bucket → no open proxy; forces `Content-Disposition: attachment`).
+- **Razorpay** (`src/features/digital/payments/services/razorpay.ts`): order creation, HMAC signature checks, webhook. Development fallback returns fake `order_dev_*` ids; production requires valid credentials and webhook secret.
+- **Cloudflare R2** (`src/features/chat/services/r2-service.ts`): chat attachments. Per-division Cloudflare accounts/buckets (env `R2_*_DIGITAL`/`R2_*_PRINT`). Server mints **hand-rolled SigV4 presigned PUT URLs** (no SDK) via `POST /<brand>/upload`; the browser PUTs bytes straight to R2, then stores the permanent public URL in the chat message. Downloads go through `GET /<brand>/chat/download` (validates the URL is under our bucket → no open proxy; forces `Content-Disposition: attachment`).
 - **Resend** for invoice/quote emails (skipped with warning if `RESEND_API_KEY` unset). **PDFKit** for quote PDFs. WhatsApp = `wa.me` links only (no provider).
-- **OTP delivery** (`otp-service.ts`) hashes OTPs, applies TTL/throttling, and returns `devCode` only outside production when explicitly enabled.
+- **OTP delivery** (`src/features/auth/services/otp-service.ts`) hashes OTPs, applies TTL/throttling, and returns `devCode` only outside production when explicitly enabled.
 
 ### Conventions
 

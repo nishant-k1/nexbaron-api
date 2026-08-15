@@ -2,10 +2,10 @@ import { Request, Response } from 'express'
 import { Types } from 'mongoose'
 import { randomUUID } from 'crypto'
 
-import { PLAN_CATALOG } from '../../catalog/plan-catalog'
+import { PLAN_CATALOG } from '../../catalog/service-package-pricing-catalog'
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
-import { IOrder } from '../../../../orders/models/order.model'
+import { IOrder } from '../../../../models/order.model'
 import { stringParam } from '../../../../utils/route-param'
 import {
   emailInvoice,

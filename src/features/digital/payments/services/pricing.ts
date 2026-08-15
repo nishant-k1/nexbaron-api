@@ -1,5 +1,5 @@
-import { PLAN_CATALOG, enrichCatalog, computeItemSelling, Service } from '../../catalog/plan-catalog'
-import { IOrderItem } from '../../../../orders/models/order.model'
+import { PLAN_CATALOG, enrichCatalog, computeItemSelling, Service } from '../../catalog/service-package-pricing-catalog'
+import { IOrderItem } from '../../../../models/order.model'
 
 export interface PlanSelectionInput {
   selected: string[]

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAdmin, requireDivision } from '../../../admin/middleware/require-admin'
+import { requireAdmin, requireDivision } from '../../admin/middleware/require-admin'
 import { pipelineOverview, sourcePerformance, teamWorkload, revenueReport, bottleneckAnalysis } from '../controllers/report-controller'
 
 export const reportRouter = Router()

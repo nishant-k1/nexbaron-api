@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { PLAN_CATALOG, enrichCatalog } from '../plan-catalog'
+import { PLAN_CATALOG, enrichCatalog } from '../service-package-pricing-catalog'
 
 export const catalogRouter = Router()
 

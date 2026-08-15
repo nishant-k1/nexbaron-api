@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { requireAdmin, requireDivision } from '../../../../admin/middleware/require-admin'
+import { requireAdmin, requireDivision } from '../../../admin/middleware/require-admin'
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
-import { SERVICES, computeServiceAggregate, resolveServiceBundle } from '../service-catalog'
+import { SERVICES, computeServiceAggregate, resolveServiceBundle } from '../service-items-pricing-catalog'
 
 export const customPlanAdminRouter = Router()
 

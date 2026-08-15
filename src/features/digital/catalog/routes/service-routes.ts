@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { SERVICE_SECTIONS, getPublicServices } from '../service-catalog'
+import { SERVICE_SECTIONS, getPublicServices } from '../service-items-pricing-catalog'
 
 export const serviceRouter = Router()
 

@@ -1,4 +1,4 @@
-import { resolveServiceBundle, type Service } from './service-catalog'
+import { resolveServiceBundle, type Service } from './service-items-pricing-catalog'
 
 export type BusinessTier = 'tier1' | 'tier2'
 

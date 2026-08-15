@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { Model } from 'mongoose'
 
 import { logger } from '../../../../utils/logger'
-import { IOrder } from '../../../../orders/models/order.model'
+import { IOrder } from '../../../../models/order.model'
 import { canSendMail, sendMail } from '../../../../utils/mailer'
 import { escapeHtml, logoNx, NX_DIGITAL } from '../../../../utils/html'
 import { nextSequence } from '../../../../utils/counter'
