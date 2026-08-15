@@ -374,14 +374,24 @@ export async function deleteAccount(req: Request, res: Response) {
 export async function savePlan(req: Request, res: Response) {
   try {
     const { User } = getDivisionModels(req.division!)
-    const { planId, removedServices, addOns } = req.body
+    const { planId, removedServices, addOns, billingCycle } = req.body
     if (!planId) {
       res.status(400).json({ success: false, message: 'planId is required' })
       return
     }
+    const normalizedCycle = billingCycle === 'annual' ? 'annual' : 'monthly'
     await User.updateOne(
       { _id: req.userId, division: req.division },
-      { $set: { planConfig: { planId, removedServices: removedServices || [], addOns: addOns || {} } } }
+      {
+        $set: {
+          planConfig: {
+            planId,
+            removedServices: removedServices || [],
+            addOns: addOns || {},
+            billingCycle: normalizedCycle,
+          },
+        },
+      }
     )
     res.json({ success: true, message: 'Plan saved' })
   } catch (error) {

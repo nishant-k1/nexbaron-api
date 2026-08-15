@@ -84,7 +84,10 @@ export async function nextInvoiceNumber(InvoiceCounter: Model<any>) {
 }
 
 function invoiceHtml(order: IOrder, invoiceNumber: string): string {
-  const items = (order.items ?? []).filter((item) => item.billingCycle === 'setup')
+  // The invoice lists only what was actually charged: setup always, plus the
+  // annual care when the customer pre-pays a year (monthlies start month 2).
+  const chargedCycles = order.billingCycle === 'annual' ? new Set(['setup', 'annual']) : new Set(['setup'])
+  const items = (order.items ?? []).filter((item) => chargedCycles.has(item.billingCycle))
   // Catalog prices are charged as displayed, so split GST out of the paid total.
   const total = order.amount
   const taxable = Math.round((total * 100) / 118)

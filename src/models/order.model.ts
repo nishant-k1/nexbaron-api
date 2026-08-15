@@ -24,6 +24,8 @@ export interface IPayment {
 
 export type BillingCycle = 'setup' | 'monthly' | 'annual'
 
+export type PlanBillingCycle = 'monthly' | 'annual'
+
 export interface IOrderItem {
   kind: 'plan' | 'service' | 'addon'
   planId: string
@@ -82,6 +84,7 @@ export interface IOrder extends Document {
   }
   // What was sold
   service?: string
+  billingCycle?: PlanBillingCycle
   amount: number
   currency: string
   status: OrderStatus
@@ -240,6 +243,7 @@ const OrderSchema = new Schema<IOrder>(
       city: { type: String, trim: true },
     },
     service: { type: String, trim: true },
+    billingCycle: { type: String, enum: ['monthly', 'annual'], default: 'monthly' },
     amount: { type: Number, required: true, min: 0, default: 0 },
     currency: { type: String, default: 'INR' },
     status: {

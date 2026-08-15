@@ -4,6 +4,7 @@ export interface IOnboardingDraft extends Document {
   userId: Types.ObjectId
   division: 'digital' | 'print'
   planId: string
+  billingCycle?: 'monthly' | 'annual'
   planSelection: {
     selected: string[]
     addOns: string[]
@@ -38,6 +39,7 @@ const DraftSchema = new Schema<IOnboardingDraft>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     division: { type: String, enum: ['digital', 'print'], default: 'digital' },
     planId: { type: String, default: '' },
+    billingCycle: { type: String, enum: ['monthly', 'annual'], default: 'monthly' },
     planSelection: {
       selected: { type: [String], default: [] },
       addOns: { type: [String], default: [] },

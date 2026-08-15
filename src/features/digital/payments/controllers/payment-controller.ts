@@ -28,10 +28,11 @@ export async function createCheckout(req: Request, res: Response) {
 
     const body = (req.body ?? {}) as Record<string, unknown>
     const planId = String(body.planId ?? '')
+    const billingCycle = body.billingCycle === 'annual' ? 'annual' : 'monthly'
     const customer = (body.customer ?? {}) as Record<string, string>
     const selections = (body.selections ?? {}) as SelectionsInput
 
-    const computed = computeOrder({ planId, plans: selections.plans ?? {} })
+    const computed = computeOrder({ planId, plans: selections.plans ?? {} }, billingCycle)
     if (computed.amount <= 0) {
       res.status(400).json({ success: false, message: 'Nothing to charge' })
       return
@@ -113,6 +114,7 @@ export async function createCheckout(req: Request, res: Response) {
         city: customer.city,
       },
       service: planId,
+      billingCycle: computed.billingCycle,
       amount: computed.amount,
       items: computed.items,
       status: 'pending',
@@ -133,7 +135,11 @@ export async function createCheckout(req: Request, res: Response) {
       razorpayOrderId: razorpay.id,
       razorpayKeyId: RAZORPAY_KEY_ID,
       devMode: !razorpayConfigured(),
+      billingCycle: computed.billingCycle,
       amount: computed.amount,
+      setupTotal: computed.setupTotal,
+      monthlyTotal: computed.monthlyTotal,
+      annualTotal: computed.annualTotal,
       launchDate: computed.launchDate,
       launchDays: computed.launchDays,
       timelineMode: computed.timelineMode,
@@ -182,6 +188,7 @@ export async function myOrder(req: Request, res: Response) {
         invoiceNumber: order.invoiceNumber || '',
         plan: order.service || '',
         planName: plan?.name || order.service || '',
+        billingCycle: order.billingCycle || 'monthly',
         status: order.status,
         amount: order.amount,
         amountPaid: order.amountPaid,

@@ -30,6 +30,7 @@ export async function getDraft(req: Request, res: Response) {
       success: true,
       draft: {
         planId: draft.planId,
+        billingCycle: draft.billingCycle ?? 'monthly',
         planSelection: draft.planSelection,
         plans: plansToObject(draft.plans as unknown as Map<string, DraftPlanState>),
         fields: draft.fields,
@@ -47,12 +48,14 @@ export async function getDraft(req: Request, res: Response) {
 export async function upsertDraft(req: Request, res: Response) {
   try {
     const division = req.division!
-    const { planId, planSelection, plans, fields, step } = req.body
+    const { planId, billingCycle, planSelection, plans, fields, step } = req.body
 
     if (!planId && !fields) {
       res.status(400).json({ success: false, message: 'Nothing to save' })
       return
     }
+
+    const normalizedCycle = billingCycle === 'annual' ? 'annual' : 'monthly'
 
     const { OnboardingDraft } = getDivisionModels(division)
     const draft = await OnboardingDraft.findOneAndUpdate(
@@ -60,6 +63,7 @@ export async function upsertDraft(req: Request, res: Response) {
       {
         $set: {
           ...(planId !== undefined ? { planId } : {}),
+          ...(billingCycle !== undefined ? { billingCycle: normalizedCycle } : {}),
           ...(planSelection !== undefined ? { planSelection } : {}),
           ...(plans !== undefined ? { plans } : {}),
           ...(fields !== undefined ? { fields } : {}),
@@ -73,6 +77,7 @@ export async function upsertDraft(req: Request, res: Response) {
       success: true,
       draft: {
         planId: draft.planId,
+        billingCycle: draft.billingCycle ?? 'monthly',
         planSelection: draft.planSelection,
         plans: plansToObject(draft.plans as unknown as Map<string, DraftPlanState>),
         fields: draft.fields,
@@ -96,6 +101,7 @@ export async function resetPlan(req: Request, res: Response) {
       {
         $set: {
           planId: '',
+          billingCycle: 'monthly',
           planSelection: { selected: [], addOns: [], addOnCounts: {}, inheritedOn: true },
           plans: {},
           step: 0,
@@ -108,6 +114,7 @@ export async function resetPlan(req: Request, res: Response) {
       success: true,
       draft: {
         planId: draft.planId,
+        billingCycle: draft.billingCycle ?? 'monthly',
         planSelection: draft.planSelection,
         plans: plansToObject(draft.plans as unknown as Map<string, DraftPlanState>),
         fields: draft.fields,

@@ -13,10 +13,14 @@ export interface SelectionsInput {
   plans: Record<string, PlanSelectionInput>
 }
 
+export type BillingCycleChoice = 'monthly' | 'annual'
+
 export interface ComputedOrder {
   planId: string
   planName: string
+  billingCycle: BillingCycleChoice
   amount: number
+  setupTotal: number
   monthlyTotal: number
   annualTotal: number
   items: IOrderItem[]
@@ -73,7 +77,11 @@ function collectItems(
   return items
 }
 
-export function computeOrder(selections: SelectionsInput, from = new Date()): ComputedOrder {
+export function computeOrder(
+  selections: SelectionsInput,
+  billingCycle: BillingCycleChoice = 'monthly',
+  from = new Date()
+): ComputedOrder {
   const catalog = enrichCatalog(PLAN_CATALOG)
   const selPlanId = selections.planId
   const chosenIndex = catalog.plans.findIndex((p) => p.id === selPlanId)
@@ -81,6 +89,7 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
   if (!chosenPlan) throw new Error(`Unknown plan: ${selPlanId}`)
 
   let amount = 0
+  let setupTotal = 0
   let monthlyTotal = 0
   let annualTotal = 0
   const items: IOrderItem[] = []
@@ -103,8 +112,10 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
 
       for (const x of collectItems(svc, 1, { kind: 'service', planId: plan.id })) {
         items.push(x)
-        if (x.billingCycle === 'setup') amount += x.price
-        else if (x.billingCycle === 'annual') annualTotal += x.price
+        if (x.billingCycle === 'setup') {
+          amount += x.price
+          setupTotal += x.price
+        } else if (x.billingCycle === 'annual') annualTotal += x.price
         else monthlyTotal += x.price
       }
 
@@ -122,8 +133,10 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
 
       for (const x of collectItems(addon, qty, { kind: 'addon', planId: plan.id })) {
         items.push(x)
-        if (x.billingCycle === 'setup') amount += x.price
-        else if (x.billingCycle === 'annual') annualTotal += x.price
+        if (x.billingCycle === 'setup') {
+          amount += x.price
+          setupTotal += x.price
+        } else if (x.billingCycle === 'annual') annualTotal += x.price
         else monthlyTotal += x.price
       }
 
@@ -132,6 +145,10 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
       }
     }
   }
+
+  // Annual: the discounted care is billed upfront alongside the build fee; the
+  // monthlies are deferred to month 2. Setup stays in every charge.
+  if (billingCycle === 'annual') amount = setupTotal + annualTotal
 
   // Critical path: sum deliverDays for non-parallel items
   const critical = timelineServices
@@ -146,7 +163,9 @@ export function computeOrder(selections: SelectionsInput, from = new Date()): Co
   return {
     planId: chosenPlan.id,
     planName: chosenPlan.name,
+    billingCycle,
     amount,
+    setupTotal,
     monthlyTotal,
     annualTotal,
     items,
