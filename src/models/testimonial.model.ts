@@ -1,4 +1,4 @@
-import { Schema, Document, Connection, Types } from 'mongoose'
+import { Schema, Document, Connection } from 'mongoose'
 
 export interface ITestimonial extends Document {
   division: 'digital' | 'print'

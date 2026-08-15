@@ -17,6 +17,6 @@ printRouter.get('/catalog', (_req, res) => {
   })
 })
 
-printRouter.get('/status', (req, res) => {
+printRouter.get('/status', (_req, res) => {
   res.json({ success: true, division: 'print', status: 'available' })
 })

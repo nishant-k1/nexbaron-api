@@ -9,7 +9,6 @@ import { canSendMail, sendMail } from '../../../utils/mailer'
 import { escapeHtml, logoNx, NX_DIGITAL, NX_PRINT } from '../../../utils/html'
 import { nextSequence } from '../../../utils/counter'
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 const WHATSAPP_ENABLED = process.env.QUOTE_WHATSAPP_ENABLED === 'true'
 
 interface BrandConfig {

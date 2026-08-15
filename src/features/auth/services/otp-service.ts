@@ -9,7 +9,6 @@ export const OTP_TTL_MS = Number(process.env.OTP_TTL_MS) || 10 * 60 * 1000
 export const MAX_ATTEMPTS = 5
 const REQUEST_WINDOW_MS = Number(process.env.OTP_REQUEST_WINDOW_MS) || 15 * 60 * 1000
 const MAX_REQUESTS = Number(process.env.OTP_MAX_REQUESTS_PER_WINDOW) || 3
-const DELIVERY_TIMEOUT_MS = 8000
 
 export class OtpRequestError extends Error {
   constructor(message: string, readonly status: number) {

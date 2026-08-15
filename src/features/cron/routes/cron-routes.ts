@@ -5,7 +5,7 @@ import { logger } from '../../../utils/logger'
 
 export const cronRouter = Router()
 
-cronRouter.post('/cron/reminders', async (req, res) => {
+cronRouter.post('/cron/reminders', async (_req, res) => {
   let generatedCount = 0
   let sentCount = 0
   try {

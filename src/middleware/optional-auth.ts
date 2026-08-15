@@ -6,7 +6,7 @@ import { runtimeBrand } from '../utils/runtime-brand'
  * Optional auth — parses the JWT if present but allows unauthenticated access.
  * Sets req.userId/req.division only when a valid token is provided.
  */
-export function optionalAuth(req: Request, res: Response, next: NextFunction) {
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization
   if (!header || !header.startsWith('Bearer ')) {
     next()

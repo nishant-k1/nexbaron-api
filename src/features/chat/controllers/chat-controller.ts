@@ -246,7 +246,7 @@ export async function customerMergeChat(req: Request, res: Response) {
 /**
  * GET /{division}/admin/chat — admin lists chat conversations (grouped by customerId).
  */
-export async function adminListChats(req: Request, res: Response) {
+export async function adminListChats(_req: Request, res: Response) {
   try {
     const division = runtimeBrand
     const { ChatMessage } = getDivisionModels(division)

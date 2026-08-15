@@ -11,7 +11,7 @@ const STUCK_DAYS: Record<string, number> = {
 const ONBOARDING_BLOCKERS = ['Domain access received', 'Content / text received']
 
 export async function generateReminders(division: 'digital' | 'print') {
-  const { Order, Reminder, Lead } = getDivisionModels(division)
+  const { Order, Reminder } = getDivisionModels(division)
   const now = new Date()
   const created: number[] = []
 
