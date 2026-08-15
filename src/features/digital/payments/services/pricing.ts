@@ -219,7 +219,7 @@ export function buildLaunchStages(launchDays: number) {
     },
     {
       key: 'build',
-      label: 'Design & build',
+      label: 'Design & setup',
       dayLabel: launchDays <= 4 ? `Days 2–${launchDays}` : `Days 2–${buildEnd}`,
       endDay: buildEnd,
     },
