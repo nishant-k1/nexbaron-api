@@ -16,7 +16,7 @@ No tests, no linter config. Verify with `npm run build` (tsc strict).
 
 ## Architecture
 
-- **Express 4 + TypeScript 5 (commonjs) + Mongoose 8**, deployed as separate Digital and Print **Vercel** serverless runtimes (`api/index.ts` wraps the same Express app from `src/express-app.ts`; the runtime brand is fixed by `BRAND`). Also runs long-lived via `src/index.ts`.
+- **Express 5 + TypeScript 6 (commonjs) + Mongoose 9**, deployed as separate Digital and Print **Vercel** serverless runtimes (`api/index.ts` wraps the same Express app from `src/express-app.ts`; the runtime brand is fixed by `BRAND`). Also runs long-lived via `src/index.ts`.
 - **One MongoDB database per runtime** (`nexbaron-digital`, `nexbaron-print`). `src/utils/database.ts` selects the runtime's connection (`DATABASE_URL_DIGITAL`/`DATABASE_URL_PRINT`, fallback `DATABASE_URL`); `src/models/registry.ts` registers only that brand. **All data access is runtime-scoped; never trust client-supplied division for data access.**
 - Middleware order matters in `src/express-app.ts`: the Digital Razorpay webhook router mounts at `/digital` **before** `express.json()` because it needs the raw body (`express.raw`).
 
@@ -58,14 +58,14 @@ scripts/                seed-admin, division DB migration
 
 ### Auth (two independent systems)
 
-- **Customer**: Bearer JWT, hand-rolled HMAC-SHA256 in `src/middleware/jwt.ts` (no jsonwebtoken lib). Production requires an explicit `JWT_SECRET`; issued by OTP verify and Google sign-in. `requireAuth` sets `req.userId`/`req.division`.
-- **Staff/admin**: bcrypt passwords; hand-rolled admin JWTs (access 15min cookie, refresh 30d cookie, httpOnly, sameSite lax). Cookie names include the runtime brand. Refresh tokens are stored sha256-hashed with rotation. Roles `owner > admin > staff`; `requireAdmin`/`requireRole`/`requireDivision` middleware; all admin data access is runtime-scoped.
+- **Customer**: Bearer JWT, hand-rolled HMAC-SHA256 in `src/middleware/jwt.ts` (no jsonwebtoken lib). Production requires an explicit secret, resolved as `JWT_SECRET_<BRAND>` (`JWT_SECRET_DIGITAL`/`JWT_SECRET_PRINT`), falling back to plain `JWT_SECRET`. Issued by OTP verify and Google sign-in. `requireAuth` sets `req.userId`/`req.division`. Note: `optionalAuth`/`requireAuthenticated` are duplicated across `src/middleware/require-auth.ts` and `src/middleware/optional-auth.ts` — keep them in sync.
+- **Staff/admin**: bcrypt passwords; hand-rolled admin JWTs (access 15min cookie, refresh 30d cookie, httpOnly). SameSite is `lax` by default but flips to `none` + `secure` when `COOKIE_DOMAIN` (e.g. `.nexbaron.com`) is set so the dedicated chat service can read the cookie cross-subdomain. Cookie names include the runtime brand. Refresh tokens are stored sha256-hashed with rotation. Roles `owner > admin > staff`; `requireAdmin`/`requireRole`/`requireDivision` middleware; all admin data access is runtime-scoped.
 
 ### Integrations (all via global `fetch`, no SDKs)
 
 - **Razorpay** (`src/features/digital/payments/services/razorpay.ts`): order creation, HMAC signature checks, webhook. Development fallback returns fake `order_dev_*` ids; production requires valid credentials and webhook secret.
 - **Cloudflare R2** (`src/features/chat/services/r2-service.ts`): chat attachments. Per-division Cloudflare accounts/buckets (env `R2_*_DIGITAL`/`R2_*_PRINT`). Server mints **hand-rolled SigV4 presigned PUT URLs** (no SDK) via `POST /<brand>/upload`; the browser PUTs bytes straight to R2, then stores the permanent public URL in the chat message. Downloads go through `GET /<brand>/chat/download` (validates the URL is under our bucket → no open proxy; forces `Content-Disposition: attachment`).
-- **Resend** for invoice/quote emails (skipped with warning if `RESEND_API_KEY` unset). **PDFKit** for quote PDFs. WhatsApp = `wa.me` links only (no provider).
+- **nodemailer SMTP** (`src/utils/mailer.ts`) for invoice/quote/OTP emails — requires `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`; skipped with a warning if unset. **PDFKit** for quote PDFs. WhatsApp = `wa.me` links only (no provider). (`RESEND_API_KEY` and `CLOUDINARY_*` env vars are legacy/unused.)
 - **OTP delivery** (`src/features/auth/services/otp-service.ts`) hashes OTPs, applies TTL/throttling, and returns `devCode` only outside production when explicitly enabled.
 
 ### Conventions
@@ -79,7 +79,7 @@ scripts/                seed-admin, division DB migration
 
 ### Env (see `.env.example`)
 
-`PORT`, `FRONTEND_URL`, `CORS_ORIGINS`, `DATABASE_URL`(+`_DIGITAL`/`_PRINT`), `JWT_SECRET`, `JWT_EXPIRES_IN_SECONDS`, `OTP_DEV_MODE`, `OTP_TTL_MS`, `RAZORPAY_KEY_ID`/`_KEY_SECRET`/`_WEBHOOK_SECRET`, `RESEND_API_KEY`, `INVOICE_FROM_EMAIL`, `BILLING_GSTIN`. Undocumented: `ADMIN_JWT_SECRET`, `LOG_LEVEL`, `SEED_ADMIN_PASSWORD`, `QUOTE_WHATSAPP_ENABLED`, `QUOTE_FROM_EMAIL_DIGITAL`/`_PRINT`.
+`PORT`, `FRONTEND_URL`, `CORS_ORIGINS`, `DATABASE_URL`(+`_DIGITAL`/`_PRINT`), `JWT_SECRET`(+`_DIGITAL`/`_PRINT`), `JWT_EXPIRES_IN_SECONDS`, `OTP_DEV_MODE`, `OTP_TTL_MS`, `OTP_HASH_SECRET`, `OTP_FROM_EMAIL`, `GOOGLE_CLIENT_ID`, `RAZORPAY_KEY_ID`/`_KEY_SECRET`/`_WEBHOOK_SECRET`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`SMTP_FROM_DOMAIN`, `INVOICE_FROM_EMAIL`, `QUOTE_FROM_EMAIL_DIGITAL`/`_PRINT`, `BILLING_GSTIN`. Undocumented but used: `ADMIN_JWT_SECRET`(+`_DIGITAL`/`_PRINT`), `COOKIE_DOMAIN`, `LOG_LEVEL`, `SEED_ADMIN_PASSWORD`, `QUOTE_WHATSAPP_ENABLED`, `MAX_PRINT_QUANTITY`. (`RESEND_API_KEY` and `CLOUDINARY_*` are legacy/unused.)
 
 Chat attachments use Cloudflare R2: `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_ACCESS_KEY_SECRET`/`R2_BUCKET`/`R2_PUBLIC_URL` each suffixed `_DIGITAL` and `_PRINT` (separate Cloudflare account per division). `R2_PUBLIC_URL` is the bucket's public base URL (r2.dev or custom domain), no trailing slash.
 
@@ -87,7 +87,8 @@ Chat attachments use Cloudflare R2: `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_ACCES
 
 ### Gotchas
 
-- Production checklist: `OTP_DEV_MODE=false`, real Razorpay keys and webhook secret, `RESEND_API_KEY`, real `BILLING_GSTIN`, and strong `JWT_SECRET`/`ADMIN_JWT_SECRET` values.
+- Production checklist: `OTP_DEV_MODE=false`, real Razorpay keys and webhook secret, SMTP config (`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`), real `BILLING_GSTIN`, and strong `JWT_SECRET`/`ADMIN_JWT_SECRET` (brand-suffixed) values. `RESEND_API_KEY`/`CLOUDINARY_*` are unused — don't set them.
+- Since Aug 2026 a dedicated realtime chat service (`nexbaron-chat`, Render) is authoritative for chat, but the API's chat routes are still mounted — keep them in sync or remove them. The chat service dropped lead-creation from messages and has no `projectId` (project-scoped chat remains API-only).
 - R2 browser uploads need a **CORS policy on each bucket**: allow the hub origin, methods `PUT`, headers `Content-Type`, expose `ETag`. Without it, browser PUTs to the presigned URL fail even though the URL is valid.
 - `POST /<brand>/auth/google` verifies the raw Google credential server-side; it does not trust client-supplied identity fields.
 - Customer auth, drafts, payments, quotes, leads, and admin routes are available only under the runtime's canonical `/<brand>/*` path.

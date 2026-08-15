@@ -12,6 +12,11 @@ const COLLECTIONS = [
   'onboardingdrafts',
   'invoicecounters',
   'quotes',
+  'chatmessages',
+  'reminders',
+  'recurringservices',
+  'testimonials',
+  'customplans',
 ]
 
 type Brand = 'digital' | 'print'

@@ -1,3 +1,17 @@
+// Plan (package) pricing catalog — the fixed-price plans customers buy.
+//
+// A plan is a bundle of services (see service-items-pricing-catalog.ts). Each
+// plan-def file below lists the plan's OWN services + add-ons; `inherited`
+// means "everything in the lower-tier plan is also included" (Launch ⊂ Growth
+// ⊂ Scale).
+//
+// Prices are NEVER hardcoded here. enrichCatalog() sums each plan's services'
+// selling prices, cumulatively (Growth = its own + Launch, Scale = its own +
+// Growth). To change a plan's price, edit the service items in
+// service-items-pricing-catalog.ts, or add/remove services in plan-defs/.
+//
+// The Custom plan is quote-based — it has no fixed price.
+
 import { launchPlan } from './plan-defs/launch-plan'
 import { growthPlan } from './plan-defs/growth-plan'
 import { scalePlan } from './plan-defs/scale-plan'

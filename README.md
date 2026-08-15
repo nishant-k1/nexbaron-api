@@ -26,15 +26,20 @@ Production requires explicit, non-placeholder customer and admin JWT secrets. JW
 
 Both brands expose:
 
-- `/<brand>/auth`
+- `/<brand>/auth` (OTP, Google, signup, profile)
 - `/<brand>/contact`
 - `/<brand>/quotes`
-- `/<brand>/admin/auth`
-- `/<brand>/admin/leads`
-- `/<brand>/admin/orders`
-- `/<brand>/admin/quotes`
+- `/<brand>/projects`
+- `/<brand>/chat` (customer chat; also sees realtime traffic via the dedicated `nexbaron-chat` service)
+- `/<brand>/upload` (presigned R2 PUT) + `/<brand>/chat/download`
+- `/<brand>/admin/auth`, `/<brand>/admin/leads`, `/<brand>/admin/orders`,
+  `/<brand>/admin/quotes`, `/<brand>/admin/projects`, `/<brand>/admin/chat`,
+  `/<brand>/admin/reminders`, `/<brand>/admin/recurring`, `/<brand>/admin/testimonials`,
+  `/<brand>/admin/reports/{pipeline,sources,workload,revenue,bottlenecks}`,
+  `/<brand>/admin/custom-plans`
+- `POST /<brand>/cron/reminders` (unauthenticated scheduled-jobs trigger)
 
-Digital additionally exposes `/catalog`, `/drafts`, `/payments`, and the Razorpay webhook under `/digital`. Print additionally exposes `/catalog` and `/status` under `/print`.
+Digital additionally exposes `/catalog`, `/drafts`, `/custom-plan`, `/payments`, and the Razorpay webhook under `/digital`; also `/business`, `/businesses`, `/services` (local SEO / business-catalog content). Print additionally exposes `/catalog`, `/status`, and `/business` under `/print`.
 
 Admin cookies include the brand in their names, allowing simultaneous Digital and Print sessions in one browser.
 
@@ -44,7 +49,7 @@ Copy `.env.example` and configure each deployment separately. Digital Razorpay v
 
 Google sign-in requires this deployment's `GOOGLE_CLIENT_ID` (or exact brand-suffixed equivalent). The API verifies the raw `credential` with Google's tokeninfo endpoint and does not trust client-supplied identity fields.
 
-Production email OTP requires `OTP_HASH_SECRET`, `RESEND_API_KEY`, and `OTP_FROM_EMAIL`. OTP records contain only HMAC hashes, expire through a MongoDB TTL index, and are request-throttled. `devCode` is available only outside production when `OTP_DEV_MODE` is not `false`. Phone OTP returns 503 until an SMS provider is implemented.
+Production email OTP requires `OTP_HASH_SECRET`, SMTP config (`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`), and `OTP_FROM_EMAIL`. OTP records contain only HMAC hashes, expire through a MongoDB TTL index, and are request-throttled. `devCode` is available only outside production when `OTP_DEV_MODE` is not `false`. Phone OTP returns 503 until an SMS provider is implemented.
 
 Production Digital deployments require real Razorpay credentials and `RAZORPAY_WEBHOOK_SECRET`; fake orders and signature skipping are development-only. Webhooks fail closed and process only `payment.captured` events.
 
