@@ -15,6 +15,23 @@ export interface SelectionsInput {
 
 export type BillingCycleChoice = 'monthly' | 'annual'
 
+export interface GstSplit {
+  taxable: number
+  cgst: number
+  sgst: number
+  total: number
+}
+
+// Catalog prices are charged as displayed (GST included). Split the 18% tax
+// out of an inclusive total into taxable + CGST/SGST.
+export function splitGst(inclusiveTotal: number): GstSplit {
+  const taxable = Math.round((inclusiveTotal * 100) / 118)
+  const total = inclusiveTotal - taxable
+  const cgst = Math.floor(total / 2)
+  const sgst = total - cgst
+  return { taxable, cgst, sgst, total }
+}
+
 export interface ComputedOrder {
   planId: string
   planName: string
@@ -23,6 +40,7 @@ export interface ComputedOrder {
   setupTotal: number
   monthlyTotal: number
   annualTotal: number
+  gst: GstSplit
   items: IOrderItem[]
   launchDays: number
   launchDate: Date
@@ -102,7 +120,14 @@ export function computeOrder(
     const selected = new Set(sel.selected)
     const chosenAddOns = new Set(sel.addOns)
     const addOnCounts = sel.addOnCounts ?? {}
-    const include = i === chosenIndex || sel.inheritedOn
+    // A lower tier is included only when it is a real ancestor of the chosen
+    // plan, i.e. every tier between it and the chosen one is `inherited`
+    // (Launch ⊂ Growth ⊂ Scale). Standalone tiers (e.g. AI Growth) never pull
+    // in lower-tier services.
+    const isAncestor = catalog.plans
+      .slice(i + 1, chosenIndex + 1)
+      .every((p) => p.inherited !== undefined)
+    const include = i === chosenIndex || (isAncestor && sel.inheritedOn)
     if (!include) continue
 
     // Services — `selected` holds the ids the client chose to KEEP (default: all).
@@ -168,6 +193,7 @@ export function computeOrder(
     setupTotal,
     monthlyTotal,
     annualTotal,
+    gst: splitGst(amount),
     items,
     launchDays,
     launchDate,

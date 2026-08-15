@@ -5,11 +5,24 @@
 //   selling = round(costPrice × (1 + profitMarginPct / 100))
 //   a `sellingPrice` override (flat-price items) wins over the formula.
 //   Tiers per item: setup (one-time) · monthly · annual.
+//   Annual invariant: every recurring item charges 10 months (2 months free) —
+//   see computeItemSelling().
+//
+// Margin policy:
+//   - Pure pass-through (domains, SSL, stock licences, SMS/API credits, AI
+//     generation credits): 10% or less — we don't profit on commodities the
+//     client can price-check.
+//   - Managed recurring infra (hosting, backups, monitoring, SaaS tools we
+//     operate for the client): 30–50%.
+//   - Labour / delivery (design, development, content, marketing management):
+//     50% or more — this pays for people and is where margin lives.
 //
 // A Service bundles many items; its `aggregate` sums them. Plans
 // (service-package-pricing-catalog.ts) pick services + add-ons, and
 // enrichCatalog() totals each plan by summing the services' selling prices —
-// higher plans inherit lower plans cumulatively.
+// higher plans inherit lower plans cumulatively (only plans that declare
+// `inherited` accrue cumulative pricing; standalone plans price their own
+// services only).
 //
 // To change pricing, edit the `items` below (costPrice + profitMarginPct, or a
 // flat sellingPrice) — the rest is computed, never hand-edited.
@@ -115,11 +128,21 @@ function selling(cost: number, marginPct: number): number {
 }
 
 export function computeItemSelling(item: ServiceItem) {
-  return {
-    setup: item.sellingPrice?.setup ?? selling(item.costPrice.setup, item.profitMarginPct.setup),
-    monthly: item.sellingPrice?.monthly ?? selling(item.costPrice.monthly, item.profitMarginPct.monthly),
-    annual: item.sellingPrice?.annual ?? selling(item.costPrice.annual, item.profitMarginPct.annual),
-  }
+  const setup = item.sellingPrice?.setup ?? selling(item.costPrice.setup, item.profitMarginPct.setup)
+  const monthly = item.sellingPrice?.monthly ?? selling(item.costPrice.monthly, item.profitMarginPct.monthly)
+  // Annual invariant: recurring items charge 10 months (2 months free). An
+  // explicit annual tier (real annual infra rate) wins; otherwise labour items
+  // default to 10x their monthly price so annual plans never give the work away.
+  const explicitAnnual = item.sellingPrice?.annual && item.sellingPrice.annual > 0 ? item.sellingPrice.annual : 0
+  const annual =
+    explicitAnnual > 0
+      ? explicitAnnual
+      : item.costPrice.annual > 0
+        ? selling(item.costPrice.annual, item.profitMarginPct.annual)
+        : monthly > 0
+          ? Math.round(monthly * 10)
+          : 0
+  return { setup, monthly, annual }
 }
 
 export function computeServiceAggregate(svc: Service): ServiceAggregate {
@@ -167,11 +190,27 @@ export function enrichCatalog(catalog: PlanCatalog): PlanCatalog {
     const ownAnnual = plan.services.reduce((sum, svc) => sum + (svc.aggregate?.selling.annual ?? 0), 0)
 
     // The Custom plan is quote-based — no fixed price.
-    if (plan.id !== 'custom') {
+    if (plan.id === 'custom') continue
+
+    if (plan.inherited) {
+      // Cumulative tier (Launch ⊂ Growth ⊂ Scale): the price includes everything
+      // from lower tiers, accumulated in catalog order.
       cumSetup += ownSetup
       cumMonthly += ownMonthly
       cumAnnual += ownAnnual
       plan.pricing = { setup: cumSetup, monthly: cumMonthly, annual: cumAnnual, ownSetup, ownMonthly, ownAnnual }
+    } else {
+      // Standalone tier (e.g. AI Growth): prices only its own services — it
+      // neither inherits lower tiers nor inflates cumulative pricing for later ones.
+      plan.pricing = { setup: ownSetup, monthly: ownMonthly, annual: ownAnnual, ownSetup, ownMonthly, ownAnnual }
+      // Chain base (e.g. Launch, the first plan a cumulative tier inherits):
+      // still accrues its totals so the next `inherited` tier builds on top of it.
+      const next = catalog.plans[catalog.plans.indexOf(plan) + 1]
+      if (next && next.inherited) {
+        cumSetup += ownSetup
+        cumMonthly += ownMonthly
+        cumAnnual += ownAnnual
+      }
     }
   }
   return catalog
@@ -277,9 +316,9 @@ export const SERVICES: Service[] = [
     icon: 'Globe',
     section: 'build',
     items: [
-      oneTimeItem('Domain Registration', 800, 30),
-      oneTimeItem('Domain Privacy Protection', 200, 30),
-      oneTimeItem('SSL Certificate', 300, 40),
+      oneTimeItem('Domain Registration', 800, 10),
+      oneTimeItem('Domain Privacy Protection', 200, 10),
+      oneTimeItem('SSL Certificate', 300, 10),
       monthlyItem('Cloud Hosting', 300, 50, 3000),
       monthlyItem('S3 / Asset Storage', 80, 30, 800),
       flatOneTime('CDN Setup (Cloudflare)', 2000),
@@ -377,7 +416,7 @@ export const SERVICES: Service[] = [
     icon: 'Image',
     section: 'build',
     items: [
-      oneTimeItem('Stock photo license', 80, 40),
+      oneTimeItem('Stock photo license', 80, 10),
       flatOneTime('Image optimization (WebP/AVIF)', 200),
       flatOneTime('Alt text + SEO metadata', 100),
     ],
@@ -461,7 +500,7 @@ export const SERVICES: Service[] = [
     section: 'get-found',
     items: [
       freeItem('Review link generator + Google redirect'),
-      monthlyItem('SMS review requests (Twilio)', 150, 40, 1500),
+      monthlyItem('SMS review requests (Twilio)', 150, 10, 1500),
       flatMonthly('WhatsApp + email review request automation', 300),
       freeItem('Review monitoring (alerts)'),
       flatMonthly('5-star thank-you + review showcase on website', 300),
@@ -480,7 +519,7 @@ export const SERVICES: Service[] = [
       flatMonthly('Content calendar planning', 300),
       flatMonthly('Copywriting (8 posts)', 400),
       flatMonthly('Graphic design (8 creatives)', 600),
-      monthlyItem('Stock imagery (4 imgs/mo)', 200, 40, 2000),
+      monthlyItem('Stock imagery (4 imgs/mo)', 200, 10, 2000),
       flatMonthly('Hashtag research', 200),
       flatMonthly('Engagement monitoring + replies', 200),
       flatMonthly('Monthly social report', 300),
@@ -829,7 +868,7 @@ export const SERVICES: Service[] = [
       flatOneTime('DLT template registration (India)', 300),
       flatOneTime('Campaign scheduling + automation', 200),
       flatOneTime('Opt-out / STOP handling in templates', 100),
-      monthlyItem('SMS sending costs (~500 msgs/month)', 250, 30, 2500),
+      monthlyItem('SMS sending costs (~500 msgs/month)', 250, 10, 2500),
       flatMonthly('Monthly delivery + conversion report', 200),
     ],
     clientCostNote: 'SMS credits paid directly to provider (~₹0.25–0.50/msg). Estimated 500 msgs = ~₹200/mo.',
@@ -909,11 +948,11 @@ export const SERVICES: Service[] = [
     section: 'automate',
     items: [
       monthlyItem('WATI / Interakt AI bot subscription', 500, 40, 5000),
-      flatOneTime('FAQ knowledge base setup (50+ Q&A)', 500),
-      flatOneTime('Business context + tone prompt engineering', 300),
-      flatOneTime('24/7 auto-reply flow — greeting + FAQ + handoff', 400),
-      flatOneTime('Fallback to human trigger setup', 200),
-      flatMonthly('Monthly conversation review + prompt tuning', 300),
+      flatOneTime('FAQ knowledge base setup (50+ Q&A)', 1000),
+      flatOneTime('Business context + tone prompt engineering', 600),
+      flatOneTime('24/7 auto-reply flow — greeting + FAQ + handoff', 700),
+      flatOneTime('Fallback to human trigger setup', 300),
+      flatMonthly('Monthly conversation review + prompt tuning', 600),
     ],
     deliverDays: 1.5, parallel: true,
   },
@@ -924,13 +963,13 @@ export const SERVICES: Service[] = [
     icon: 'Wand2',
     section: 'stay-active',
     items: [
-      monthlyItem('OpenAI API credits + usage (~20K tokens/mo)', 200, 30, 2000),
-      flatOneTime('Brand voice + style guide prompt setup', 400),
-      flatMonthly('Blog post generation + editing (4/month)', 500),
-      flatMonthly('Social media caption generation (8/month)', 400),
-      flatMonthly('Email newsletter draft generation (2/month)', 300),
-      flatMonthly('SEO keyword + meta description generation', 200),
-      flatMonthly('Human review + polishing before publish', 300),
+      monthlyItem('OpenAI API credits + usage (~20K tokens/mo)', 200, 10, 2000),
+      flatOneTime('Brand voice + style guide prompt setup', 500),
+      flatMonthly('Blog post generation + editing (4/month)', 750),
+      flatMonthly('Social media caption generation (8/month)', 600),
+      flatMonthly('Email newsletter draft generation (2/month)', 450),
+      flatMonthly('SEO keyword + meta description generation', 300),
+      flatMonthly('Human review + polishing before publish', 450),
     ],
     deliverDays: 0.25, parallel: true,
   },
@@ -941,13 +980,13 @@ export const SERVICES: Service[] = [
     icon: 'Star',
     section: 'get-found',
     items: [
-      monthlyItem('OpenAI API credits + usage (~5K tokens/mo)', 100, 30, 1000),
+      monthlyItem('OpenAI API credits + usage (~5K tokens/mo)', 100, 10, 1000),
       freeItem('Review monitoring — Google + Facebook + Justdial'),
-      flatOneTime('Auto-response prompt engineering (per platform)', 500),
-      flatMonthly('Positive review — thank you + upsell reply', 200),
-      flatMonthly('Negative review — empathetic + resolution reply', 300),
-      flatMonthly('Sentiment analysis + escalation rules', 300),
-      flatMonthly('Monthly review sentiment report', 300),
+      flatOneTime('Auto-response prompt engineering (per platform)', 800),
+      flatMonthly('Positive review — thank you + upsell reply', 400),
+      flatMonthly('Negative review — empathetic + resolution reply', 500),
+      flatMonthly('Sentiment analysis + escalation rules', 450),
+      flatMonthly('Monthly review sentiment report', 450),
     ],
     deliverDays: 0.5, parallel: true,
   },
@@ -959,11 +998,11 @@ export const SERVICES: Service[] = [
     section: 'grow',
     items: [
       monthlyItem('WATI / Interakt bot flow + OpenAI integration', 500, 40, 5000),
-      flatOneTime('Qualification script — budget, timeline, requirements', 500),
-      flatOneTime('Intent detection prompt setup', 300),
-      flatOneTime('Lead scoring rules — hot/warm/cold', 300),
-      flatOneTime('Hot lead → instant WhatsApp notification to you', 200),
-      flatMonthly('Monthly conversion + lead quality report', 300),
+      flatOneTime('Qualification script — budget, timeline, requirements', 900),
+      flatOneTime('Intent detection prompt setup', 500),
+      flatOneTime('Lead scoring rules — hot/warm/cold', 450),
+      flatOneTime('Hot lead → instant WhatsApp notification to you', 300),
+      flatMonthly('Monthly conversion + lead quality report', 500),
     ],
     deliverDays: 1, parallel: true,
   },
@@ -974,12 +1013,12 @@ export const SERVICES: Service[] = [
     icon: 'Image',
     section: 'stay-active',
     items: [
-      flatOneTime('Product photo guidelines — angles, lighting instructions', 200),
-      flatOneTime('Midjourney / DALL-E prompt engineering per product', 300),
-      flatOneTime('Background generation + product placement (10 photos)', 500),
-      oneTimeItem('AI generation credits (Midjourney/DALL-E)', 1500, 30),
-      flatOneTime('Manual edits + color correction + resize', 300),
-      flatOneTime('Web + social media optimized delivery', 200),
+      flatOneTime('Product photo guidelines — angles, lighting instructions', 250),
+      flatOneTime('Midjourney / DALL-E prompt engineering per product', 500),
+      flatOneTime('Background generation + product placement (10 photos)', 800),
+      oneTimeItem('AI generation credits (Midjourney/DALL-E)', 1500, 10),
+      flatOneTime('Manual edits + color correction + resize', 500),
+      flatOneTime('Web + social media optimized delivery', 250),
     ],
     deliverDays: 2, stage: 'design',
   },
@@ -1035,90 +1074,6 @@ export const SERVICES: Service[] = [
       flatOneTime('Reports — revenue, outstanding, GST summary', 1000),
     ],
     clientCostNote: 'All prices are estimates. Final quote depends on project scope. Payment gateway fees billed separately by Razorpay.',
-  },
-
-  {
-    id: 'inventory',
-    label: 'Inventory & Stock Management',
-    icon: 'Boxes',
-    section: 'custom-software',
-    items: [
-      flatOneTime('Product catalog — name, price, category', 1500),
-      flatOneTime('Stock in / stock out tracking', 1200),
-      flatOneTime('Low-stock alerts', 800),
-      flatOneTime('Purchase orders', 1000),
-      flatOneTime('Supplier management', 800),
-      flatOneTime('Stock valuation report', 800),
-      flatOneTime('Barcode / QR scanning', 800),
-    ],
-    clientCostNote: 'All prices are estimates. Final quote depends on project scope.',
-  },
-
-  {
-    id: 'staff-attendance',
-    label: 'Staff Attendance & Payroll',
-    icon: 'Users',
-    section: 'custom-software',
-    items: [
-      flatOneTime('Staff profiles', 800),
-      flatOneTime('Clock-in / clock-out — web or QR', 1500),
-      flatOneTime('Leave & holiday calendar', 1000),
-      flatOneTime('Shift management', 1000),
-      flatOneTime('Attendance reports — daily & monthly', 1000),
-      flatOneTime('Salary calculation', 1000),
-      flatOneTime('Payroll summary export (Excel)', 800),
-    ],
-    clientCostNote: 'All prices are estimates. Final quote depends on project scope.',
-  },
-
-  {
-    id: 'loyalty-rewards',
-    label: 'Loyalty & Rewards Program',
-    icon: 'Gift',
-    section: 'custom-software',
-    items: [
-      flatOneTime('Points on every visit / purchase', 1500),
-      flatOneTime('Digital punch card — buy 5 get 1 free', 1000),
-      flatOneTime('Referral rewards — friend signup bonus', 1000),
-      flatOneTime('Member tiers — silver / gold / platinum', 800),
-      flatOneTime('Reward redemption tracking', 800),
-      flatOneTime('WhatsApp + email reward notifications', 800),
-      flatOneTime('Loyalty analytics report', 800),
-    ],
-    clientCostNote: 'All prices are estimates. Final quote depends on project scope.',
-  },
-
-  {
-    id: 'delivery-tracking',
-    label: 'Delivery Tracking',
-    icon: 'Truck',
-    section: 'custom-software',
-    items: [
-      flatOneTime('Order status flow — placed → out → delivered', 1500),
-      flatOneTime('Driver assignment', 1000),
-      flatOneTime('Customer tracking link (live status)', 1000),
-      flatOneTime('WhatsApp delivery updates', 800),
-      flatOneTime('Delivery zones / pincode setup', 800),
-      flatOneTime('Delivery analytics report', 800),
-    ],
-    clientCostNote: 'All prices are estimates. Final quote depends on project scope.',
-  },
-
-  {
-    id: 'membership',
-    label: 'Membership Management',
-    icon: 'Award',
-    section: 'custom-software',
-    items: [
-      flatOneTime('Membership plans — monthly / quarterly / annual', 1500),
-      flatOneTime('Member signup & profile', 1000),
-      flatOneTime('Renewal reminders', 1000),
-      flatOneTime('Expiry alerts', 800),
-      flatOneTime('Payment collection (UPI links)', 800),
-      flatOneTime('Usage / attendance tracking', 1000),
-      flatOneTime('Membership reports', 800),
-    ],
-    clientCostNote: 'All prices are estimates. Final quote depends on project scope.',
   },
 ]
 

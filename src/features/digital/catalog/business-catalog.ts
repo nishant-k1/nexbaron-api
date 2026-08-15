@@ -160,7 +160,7 @@ export const BUSINESS_TYPES: BusinessType[] = [
     ],
     recommendedPlan: 'growth',
     serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
-    addOnIds: ['appointment-booking', 'sms-marketing', 'membership'],
+    addOnIds: ['appointment-booking', 'sms-marketing'],
   },
 
   // --- Healthcare ---
@@ -361,7 +361,7 @@ export const BUSINESS_TYPES: BusinessType[] = [
     ],
     recommendedPlan: 'growth',
     serviceIds: ['website', 'gbp-optimise', 'local-seo', 'social'],
-    addOnIds: ['sms-marketing', 'delivery-tracking'],
+    addOnIds: ['sms-marketing'],
   },
   {
     id: 'pharmacies', slug: 'pharmacies', label: 'Pharmacies & Medical Stores',
@@ -441,7 +441,7 @@ export const BUSINESS_TYPES: BusinessType[] = [
     ],
     recommendedPlan: 'launch',
     serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['delivery-tracking'],
+    addOnIds: [],
   },
   {
     id: 'car-service', slug: 'car-service', label: 'Car Service Centres',
@@ -700,7 +700,7 @@ export const BUSINESS_TYPES: BusinessType[] = [
     ],
     recommendedPlan: 'launch',
     serviceIds: ['website', 'gbp', 'whatsapp', 'reviews'],
-    addOnIds: ['delivery-tracking'],
+    addOnIds: [],
   },
 
   // --- Repairs & Maintenance ---

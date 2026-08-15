@@ -11,4 +11,9 @@ export const launchPlan: Plan = {
   addOns: pickServices(['launch-pages', 'launch-photos', 'launch-domain', 'branding-identity', 'business-email', 'brochure-pdf', 'ordering-page', 'ai-product-photos', 'staff-training']),
   ctaLabel: 'Get Launch',
   minimumMonths: 3,
+  expectations: [
+    { label: 'Up to 8 pages', note: 'Extra pages project-quoted' },
+    { label: '1 round of content revisions', note: '2 rounds for photos' },
+    { label: 'Month 1 launch support', note: 'Then self-serve dashboard' },
+  ],
 }

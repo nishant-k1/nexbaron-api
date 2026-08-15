@@ -15,6 +15,7 @@
 import { launchPlan } from './plan-defs/launch-plan'
 import { growthPlan } from './plan-defs/growth-plan'
 import { scalePlan } from './plan-defs/scale-plan'
+import { aiGrowthPlan } from './plan-defs/ai-growth-plan'
 import { customPlan } from './plan-defs/custom-plan'
 import {
   enrichCatalog,
@@ -33,12 +34,12 @@ import {
 } from './service-items-pricing-catalog'
 
 export const PLAN_CATALOG: PlanCatalog = enrichCatalog({
-  version: '4.1.0',
-  updatedAt: '2026-08-12T00:00:00.000Z',
+  version: '4.2.0',
+  updatedAt: '2026-08-15T00:00:00.000Z',
   currency: 'INR',
   disclaimer: 'Ad budgets (Google Ads, Meta Ads) are NOT included in any plan price. They are paid directly to the platform by the client.',
   sharedInfra: SHARED_INFRA,
-  plans: [launchPlan, growthPlan, scalePlan, customPlan],
+  plans: [launchPlan, growthPlan, scalePlan, aiGrowthPlan, customPlan],
 })
 
 export { enrichCatalog, computeItemSelling, computeServiceAggregate, pickServices, SERVICES }

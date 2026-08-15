@@ -13,6 +13,8 @@ export const scalePlan: Plan = {
   expectations: [
     { label: 'First 30 days', note: 'Audit, strategy, and your growth plan for the year.' },
     { label: 'Dedicated manager', note: 'One person who knows your business. Monthly strategy calls.' },
+    { label: 'Ad spend billed at cost', note: 'Google/Meta campaigns stay running from the same ad account.' },
+    { label: 'Scope covers services owned by this plan', note: 'Requests outside the plan are project-quoted or extra add-ons.' },
   ],
   services: pickServices([
     'account-manager', 'unlimited-updates', 'social-reels',
