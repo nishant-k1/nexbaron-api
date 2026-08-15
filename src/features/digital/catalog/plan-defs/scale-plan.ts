@@ -10,6 +10,7 @@ export const scalePlan: Plan = {
   timelineMode: 'phased',
   foundationDays: 30,
   inherited: { label: 'Everything in Growth' },
+  inheritsFrom: 'growth',
   expectations: [
     { label: 'First 30 days', note: 'Audit, strategy, and your growth plan for the year.' },
     { label: 'Dedicated manager', note: 'One person who knows your business. Monthly strategy calls.' },

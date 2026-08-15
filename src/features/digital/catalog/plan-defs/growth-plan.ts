@@ -9,6 +9,7 @@ export const growthPlan: Plan = {
   timeline: 'Live in 2–3 days · ranking builds over 4–8 weeks',
   featured: true,
   inherited: { label: 'Everything in Launch' },
+  inheritsFrom: 'launch',
   services: pickServices(['gbp-optimise', 'local-seo', 'whatsapp-book', 'reviews', 'social', 'seo-report']),
   addOns: pickServices(['google-ads-setup', 'meta-ads-setup', 'appointment-booking', 'qr-suite', 'email-marketing-setup', 'sms-marketing', 'blog-content', 'ai-chatbot', 'ai-content', 'ai-review-manager', 'ai-lead-qualifier', 'festive-campaign', 'growth-city']),
   ctaLabel: 'Get Growth',

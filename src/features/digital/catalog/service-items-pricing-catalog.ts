@@ -2,8 +2,13 @@
 // sell and what it costs to deliver.
 //
 // Pricing model (per item):
-//   selling = round(costPrice × (1 + profitMarginPct / 100))
-//   a `sellingPrice` override (flat-price items) wins over the formula.
+//   selling = round((costPrice) × (1 + markupPct / 100))      [cost-based items]
+//   selling = sellingPrice override                            [flat-price items]
+//   total delivered cost = costPrice (vendor) + labourHours × hourlyCost
+//   hourlyCost defaults to LABOUR_HOURLY_RATE (configurable blended cost).
+//   Adding labourHours never changes the selling price — it only makes
+//   cost/margin reporting truthful so underpriced services surface as negative
+//   gross margin instead of a fake "100%".
 //   Tiers per item: setup (one-time) · monthly · annual.
 //   Annual invariant: every recurring item charges 10 months (2 months free) —
 //   see computeItemSelling().
@@ -15,33 +20,50 @@
 //   - Managed recurring infra (hosting, backups, monitoring, SaaS tools we
 //     operate for the client): 30–50%.
 //   - Labour / delivery (design, development, content, marketing management):
-//     50% or more — this pays for people and is where margin lives.
+//     50% or more — this pays for people and is where margin lives. Where the
+//     policy is violated the aggregate now reports it faithfully.
 //
 // A Service bundles many items; its `aggregate` sums them. Plans
 // (service-package-pricing-catalog.ts) pick services + add-ons, and
 // enrichCatalog() totals each plan by summing the services' selling prices —
-// higher plans inherit lower plans cumulatively (only plans that declare
-// `inherited` accrue cumulative pricing; standalone plans price their own
-// services only).
+// cumulative tiers declare `inheritsFrom` explicitly (Growth inherits Launch,
+// Scale inherits Growth); standalone plans price their own services only.
 //
-// To change pricing, edit the `items` below (costPrice + profitMarginPct, or a
+// To change pricing, edit the `items` below (costPrice + markupPct, or a
 // flat sellingPrice) — the rest is computed, never hand-edited.
 
 import { SERVICE_CONTENT } from './service-content'
 
 export type ServiceStage = 'design' | 'build' | 'setup'
 
+// Blended fully-loaded cost to employ across dev/design/content/marketing roles
+// (salary + benefits + tools + overhead, per productive hour). Configurable —
+// set to your real cost-to-employ; used to value `labourHours` on items.
+export const LABOUR_HOURLY_RATE = 400 // INR per hour
+
 export interface ServiceItem {
   label: string
-  costPrice: { setup: number; monthly: number; annual: number } // INR
-  profitMarginPct: { setup: number; monthly: number; annual: number } // markup percentage (40 = 40%)
+  costPrice: { setup: number; monthly: number; annual: number } // INR — vendor/pass-through COGS (hosting, SMS, licences, stock)
+  labourHours?: { setup?: number; monthly?: number; annual?: number } // our hours per tier, valued at hourlyCost
+  hourlyCost?: number // override LABOUR_HOURLY_RATE for this item (e.g. senior dev vs junior ops)
+  markupPct: { setup: number; monthly: number; annual: number } // markup percentage (40 = 40%)
   sellingPrice?: { setup?: number; monthly?: number; annual?: number } // optional INR override
 }
 
 export interface ServiceAggregate {
-  cost: { setup: number; monthly: number; annual: number } // INR
+  // vendor = pure pass-through COGS (costPrice). labour = hours × hourly rate.
+  // cost = vendor + labour — the TRUE delivered cost used for margin reporting.
+  vendor: { setup: number; monthly: number; annual: number } // INR
+  labour: { setup: number; monthly: number; annual: number } // INR
+  cost: { setup: number; monthly: number; annual: number } // INR — vendor + labour
   selling: { setup: number; monthly: number; annual: number } // INR
-  marginPct: { setup: number; monthly: number; annual: number } // effective margin percentage
+  // TRUE gross margin ((sell−cost)/sell) per tier, or null when the tier has
+  // selling price but NO modeled cost (fully flat/free items). The margin is
+  // unknown there, not 100% — never display these as profitable.
+  grossMarginPct: { setup: number | null; monthly: number | null; annual: number | null }
+  // % of selling backed by modeled cost (vendor + labour). 0 = fully flat,
+  // up to 100 = fully costed.
+  costCoveredPct: { setup: number; monthly: number; annual: number }
 }
 
 export interface ServiceFaq {
@@ -100,6 +122,7 @@ export interface Plan {
   icon: string
   featured?: boolean
   inherited?: { label: string }
+  inheritsFrom?: string
   services: Service[]
   addOns: Service[]
   ctaLabel: string
@@ -115,7 +138,7 @@ export interface PlanCatalog {
   updatedAt: string
   currency: 'INR'
   disclaimer?: string
-  sharedInfra: { category: string; label: string; monthlyCost: number; upgradePath?: string; upgradeCost?: number }[]
+  sharedInfra: { category: string; label: string; monthlyCost: number; upgradePath?: string; upgradeCost?: number; commercialOnly?: boolean; agencyOperated?: string }[]
   plans: Plan[]
 }
 
@@ -123,13 +146,13 @@ export interface PlanCatalog {
 // Compute helpers
 // ---------------------------------------------------------------------------
 
-function selling(cost: number, marginPct: number): number {
-  return Math.round(cost * (1 + marginPct / 100))
+function selling(cost: number, markupPct: number): number {
+  return Math.round(cost * (1 + markupPct / 100))
 }
 
 export function computeItemSelling(item: ServiceItem) {
-  const setup = item.sellingPrice?.setup ?? selling(item.costPrice.setup, item.profitMarginPct.setup)
-  const monthly = item.sellingPrice?.monthly ?? selling(item.costPrice.monthly, item.profitMarginPct.monthly)
+  const setup = item.sellingPrice?.setup ?? selling(item.costPrice.setup, item.markupPct.setup)
+  const monthly = item.sellingPrice?.monthly ?? selling(item.costPrice.monthly, item.markupPct.monthly)
   // Annual invariant: recurring items charge 10 months (2 months free). An
   // explicit annual tier (real annual infra rate) wins; otherwise labour items
   // default to 10x their monthly price so annual plans never give the work away.
@@ -138,7 +161,7 @@ export function computeItemSelling(item: ServiceItem) {
     explicitAnnual > 0
       ? explicitAnnual
       : item.costPrice.annual > 0
-        ? selling(item.costPrice.annual, item.profitMarginPct.annual)
+        ? selling(item.costPrice.annual, item.markupPct.annual)
         : monthly > 0
           ? Math.round(monthly * 10)
           : 0
@@ -146,40 +169,74 @@ export function computeItemSelling(item: ServiceItem) {
 }
 
 export function computeServiceAggregate(svc: Service): ServiceAggregate {
-  let costSetup = 0
-  let costMonthly = 0
-  let costAnnual = 0
+  let vendorSetup = 0
+  let vendorMonthly = 0
+  let vendorAnnual = 0
+  let labourSetup = 0
+  let labourMonthly = 0
+  let labourAnnual = 0
   let sellSetup = 0
   let sellMonthly = 0
   let sellAnnual = 0
 
   for (const item of svc.items) {
     const sell = computeItemSelling(item)
-    costSetup += item.costPrice.setup
-    costMonthly += item.costPrice.monthly
-    costAnnual += item.costPrice.annual
+    const rate = item.hourlyCost ?? LABOUR_HOURLY_RATE
+    vendorSetup += item.costPrice.setup
+    vendorMonthly += item.costPrice.monthly
+    vendorAnnual += item.costPrice.annual
+    labourSetup += (item.labourHours?.setup ?? 0) * rate
+    labourMonthly += (item.labourHours?.monthly ?? 0) * rate
+    labourAnnual += (item.labourHours?.annual ?? 0) * rate
     sellSetup += sell.setup
     sellMonthly += sell.monthly
     sellAnnual += sell.annual
   }
 
+  const costSetup = vendorSetup + labourSetup
+  const costMonthly = vendorMonthly + labourMonthly
+  const costAnnual = vendorAnnual + labourAnnual
+
+  const margin = (cost: number, sell: number): number | null => {
+    if (cost > 0 && sell > 0) return Math.round((sell - cost) / sell * 100)
+    return null
+  }
+  const coverage = (cost: number, sell: number): number => {
+    if (sell <= 0) return 0
+    return Math.min(100, Math.round(cost / sell * 100))
+  }
+
   return {
+    vendor: { setup: vendorSetup, monthly: vendorMonthly, annual: vendorAnnual },
+    labour: { setup: labourSetup, monthly: labourMonthly, annual: labourAnnual },
     cost: { setup: costSetup, monthly: costMonthly, annual: costAnnual },
     selling: { setup: sellSetup, monthly: sellMonthly, annual: sellAnnual },
-    marginPct: {
-      setup: costSetup > 0 ? Math.round((sellSetup - costSetup) / costSetup * 100) : 0,
-      monthly: costMonthly > 0 ? Math.round((sellMonthly - costMonthly) / costMonthly * 100) : 0,
-      annual: costAnnual > 0 ? Math.round((sellAnnual - costAnnual) / costAnnual * 100) : 0,
+    // Real gross margin = profit / selling price. Null when a tier carries a
+    // selling price but no modeled cost (flat-price items) — the margin is not
+    // 100%, it's simply unknown because no COGS is modeled.
+    grossMarginPct: {
+      setup: margin(costSetup, sellSetup),
+      monthly: margin(costMonthly, sellMonthly),
+      annual: margin(costAnnual, sellAnnual),
+    },
+    costCoveredPct: {
+      setup: coverage(costSetup, sellSetup),
+      monthly: coverage(costMonthly, sellMonthly),
+      annual: coverage(costAnnual, sellAnnual),
     },
   }
 }
 
 export function enrichCatalog(catalog: PlanCatalog): PlanCatalog {
-  let cumSetup = 0
-  let cumMonthly = 0
-  let cumAnnual = 0
+  const cumById: Record<string, { setup: number; monthly: number; annual: number }> = {}
 
   for (const plan of catalog.plans) {
+    if (plan.id === 'custom') continue
+
+    // Validate inheritance wiring: inherited plans must declare inheritsFrom,
+    // and if they do, the referenced base must have been processed already.
+    const baseId = plan.inheritsFrom
+
     for (const svc of [...plan.services, ...plan.addOns]) {
       svc.aggregate = computeServiceAggregate(svc)
     }
@@ -189,28 +246,20 @@ export function enrichCatalog(catalog: PlanCatalog): PlanCatalog {
     const ownMonthly = plan.services.reduce((sum, svc) => sum + (svc.aggregate?.selling.monthly ?? 0), 0)
     const ownAnnual = plan.services.reduce((sum, svc) => sum + (svc.aggregate?.selling.annual ?? 0), 0)
 
-    // The Custom plan is quote-based — no fixed price.
-    if (plan.id === 'custom') continue
-
     if (plan.inherited) {
-      // Cumulative tier (Launch ⊂ Growth ⊂ Scale): the price includes everything
-      // from lower tiers, accumulated in catalog order.
-      cumSetup += ownSetup
-      cumMonthly += ownMonthly
-      cumAnnual += ownAnnual
-      plan.pricing = { setup: cumSetup, monthly: cumMonthly, annual: cumAnnual, ownSetup, ownMonthly, ownAnnual }
+      if (!baseId) throw new Error(`Plan "${plan.id}" is inherited but has no inheritsFrom`)
+      const base = cumById[baseId]
+      if (!base) throw new Error(`Plan "${plan.id}" inherits from "${baseId}" but that plan was not resolved`)
+      const setup = base.setup + ownSetup
+      const monthly = base.monthly + ownMonthly
+      const annual = base.annual + ownAnnual
+      plan.pricing = { setup, monthly, annual, ownSetup, ownMonthly, ownAnnual }
+      cumById[plan.id] = { setup, monthly, annual }
     } else {
-      // Standalone tier (e.g. AI Growth): prices only its own services — it
-      // neither inherits lower tiers nor inflates cumulative pricing for later ones.
+      // Standalone tier (e.g. Launch, AI Growth): prices its own services only —
+      // it still registers its totals so a later `inheritsFrom` plan builds on it.
       plan.pricing = { setup: ownSetup, monthly: ownMonthly, annual: ownAnnual, ownSetup, ownMonthly, ownAnnual }
-      // Chain base (e.g. Launch, the first plan a cumulative tier inherits):
-      // still accrues its totals so the next `inherited` tier builds on top of it.
-      const next = catalog.plans[catalog.plans.indexOf(plan) + 1]
-      if (next && next.inherited) {
-        cumSetup += ownSetup
-        cumMonthly += ownMonthly
-        cumAnnual += ownAnnual
-      }
+      cumById[plan.id] = { setup: ownSetup, monthly: ownMonthly, annual: ownAnnual }
     }
   }
   return catalog
@@ -219,14 +268,14 @@ export function enrichCatalog(catalog: PlanCatalog): PlanCatalog {
 // ---------------------------------------------------------------------------
 // Service item builders — use these to define `items` in SERVICES below.
 //
-// Cost model:  selling = round(cost × (1 + marginPct/100))
+// Cost model:  selling = round(cost × (1 + markupPct/100))
 //              (a `sellingPrice` override — flat-price items — wins instead)
 //
 //   oneTimeItem('Domain', 800, 30)      → ₹800 one-time cost + 30%  = ₹1,040
 //   monthlyItem('Hosting', 300, 50)     → ₹300/mo cost + 50%        = ₹450/mo
-//   flatOneTime('Setup', 2000)          → flat ₹2,000 (no cost)
-//   flatMonthly('Care', 400)            → flat ₹400/mo (no cost)
-//   freeItem('GA4 setup')               → ₹0
+//   flatWithLabour('Setup', {setup:2000},{setup:10})
+//                                      → flat ₹2,000 sale, labor 10h → cost 4,000
+//                                        (sale unchanged; margin reports underpricing)
 // ---------------------------------------------------------------------------
 
 function buildItem(
@@ -234,9 +283,9 @@ function buildItem(
   costSetup: number,
   costMonthly: number,
   costAnnual: number,
-  marginPctSetup: number,
-  marginPctMonthly: number,
-  marginPctAnnual: number,
+  markupPctSetup: number,
+  markupPctMonthly: number,
+  markupPctAnnual: number,
   sellSetup?: number,
   sellMonthly?: number,
   sellAnnual?: number,
@@ -244,7 +293,7 @@ function buildItem(
   const result: ServiceItem = {
     label,
     costPrice: { setup: costSetup, monthly: costMonthly, annual: costAnnual },
-    profitMarginPct: { setup: marginPctSetup, monthly: marginPctMonthly, annual: marginPctAnnual },
+    markupPct: { setup: markupPctSetup, monthly: markupPctMonthly, annual: markupPctAnnual },
   }
   if (sellSetup !== undefined || sellMonthly !== undefined || sellAnnual !== undefined) {
     result.sellingPrice = { setup: sellSetup ?? 0, monthly: sellMonthly ?? 0, annual: sellAnnual ?? 0 }
@@ -252,29 +301,38 @@ function buildItem(
   return result
 }
 
-// One-time deliverable at a fixed selling price (no cost decomposition).
-function flatOneTime(label: string, sell: number): ServiceItem {
-  return buildItem(label, 0, 0, 0, 0, 0, 0, sell)
-}
-
-// One-time deliverable: cost + markup %. Selling = cost × (1 + marginPct/100).
-function oneTimeItem(label: string, cost: number, marginPct: number): ServiceItem {
-  return buildItem(label, cost, 0, 0, marginPct, 0, 0)
-}
-
-// Monthly recurring at a fixed selling price (no cost decomposition).
-function flatMonthly(label: string, sell: number): ServiceItem {
-  return buildItem(label, 0, 0, 0, 0, 0, 0, undefined, sell)
+// One-time deliverable: cost + markup %. Selling = cost × (1 + markupPct/100).
+export function oneTimeItem(label: string, cost: number, markupPct: number): ServiceItem {
+  return buildItem(label, cost, 0, 0, markupPct, 0, 0)
 }
 
 // Monthly recurring: cost + markup %. Pass annualCost to also price the annual tier.
-function monthlyItem(label: string, cost: number, marginPct: number, annualCost = 0): ServiceItem {
-  return buildItem(label, 0, cost, annualCost, 0, marginPct, annualCost > 0 ? marginPct : 0)
+export function monthlyItem(label: string, cost: number, markupPct: number, annualCost = 0): ServiceItem {
+  return buildItem(label, 0, cost, annualCost, 0, markupPct, annualCost > 0 ? markupPct : 0)
 }
 
-// No cost, no charge.
-function freeItem(label: string): ServiceItem {
-  return buildItem(label, 0, 0, 0, 0, 0, 0)
+// One-time setup + annual renewal (domains, licences the client owns): inflated
+// by markup on both tiers. Renewal is a real recurring cost, so price it.
+export function annualItem(label: string, setupCost: number, renewalCost: number, markupPct: number): ServiceItem {
+  return buildItem(label, setupCost, 0, renewalCost, markupPct, 0, markupPct)
+}
+
+// Flat selling price value + labour hours to estimate real cost. Selling stays
+// flat — labour hours only feed cost/margin reporting, so adding the hours never
+// changes what the client pays. `hours` keys match the tiers being sold.
+export function flatWithLabour(
+  label: string,
+  sell: { setup?: number; monthly?: number; annual?: number },
+  hours: { setup?: number; monthly?: number; annual?: number },
+): ServiceItem {
+  const item = buildItem(
+    label, 0, 0, 0, 0, 0, 0,
+    sell.setup ?? 0,
+    sell.monthly ?? 0,
+    sell.annual ?? 0,
+  )
+  item.labourHours = hours
+  return item
 }
 
 // ---------------------------------------------------------------------------
@@ -282,8 +340,8 @@ function freeItem(label: string): ServiceItem {
 // ---------------------------------------------------------------------------
 
 export const SHARED_INFRA: PlanCatalog['sharedInfra'] = [
-  { category: 'Version Control', label: 'GitHub Free', monthlyCost: 0, upgradePath: 'GitHub Team', upgradeCost: 1750 },
-  { category: 'Deployment', label: 'Vercel Hobby', monthlyCost: 0, upgradePath: 'Vercel Pro', upgradeCost: 1700 },
+  { category: 'Version Control', label: 'GitHub Free', monthlyCost: 0, upgradePath: 'GitHub Team', upgradeCost: 1750, agencyOperated: 'Client owns the repo; Nexbaron gets collaborator access' },
+  { category: 'Deployment', label: 'Vercel Hobby', monthlyCost: 0, upgradePath: 'Vercel Pro', upgradeCost: 1700, commercialOnly: true, agencyOperated: 'Hobby is personal/non-commercial — client sites run on Vercel Pro in the client-owned project. Not priced at ₹0.' },
   { category: 'CDN & DNS', label: 'Cloudflare Free', monthlyCost: 0, upgradePath: 'Cloudflare Pro', upgradeCost: 1650 },
   { category: 'Email', label: 'Zoho Mail Lite (2 users)', monthlyCost: 100, upgradePath: 'Zoho Workplace', upgradeCost: 700 },
   { category: 'Design', label: 'Figma Free', monthlyCost: 0, upgradePath: 'Figma Professional', upgradeCost: 2000 },
@@ -304,10 +362,13 @@ export const SHARED_INFRA: PlanCatalog['sharedInfra'] = [
 //   - items are the technical breakdown underneath — real costs, tools, and
 //     steps that keep the service running. Jargon is fine here; the client
 //     only sees the friendly label on top.
+//
+// The combined SERVICES below is the single source of truth for plans and the
+// public pricing/services pages. Never edit SERVICES directly — add/amend
+// services in the dev/marketing file that owns them.
 // ---------------------------------------------------------------------------
 
 export const SERVICES: Service[] = [
-
   // --- Website & online presence ---
 
   {
@@ -316,83 +377,79 @@ export const SERVICES: Service[] = [
     icon: 'Globe',
     section: 'build',
     items: [
-      oneTimeItem('Domain Registration', 800, 10),
+      annualItem('Domain Registration (setup + ₹800/yr renewal)', 800, 800, 10),
       oneTimeItem('Domain Privacy Protection', 200, 10),
       oneTimeItem('SSL Certificate', 300, 10),
       monthlyItem('Cloud Hosting', 300, 50, 3000),
       monthlyItem('S3 / Asset Storage', 80, 30, 800),
-      flatOneTime('CDN Setup (Cloudflare)', 2000),
-      flatOneTime('DNS Configuration', 500),
-      flatOneTime('Git Repository Setup', 300),
-      flatOneTime('CI/CD Pipeline', 600),
-      flatOneTime('Design — Figma mockups', 600),
-      flatOneTime('Development — Next.js build', 1000),
-      flatOneTime('Content writing (5 pgs)', 800),
+      flatWithLabour('CDN Setup (Cloudflare)', { setup: 2000 }, { setup: 2 }),
+      flatWithLabour('DNS Configuration', { setup: 500 }, { setup: 1 }),
+      flatWithLabour('Git Repository Setup', { setup: 300 }, { setup: 1 }),
+      flatWithLabour('CI/CD Pipeline', { setup: 600 }, { setup: 3 }),
+      flatWithLabour('Design — Figma mockups', { setup: 600 }, { setup: 6 }),
+      flatWithLabour('Development — Next.js build', { setup: 1000 }, { setup: 20 }),
+      flatWithLabour('Content writing (5 pgs)', { setup: 800 }, { setup: 10 }),
       oneTimeItem('Image sourcing (10 imgs)', 300, 50),
-      flatOneTime('Mobile responsive testing', 300),
-      flatOneTime('Cross-browser testing', 300),
-      flatOneTime('SEO meta tags + sitemap', 400),
-      freeItem('GA4 property setup'),
-      freeItem('Google Search Console setup'),
-      flatOneTime('Lighthouse perf optimization', 400),
-      flatOneTime('Security headers hardening', 400),
+      flatWithLabour('Mobile responsive testing', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Cross-browser testing', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('SEO meta tags + sitemap', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('GA4 property setup', { setup: 0 }, { setup: 2 }),
+      flatWithLabour('Google Search Console setup', { setup: 0 }, { setup: 1 }),
+      flatWithLabour('Lighthouse perf optimization', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('Security headers hardening', { setup: 400 }, { setup: 1 }),
       monthlyItem('Daily backups', 100, 30, 1000),
-      flatMonthly('Uptime monitoring', 400),
-      flatOneTime('Privacy policy template', 200),
+      flatWithLabour('Uptime monitoring', { monthly: 400 }, { monthly: 1 }),
+      flatWithLabour('Privacy policy template', { setup: 200 }, { setup: 1 }),
     ],
     deliverDays: 1, stage: 'build',
   },
-
   {
     id: 'whatsapp',
     label: 'WhatsApp Chat Button',
     icon: 'MessageSquare',
     section: 'build',
     items: [
-      freeItem('WhatsApp Business Account'),
-      flatOneTime('Chat bubble + pre-chat name/phone form', 300),
-      flatOneTime('Click-to-chat deep link + offline message', 250),
+      flatWithLabour('WhatsApp Business Account', { setup: 0 }, { setup: 1 }),
+      flatWithLabour('Chat bubble + pre-chat name/phone form', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Click-to-chat deep link + offline message', { setup: 250 }, { setup: 1 }),
       monthlyItem('WA API conversation costs', 50, 40, 500),
-      flatOneTime('Chat click tracking + analytics', 100),
-      flatOneTime('Mobile + desktop testing', 150),
+      flatWithLabour('Chat click tracking + analytics', { setup: 100 }, { setup: 1 }),
+      flatWithLabour('Mobile + desktop testing', { setup: 150 }, { setup: 1 }),
     ],
     deliverDays: 0, stage: 'build',
   },
-
   {
     id: 'gbp',
     label: 'Google Business Profile — Setup & Verify',
     icon: 'MapPin',
     section: 'build',
     items: [
-      flatOneTime('Business verification (postcard handling)', 300),
-      flatOneTime('Business info + hours setup', 250),
-      flatOneTime('Category + service area setup', 300),
-      flatOneTime('Photo upload + optimization', 300),
-      flatOneTime('Q&A section pre-population', 300),
-      flatOneTime('Review response templates', 200),
-      flatOneTime('Product/menu section setup', 300),
+      flatWithLabour('Business verification assistance (method auto-selected by Google)', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Business info + hours setup', { setup: 250 }, { setup: 1.5 }),
+      flatWithLabour('Category + service area setup', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Photo upload + optimization', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Q&A section pre-population', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Review response templates', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Product/menu section setup', { setup: 300 }, { setup: 2 }),
     ],
     deliverDays: 0.5, parallel: true, stage: 'setup',
   },
-
   {
     id: 'analytics',
     label: 'Visit Analytics',
     icon: 'BarChart3',
     section: 'build',
     items: [
-      freeItem('GA4 property + data stream'),
-      freeItem('GTM container + triggers'),
-      flatOneTime('Event tracking setup', 300),
-      flatOneTime('Conversion goal setup', 250),
-      flatOneTime('Custom Looker Studio dashboard', 400),
-      freeItem('Search Console + sitemap'),
-      flatOneTime('UTM parameter standardization', 200),
+      flatWithLabour('GA4 property + data stream', { setup: 0 }, { setup: 1.5 }),
+      flatWithLabour('GTM container + triggers', { setup: 0 }, { setup: 1.5 }),
+      flatWithLabour('Event tracking setup', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Conversion goal setup', { setup: 250 }, { setup: 1.5 }),
+      flatWithLabour('Custom Looker Studio dashboard', { setup: 400 }, { setup: 3 }),
+      flatWithLabour('Search Console + sitemap', { setup: 0 }, { setup: 1 }),
+      flatWithLabour('UTM parameter standardization', { setup: 200 }, { setup: 1 }),
     ],
     deliverDays: 0.5, parallel: true, stage: 'setup',
   },
-
   // --- Website add-ons ---
 
   {
@@ -401,15 +458,14 @@ export const SERVICES: Service[] = [
     icon: 'FileText',
     section: 'build',
     items: [
-      flatOneTime('Content writing (500 words)', 200),
-      flatOneTime('Design layout in Figma', 150),
-      flatOneTime('Development + responsive QA', 150),
+      flatWithLabour('Content writing (500 words)', { setup: 200 }, { setup: 1.5 }),
+      flatWithLabour('Design layout in Figma', { setup: 150 }, { setup: 1.5 }),
+      flatWithLabour('Development + responsive QA', { setup: 150 }, { setup: 2 }),
       oneTimeItem('Image sourcing (2 images)', 50, 50),
-      flatOneTime('SEO meta tags for page', 100),
+      flatWithLabour('SEO meta tags for page', { setup: 100 }, { setup: 0.5 }),
     ],
     unitLabel: 'per page', deliverDays: 0.25, stage: 'build',
   },
-
   {
     id: 'launch-photos',
     label: 'Additional photos',
@@ -417,64 +473,60 @@ export const SERVICES: Service[] = [
     section: 'build',
     items: [
       oneTimeItem('Stock photo license', 80, 10),
-      flatOneTime('Image optimization (WebP/AVIF)', 200),
-      flatOneTime('Alt text + SEO metadata', 100),
+      flatWithLabour('Image optimization (WebP/AVIF)', { setup: 200 }, { setup: 1.5 }),
+      flatWithLabour('Alt text + SEO metadata', { setup: 100 }, { setup: 1 }),
     ],
     deliverDays: 0.25, stage: 'build',
   },
-
   {
     id: 'launch-domain',
     label: 'Domain setup',
     icon: 'Link',
     section: 'build',
     items: [
-      flatOneTime('DNS record configuration', 300),
-      freeItem('Email forwarding setup'),
-      flatOneTime('Subdomain configuration', 200),
-      flatOneTime('SSL auto-renewal verification', 200),
+      flatWithLabour('DNS record configuration', { setup: 300 }, { setup: 1 }),
+      flatWithLabour('Email forwarding setup', { setup: 0 }, { setup: 0.5 }),
+      flatWithLabour('Subdomain configuration', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('SSL auto-renewal verification', { setup: 200 }, { setup: 0.5 }),
     ],
     deliverDays: 0.25, parallel: true, stage: 'setup',
   },
-
   // --- SEO & local ranking ---
 
   {
     id: 'gbp-optimise',
-    label: 'Google Business Profile — Optimize & Rank',
+    label: 'Google Business Profile — Optimize & Get Found',
     icon: 'MapPin',
     section: 'get-found',
     items: [
-      flatMonthly('Weekly GBP posts (4/mo) — offers, updates, photos', 800),
-      flatMonthly('Photo optimization + geo-tagging', 300),
-      flatMonthly('Offer / promotion post design (Canva)', 300),
-      flatMonthly('Review generation campaign + reply drafting', 400),
-      flatMonthly('Q&A section monitoring + replies', 200),
-      flatMonthly('Competitor GBP analysis (top 3)', 300),
+      flatWithLabour('Weekly GBP posts (4/mo) — offers, updates, photos', { monthly: 800 }, { monthly: 6 }),
+      flatWithLabour('Photo optimization + categorization', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Offer / promotion post design (Canva)', { monthly: 300 }, { monthly: 2 }),
+      flatWithLabour('Review generation campaign + reply drafting', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('Q&A section monitoring + replies', { monthly: 200 }, { monthly: 1 }),
+      flatWithLabour('Competitor GBP analysis (top 3)', { monthly: 300 }, { monthly: 2 }),
       monthlyItem('Google Maps ranking tracker', 200, 40, 2000),
       monthlyItem('Local Falcon rank checker', 150, 30, 1500),
-      flatMonthly('Monthly performance report', 300),
+      flatWithLabour('Monthly performance report', { monthly: 300 }, { monthly: 1.5 }),
     ],
     deliverDays: 0.5, stage: 'setup',
   },
-
   {
     id: 'local-seo',
-    label: 'Local SEO — Google Maps Ranking',
+    label: 'Local SEO — Google Maps Optimization',
     icon: 'Search',
     section: 'get-found',
     items: [
-      flatMonthly('Local keyword research (30 kw)', 600),
-      flatMonthly('Citation building (20+ dirs)', 500),
-      flatMonthly('NAP consistency audit', 300),
-      flatMonthly('Local backlink outreach (5/mo)', 300),
-      flatMonthly('Location page schema markup', 250),
+      flatWithLabour('Local keyword research (30 kw)', { monthly: 600 }, { monthly: 4 }),
+      flatWithLabour('Citation building (20+ dirs)', { monthly: 500 }, { monthly: 4 }),
+      flatWithLabour('NAP consistency audit', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Local backlink outreach (5/mo)', { monthly: 300 }, { monthly: 2 }),
+      flatWithLabour('Location page schema markup', { monthly: 250 }, { monthly: 1 }),
       monthlyItem('BrightLocal / Whitespark tool', 300, 30, 3000),
-      flatMonthly('Monthly ranking report', 300),
+      flatWithLabour('Monthly ranking report', { monthly: 300 }, { monthly: 1.5 }),
     ],
     stage: 'setup',
   },
-
   {
     id: 'whatsapp-book',
     label: 'WhatsApp Business — Auto-reply & Booking',
@@ -482,69 +534,65 @@ export const SERVICES: Service[] = [
     section: 'automate',
     items: [
       monthlyItem('WATI / Interakt platform', 500, 40, 5000),
-      flatOneTime('Auto-reply greeting flow', 400),
-      flatOneTime('Quick replies menu (5 options)', 200),
-      flatOneTime('Away message automation', 200),
-      flatOneTime('Labels + chat organization', 200),
-      flatOneTime('Catalog setup in WhatsApp', 300),
-      flatOneTime('Booking flow setup', 400),
+      flatWithLabour('Auto-reply greeting flow', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('Quick replies menu (5 options)', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Away message automation', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Labels + chat organization', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Catalog setup in WhatsApp', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Booking flow setup', { setup: 400 }, { setup: 2.5 }),
       monthlyItem('API conversation costs', 300, 30, 3000),
     ],
     deliverDays: 0.5, stage: 'setup',
   },
-
   {
     id: 'reviews',
     label: 'Review Generation & Management',
     icon: 'Star',
     section: 'get-found',
     items: [
-      freeItem('Review link generator + Google redirect'),
+      flatWithLabour('Review link generator + Google redirect', { setup: 0 }, { setup: 0.5 }),
       monthlyItem('SMS review requests (Twilio)', 150, 10, 1500),
-      flatMonthly('WhatsApp + email review request automation', 300),
-      freeItem('Review monitoring (alerts)'),
-      flatMonthly('5-star thank-you + review showcase on website', 300),
-      flatMonthly('Negative feedback private redirect', 300),
-      flatMonthly('Monthly review performance dashboard', 200),
+      flatWithLabour('WhatsApp + email review request automation', { monthly: 300 }, { monthly: 2 }),
+      flatWithLabour('Review monitoring (alerts)', { monthly: 0 }, { monthly: 0.5 }),
+      flatWithLabour('Review showcase on website', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Feedback collection + issue escalation', { monthly: 300 }, { monthly: 2 }),
+      flatWithLabour('Monthly review performance dashboard', { monthly: 200 }, { monthly: 1 }),
     ],
     deliverDays: 0.25, parallel: true, stage: 'setup',
   },
-
   {
     id: 'social',
     label: 'Social Media — 8 Posts/month',
     icon: 'Share2',
     section: 'stay-active',
     items: [
-      flatMonthly('Content calendar planning', 300),
-      flatMonthly('Copywriting (8 posts)', 400),
-      flatMonthly('Graphic design (8 creatives)', 600),
+      flatWithLabour('Content calendar planning', { monthly: 300, annual: 3000 }, { monthly: 2, annual: 20 }),
+      flatWithLabour('Copywriting (8 posts)', { monthly: 400, annual: 4000 }, { monthly: 4, annual: 40 }),
+      flatWithLabour('Graphic design (8 creatives)', { monthly: 600, annual: 6000 }, { monthly: 6, annual: 60 }),
       monthlyItem('Stock imagery (4 imgs/mo)', 200, 10, 2000),
-      flatMonthly('Hashtag research', 200),
-      flatMonthly('Engagement monitoring + replies', 200),
-      flatMonthly('Monthly social report', 300),
+      flatWithLabour('Hashtag research', { monthly: 200, annual: 2000 }, { monthly: 1, annual: 10 }),
+      flatWithLabour('Engagement monitoring + replies', { monthly: 200, annual: 2000 }, { monthly: 3, annual: 30 }),
+      flatWithLabour('Monthly social report', { monthly: 300, annual: 3000 }, { monthly: 2, annual: 20 }),
     ],
     deliverDays: 0.25, parallel: true, stage: 'setup',
   },
-
   {
     id: 'seo-report',
     label: 'Monthly SEO Health Report',
     icon: 'BarChart3',
     section: 'get-found',
     items: [
-      freeItem('Google Search Console data pull'),
-      flatMonthly('Keyword position tracking', 200),
+      flatWithLabour('Google Search Console data pull', { monthly: 0 }, { monthly: 0.5 }),
+      flatWithLabour('Keyword position tracking', { monthly: 200 }, { monthly: 1 }),
       monthlyItem('Technical SEO crawl (Sitebulb)', 200, 30, 2000),
-      freeItem('Page speed analysis (Lighthouse)'),
-      flatMonthly('Broken link check', 100),
-      flatMonthly('Competitor comparison (top 3)', 300),
-      flatMonthly('Actionable recommendations', 200),
-      flatMonthly('PDF report generation (branded)', 200),
+      flatWithLabour('Page speed analysis (Lighthouse)', { monthly: 0 }, { monthly: 0.5 }),
+      flatWithLabour('Broken link check', { monthly: 100 }, { monthly: 0.5 }),
+      flatWithLabour('Competitor comparison (top 3)', { monthly: 300 }, { monthly: 2 }),
+      flatWithLabour('Actionable recommendations', { monthly: 200 }, { monthly: 1.5 }),
+      flatWithLabour('PDF report generation (branded)', { monthly: 200 }, { monthly: 1 }),
     ],
     deliverDays: 0.25, parallel: true, stage: 'setup',
   },
-
   // --- Advertising — setup ---
 
   {
@@ -553,54 +601,51 @@ export const SERVICES: Service[] = [
     icon: 'Search',
     section: 'grow',
     items: [
-      freeItem('Google Ads account + conversion tracking'),
-      flatOneTime('Search Ads — keyword research + text ad copy', 600),
-      flatOneTime('Maps / Local Services Ads — listing + geo-setup', 500),
-      flatOneTime('Performance Max — image assets + headlines', 500),
-      flatOneTime('YouTube Ads — bumper + discovery ad setup', 400),
-      flatOneTime('Landing page optimization for ads', 300),
-      flatOneTime('Ad extensions — call, location, sitelink', 300),
-      flatOneTime('Budget strategy + bid management setup', 300),
+      flatWithLabour('Google Ads account + conversion tracking', { setup: 0 }, { setup: 2 }),
+      flatWithLabour('Search Ads — keyword research + text ad copy', { setup: 600 }, { setup: 4 }),
+      flatWithLabour('Maps / Local Services Ads — listing + geo-setup', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('Performance Max — image assets + headlines', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('YouTube Ads — bumper + discovery ad setup', { setup: 400 }, { setup: 2.5 }),
+      flatWithLabour('Landing page optimization for ads', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Ad extensions — call, location, sitelink', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Budget strategy + bid management setup', { setup: 300 }, { setup: 2 }),
     ],
     deliverDays: 1, stage: 'build', clientCostNote: 'Ad budget paid directly to Google (~₹2K–10K/mo recommended)',
   },
-
   {
     id: 'meta-ads-setup',
     label: 'Meta Ads Setup — Facebook + Instagram + WhatsApp + Messenger',
     icon: 'Share2',
     section: 'grow',
     items: [
-      freeItem('Meta Business Suite + Commerce Manager setup'),
-      freeItem('FB Pixel + CAPI event setup (shared)'),
-      flatOneTime('Facebook Feed + Stories — image ads + copy', 600),
-      flatOneTime('Instagram Feed + Stories + Reels — vertical ads', 600),
+      flatWithLabour('Meta Business Suite + Commerce Manager setup', { setup: 0 }, { setup: 2 }),
+      flatWithLabour('FB Pixel + CAPI event setup (shared)', { setup: 0 }, { setup: 3 }),
+      flatWithLabour('Facebook Feed + Stories — image ads + copy', { setup: 600 }, { setup: 4 }),
+      flatWithLabour('Instagram Feed + Stories + Reels — vertical ads', { setup: 600 }, { setup: 4 }),
       monthlyItem('WhatsApp — WATI/Interakt platform subscription', 500, 40, 5000),
-      flatOneTime('WhatsApp — Business API message templates', 400),
-      freeItem('Messenger — click-to-Messenger flow setup'),
-      flatOneTime('Audience research — custom + lookalike', 500),
-      flatOneTime('Campaign structure — prospecting + retargeting', 300),
-      flatOneTime('Budget strategy + bid setup', 300),
+      flatWithLabour('WhatsApp — Business API message templates', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('Messenger — click-to-Messenger flow setup', { setup: 0 }, { setup: 1.5 }),
+      flatWithLabour('Audience research — custom + lookalike', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('Campaign structure — prospecting + retargeting', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Budget strategy + bid setup', { setup: 300 }, { setup: 2 }),
     ],
     deliverDays: 1, stage: 'build', clientCostNote: 'Ad budget paid directly to Meta (~₹3K–15K/mo recommended)',
   },
-
   {
     id: 'growth-city',
     label: 'Cover another city',
     icon: 'MapPin',
     section: 'grow',
     items: [
-      flatOneTime('City landing page (design+dev)', 600),
-      flatOneTime('Local citations (15 directories)', 400),
-      flatOneTime('City-specific keyword research', 300),
-      flatOneTime('GBP location setup', 300),
-      flatOneTime('City schema markup', 200),
+      flatWithLabour('City landing page (design+dev)', { setup: 600 }, { setup: 4 }),
+      flatWithLabour('Local citations (15 directories)', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('City-specific keyword research', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('GBP location setup', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('City schema markup', { setup: 200 }, { setup: 1 }),
       monthlyItem('BrightLocal citation tool', 100, 30, 1000),
     ],
     deliverDays: 0.25, parallel: true, stage: 'setup',
   },
-
   // --- Ongoing management ---
 
   {
@@ -609,105 +654,99 @@ export const SERVICES: Service[] = [
     icon: 'UserCheck',
     section: 'care',
     items: [
-      freeItem('Slack/WhatsApp priority channel'),
-      flatMonthly('Monthly 1-hr strategy call', 500),
-      flatMonthly('Strategy deck + KPI report (10 slides)', 500),
-      flatMonthly('Quarterly business review deck', 400),
-      freeItem('Notion/Linear task management'),
-      flatMonthly('4-hr response SLA (biz hrs)', 300),
-      flatMonthly('Weekly async update + action items', 300),
+      flatWithLabour('Slack/WhatsApp priority channel', { monthly: 0 }, { monthly: 0.5 }),
+      flatWithLabour('Monthly 1-hr strategy call', { monthly: 500, annual: 5000 }, { monthly: 1.5, annual: 15 }),
+      flatWithLabour('Strategy deck + KPI report (10 slides)', { monthly: 500, annual: 5000 }, { monthly: 2, annual: 20 }),
+      flatWithLabour('Quarterly business review deck', { monthly: 400, annual: 4000 }, { monthly: 2, annual: 20 }),
+      flatWithLabour('Notion/Linear task management', { monthly: 0 }, { monthly: 0.5 }),
+      flatWithLabour('4-hr response SLA (biz hrs)', { monthly: 300, annual: 3000 }, { monthly: 0.5, annual: 5 }),
+      flatWithLabour('Weekly async update + action items', { monthly: 300, annual: 3000 }, { monthly: 1, annual: 10 }),
     ],
   },
-
   {
     id: 'unlimited-updates',
-    label: 'Content & Page Updates — Unlimited',
+    label: 'Content & Page Updates — Up to 10 hrs/month',
     icon: 'RefreshCw',
     section: 'care',
     items: [
-      flatMonthly('Content update labor (~10hrs/mo)', 1000),
-      flatMonthly('Design tweaks in Figma', 400),
-      flatMonthly('Development + deploy', 400),
-      flatMonthly('QA + regression testing', 300),
-      flatMonthly('Image replacement + optimization', 200),
+      flatWithLabour('Content update labor', { monthly: 1000, annual: 10000 }, { monthly: 10, annual: 100 }),
+      flatWithLabour('Design tweaks in Figma', { monthly: 400, annual: 4000 }, { monthly: 1.5, annual: 15 }),
+      flatWithLabour('Development + deploy', { monthly: 400, annual: 4000 }, { monthly: 2, annual: 20 }),
+      flatWithLabour('QA + regression testing', { monthly: 300, annual: 3000 }, { monthly: 2, annual: 20 }),
+      flatWithLabour('Image replacement + optimization', { monthly: 200, annual: 2000 }, { monthly: 1, annual: 10 }),
     ],
   },
-
   {
     id: 'social-reels',
     label: 'Social Media — Reels & Stories',
     icon: 'Video',
     section: 'stay-active',
     items: [
-      flatMonthly('Content ideation + storyboards', 600),
+      flatWithLabour('Content ideation + storyboards', { monthly: 600 }, { monthly: 4 }),
       monthlyItem('Stock footage (Artgrid/Storyblocks)', 300, 40, 3000),
       monthlyItem('Video editing (CapCut Pro)', 150, 40, 1500),
-      flatMonthly('Trending audio research', 200),
-      flatMonthly('Motion graphics + text overlays', 400),
-      flatMonthly('Caption writing + hashtag pack', 200),
-      flatMonthly('Instagram Stories design (8/mo)', 500),
-      flatMonthly('Posting schedule + tracking', 200),
+      flatWithLabour('Trending audio research', { monthly: 200 }, { monthly: 1 }),
+      flatWithLabour('Motion graphics + text overlays', { monthly: 400 }, { monthly: 3 }),
+      flatWithLabour('Caption writing + hashtag pack', { monthly: 200 }, { monthly: 1.5 }),
+      flatWithLabour('Instagram Stories design (8/mo)', { monthly: 500 }, { monthly: 4 }),
+      flatWithLabour('Posting schedule + tracking', { monthly: 200 }, { monthly: 1 }),
     ],
   },
-
   {
     id: 'google-ads-management',
     label: 'Google Ads Management — Search, Maps & Video',
     icon: 'Search',
     section: 'grow',
     items: [
-      flatMonthly('Search Ads — weekly bid + keyword optimization', 500),
-      flatMonthly('Maps Ads — geo-performance tuning', 400),
-      flatMonthly('Performance Max — asset refresh + optimization', 400),
-      flatMonthly('YouTube Ads — video performance review', 300),
-      flatMonthly('A/B testing (2 variants/month)', 300),
-      flatMonthly('Search term mining + negative keyword adds', 300),
-      flatMonthly('Remarketing audience setup + refresh', 300),
-      flatMonthly('Performance dashboard (Looker Studio)', 400),
-      flatMonthly('Monthly ads performance report', 300),
+      flatWithLabour('Search Ads — weekly bid + keyword optimization', { monthly: 500 }, { monthly: 3 }),
+      flatWithLabour('Maps Ads — geo-performance tuning', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('Performance Max — asset refresh + optimization', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('YouTube Ads — video performance review', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('A/B testing (2 variants/month)', { monthly: 300 }, { monthly: 2 }),
+      flatWithLabour('Search term mining + negative keyword adds', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Remarketing audience setup + refresh', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Performance dashboard (Looker Studio)', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('Monthly ads performance report', { monthly: 300 }, { monthly: 1.5 }),
     ],
     deliverDays: 1, stage: 'build', clientCostNote: 'Ad budget paid directly to Google (~₹5K–25K/mo recommended)',
   },
-
   {
     id: 'meta-ads-management',
     label: 'Meta Ads Management — Facebook + Instagram + WhatsApp + Messenger',
     icon: 'Share2',
     section: 'grow',
     items: [
-      flatMonthly('Facebook — weekly bid + audience optimization', 400),
-      flatMonthly('Instagram — creative refresh + Reels ad optimization', 400),
+      flatWithLabour('Facebook — weekly bid + audience optimization', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('Instagram — creative refresh + Reels ad optimization', { monthly: 400 }, { monthly: 2 }),
       monthlyItem('WhatsApp — WATI/Interakt platform', 500, 40, 5000),
       monthlyItem('WhatsApp — marketing conversation costs (~50/mo)', 250, 30, 2500),
-      flatMonthly('WhatsApp — template updates + flow optimization', 300),
-      flatMonthly('Messenger — auto-reply flow updates', 200),
-      flatMonthly('A/B testing (2 variants/month)', 300),
-      flatMonthly('Creative refresh (4 new ads/month)', 400),
-      flatMonthly('Audience refinement + exclusions', 300),
-      flatMonthly('Remarketing campaign management', 300),
-      flatMonthly('Advantage+ / dynamic creative optimization', 300),
-      flatMonthly('Competitor ad analysis', 300),
-      flatMonthly('Monthly performance report', 300),
+      flatWithLabour('WhatsApp — template updates + flow optimization', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Messenger — auto-reply flow updates', { monthly: 200 }, { monthly: 1 }),
+      flatWithLabour('A/B testing (2 variants/month)', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Creative refresh (4 new ads/month)', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('Audience refinement + exclusions', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Remarketing campaign management', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Advantage+ / dynamic creative optimization', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Competitor ad analysis', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Monthly performance report', { monthly: 300 }, { monthly: 1 }),
     ],
     clientCostNote: 'Ad budget paid directly to Meta (~₹10K–50K/mo recommended)',
   },
-
   {
     id: 'competitor',
     label: 'Competitor & Market Analysis',
     icon: 'BarChart3',
     section: 'grow',
     items: [
-      flatMonthly('Competitor website audit (3)', 400),
-      freeItem('SEMrush domain comparison'),
-      flatMonthly('SWOT analysis document', 300),
-      flatMonthly('Market positioning recommendations', 300),
-      flatMonthly('Gap analysis — services you lack', 300),
-      flatMonthly('PDF report with exec summary', 300),
+      flatWithLabour('Competitor website audit (3)', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('SEMrush domain comparison', { monthly: 0 }, { monthly: 0.5 }),
+      flatWithLabour('SWOT analysis document', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Market positioning recommendations', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('Gap analysis — services you lack', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('PDF report with exec summary', { monthly: 300 }, { monthly: 1.5 }),
       monthlyItem('SimilarWeb traffic estimation', 100, 30, 1000),
     ],
   },
-
   // --- Priority & multi-location ---
 
   {
@@ -716,27 +755,25 @@ export const SERVICES: Service[] = [
     icon: 'Zap',
     section: 'care',
     items: [
-      freeItem('Priority queue in support system'),
-      flatMonthly('2-hr response SLA (biz hrs)', 500),
+      flatWithLabour('Priority queue in support system', { monthly: 0 }, { monthly: 0.5 }),
+      flatWithLabour('2-hr response SLA (biz hrs)', { monthly: 500 }, { monthly: 1 }),
       monthlyItem('Emergency hotline routing', 100, 40, 1000),
     ],
   },
-
   {
     id: 'scale-multi',
     label: 'Multi-location',
     icon: 'Building',
     section: 'get-found',
     items: [
-      flatOneTime('Additional GBP setup', 600),
-      flatOneTime('Location landing page', 500),
-      flatOneTime('Local citations for new loc', 400),
-      flatOneTime('Location schema + geo sitemap', 300),
+      flatWithLabour('Additional GBP setup', { setup: 600 }, { setup: 3 }),
+      flatWithLabour('Location landing page', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('Local citations for new loc', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('Location schema + geo sitemap', { setup: 300 }, { setup: 1 }),
       monthlyItem('BrightLocal citation tool', 150, 30, 1500),
     ],
     deliverDays: 1, stage: 'build',
   },
-
   // --- Website add-ons (continued) ---
 
   {
@@ -745,82 +782,75 @@ export const SERVICES: Service[] = [
     icon: 'Mail',
     section: 'build',
     items: [
-      flatOneTime('Zoho Mail account setup + domain verification', 500),
-      flatOneTime('DNS MX record configuration', 200),
-      flatOneTime('SPF + DKIM + DMARC email authentication', 200),
-      flatOneTime('Email signature design + setup', 200),
-      flatOneTime('Forwarding rules + aliases', 150),
-      flatOneTime('IMAP/SMTP guide for mobile + desktop', 150),
+      flatWithLabour('Zoho Mail account setup + domain verification', { setup: 500 }, { setup: 1.5 }),
+      flatWithLabour('DNS MX record configuration', { setup: 200 }, { setup: 0.5 }),
+      flatWithLabour('SPF + DKIM + DMARC email authentication', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Email signature design + setup', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Forwarding rules + aliases', { setup: 150 }, { setup: 0.5 }),
+      flatWithLabour('IMAP/SMTP guide for mobile + desktop', { setup: 150 }, { setup: 0.5 }),
     ],
     deliverDays: 0.25, parallel: true, stage: 'setup',
   },
-
   {
     id: 'staff-training',
     label: 'Staff Handover Training — 1–2 Hour Session',
     icon: 'Users',
     section: 'care',
     items: [
-      flatOneTime('WhatsApp Business reply guide + templates', 300),
-      flatOneTime('GBP posting guide (offers, photos, replies)', 300),
-      flatOneTime('Basic website CMS walkthrough', 300),
-      flatOneTime('SMS / email campaign dashboard overview', 200),
-      flatOneTime('Live session delivery (1–2 hrs)', 500),
-      flatOneTime('Quick reference cheat sheet (PDF)', 200),
+      flatWithLabour('WhatsApp Business reply guide + templates', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('GBP posting guide (offers, photos, replies)', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Basic website CMS walkthrough', { setup: 300 }, { setup: 1 }),
+      flatWithLabour('SMS / email campaign dashboard overview', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Live session delivery (1–2 hrs)', { setup: 500 }, { setup: 2 }),
+      flatWithLabour('Quick reference cheat sheet (PDF)', { setup: 200 }, { setup: 1 }),
     ],
     deliverDays: 1,
   },
-
   {
     id: 'branding-identity',
     label: 'Logo & Branding — Identity + Guidelines',
     icon: 'Palette',
     section: 'build',
     items: [
-      flatOneTime('Logo design — 3 concepts + 2 revisions', 600),
-      flatOneTime('Color palette — primary + secondary + accent', 200),
-      freeItem('Typography selection — heading + body fonts'),
-      flatOneTime('Logo variations — light/dark BG + icon-only', 300),
-      flatOneTime('Favicon + app icon generation (all sizes)', 200),
-      flatOneTime('Social media profile picture versions', 200),
-      flatOneTime('Brand guidelines one-pager (PDF)', 300),
-      freeItem('Source files — AI/SVG/PNG — delivered via drive'),
+      flatWithLabour('Logo design — 3 concepts + 2 revisions', { setup: 600 }, { setup: 6 }),
+      flatWithLabour('Color palette — primary + secondary + accent', { setup: 200 }, { setup: 2 }),
+      flatWithLabour('Typography selection — heading + body fonts', { setup: 0 }, { setup: 1 }),
+      flatWithLabour('Logo variations — light/dark BG + icon-only', { setup: 300 }, { setup: 3 }),
+      flatWithLabour('Favicon + app icon generation (all sizes)', { setup: 200 }, { setup: 2 }),
+      flatWithLabour('Social media profile picture versions', { setup: 200 }, { setup: 2 }),
+      flatWithLabour('Brand guidelines one-pager (PDF)', { setup: 300 }, { setup: 3 }),
+      flatWithLabour('Source files — AI/SVG/PNG — delivered via drive', { setup: 0 }, { setup: 0.5 }),
     ],
     deliverDays: 3, stage: 'design',
   },
-
   {
     id: 'brochure-pdf',
     label: 'Brochure / Catalog PDF — WhatsApp Optimized',
     icon: 'FileText',
     section: 'build',
     items: [
-      flatOneTime('Design — 4 page A4 / digital layout', 600),
-      flatOneTime('Content writing — services + about + contact', 500),
+      flatWithLabour('Design — 4 page A4 / digital layout', { setup: 600 }, { setup: 6 }),
+      flatWithLabour('Content writing — services + about + contact', { setup: 500 }, { setup: 5 }),
       oneTimeItem('Stock / client photo sourcing (8 images)', 200, 50),
-      flatOneTime('PDF compression for WhatsApp sharing', 200),
-      flatOneTime('Mobile + print optimized export', 200),
+      flatWithLabour('PDF compression for WhatsApp sharing', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Mobile + print optimized export', { setup: 200 }, { setup: 1 }),
     ],
     deliverDays: 1, stage: 'design',
   },
-
   {
     id: 'ordering-page',
     label: 'Online Ordering Page — WhatsApp Form',
     icon: 'ShoppingCart',
     section: 'automate',
     items: [
-      flatOneTime('Order form design (items, quantity, note)', 300),
-      flatOneTime('Form fields — name, phone, address, special request', 200),
-      flatOneTime('WhatsApp submission integration', 300),
-      flatOneTime('Order confirmation auto-reply template', 200),
-      flatOneTime('Deploy + testing', 200),
+      flatWithLabour('Order form design (items, quantity, note)', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Form fields — name, phone, address, special request', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('WhatsApp submission integration', { setup: 300 }, { setup: 2 }),
+      flatWithLabour('Order confirmation auto-reply template', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Deploy + testing', { setup: 200 }, { setup: 1.5 }),
     ],
     deliverDays: 1, stage: 'build',
   },
-
-  // --- SEO & local ranking (continued) ---
-
   // --- Marketing & campaigns ---
 
   {
@@ -830,115 +860,108 @@ export const SERVICES: Service[] = [
     section: 'automate',
     items: [
       oneTimeItem('Platform setup (Brevo/Mailchimp/MailerLite)', 1300, 30),
-      flatOneTime('Branded newsletter template (HTML)', 600),
-      flatOneTime('Subscriber list import + segmentation', 300),
-      flatOneTime('Welcome email automation flow', 400),
-      flatOneTime('Signup form embed on website', 200),
-      flatOneTime('GDPR / opt-in compliance setup', 200),
-      freeItem('Test send + deliverability check'),
+      flatWithLabour('Branded newsletter template (HTML)', { setup: 600 }, { setup: 4 }),
+      flatWithLabour('Subscriber list import + segmentation', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Welcome email automation flow', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('Signup form embed on website', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('GDPR / opt-in compliance setup', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Test send + deliverability check', { setup: 0 }, { setup: 0.5 }),
     ],
     deliverDays: 0.5, stage: 'build',
   },
-
   {
     id: 'email-marketing',
     label: 'Email Marketing Management — Campaigns + Optimization + Reporting',
     icon: 'Mail',
     section: 'automate',
     items: [
-      flatMonthly('Monthly newsletter campaigns (2–4 sends)', 600),
-      flatMonthly('Content + copywriting for campaigns', 500),
-      flatMonthly('Template updates + seasonal designs', 400),
-      flatMonthly('A/B subject line testing + optimization', 300),
-      flatMonthly('List cleaning + inactive subscriber pruning', 200),
-      flatMonthly('Re-engagement campaign (quarterly)', 250),
-      flatMonthly('Performance analytics report', 300),
+      flatWithLabour('Monthly newsletter campaigns (2–4 sends)', { monthly: 600 }, { monthly: 4 }),
+      flatWithLabour('Content + copywriting for campaigns', { monthly: 500 }, { monthly: 3 }),
+      flatWithLabour('Template updates + seasonal designs', { monthly: 400 }, { monthly: 2 }),
+      flatWithLabour('A/B subject line testing + optimization', { monthly: 300 }, { monthly: 1.5 }),
+      flatWithLabour('List cleaning + inactive subscriber pruning', { monthly: 200 }, { monthly: 1 }),
+      flatWithLabour('Re-engagement campaign (quarterly)', { monthly: 250 }, { monthly: 1.5 }),
+      flatWithLabour('Performance analytics report', { monthly: 300 }, { monthly: 1.5 }),
     ],
   },
-
   {
     id: 'sms-marketing',
     label: 'SMS Marketing — Offers, Reminders & Alerts',
     icon: 'Send',
     section: 'automate',
     items: [
-      freeItem('SMS platform setup (Twilio/Textlocal/Exotel)'),
-      flatOneTime('DND scrub + TRAI compliance registration', 300),
-      flatOneTime('Message templates — appointment, offer, reminder', 400),
-      flatOneTime('DLT template registration (India)', 300),
-      flatOneTime('Campaign scheduling + automation', 200),
-      flatOneTime('Opt-out / STOP handling in templates', 100),
+      flatWithLabour('SMS platform setup (Twilio/Textlocal/Exotel)', { setup: 0 }, { setup: 1.5 }),
+      flatWithLabour('DND scrub + TRAI compliance registration', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Message templates — appointment, offer, reminder', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('DLT template registration (India)', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Campaign scheduling + automation', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Opt-out / STOP handling in templates', { setup: 100 }, { setup: 0.5 }),
       monthlyItem('SMS sending costs (~500 msgs/month)', 250, 10, 2500),
-      flatMonthly('Monthly delivery + conversion report', 200),
+      flatWithLabour('Monthly delivery + conversion report', { monthly: 200 }, { monthly: 1 }),
     ],
     clientCostNote: 'SMS credits paid directly to provider (~₹0.25–0.50/msg). Estimated 500 msgs = ~₹200/mo.',
   },
-
   {
     id: 'blog-content',
     label: 'Blog / Content Writing — 2–4 Posts/Month',
     icon: 'PenLine',
     section: 'stay-active',
     items: [
-      flatMonthly('Topic research + keyword selection', 300),
-      flatMonthly('Writing — 600–800 words per post', 500),
+      flatWithLabour('Topic research + keyword selection', { monthly: 300, annual: 3000 }, { monthly: 2, annual: 20 }),
+      flatWithLabour('Writing — 600–800 words per post', { monthly: 500, annual: 5000 }, { monthly: 4, annual: 40 }),
       monthlyItem('Featured image sourcing + optimization', 200, 50),
-      flatMonthly('On-page SEO — headings, meta, internal links', 300),
-      flatMonthly('Publishing + formatting on website', 200),
-      flatMonthly('Monthly content performance report', 200),
+      flatWithLabour('On-page SEO — headings, meta, internal links', { monthly: 300, annual: 3000 }, { monthly: 2, annual: 20 }),
+      flatWithLabour('Publishing + formatting on website', { monthly: 200, annual: 2000 }, { monthly: 1, annual: 10 }),
+      flatWithLabour('Monthly content performance report', { monthly: 200, annual: 2000 }, { monthly: 1, annual: 10 }),
     ],
     deliverDays: 0.25, parallel: true,
   },
-
   {
     id: 'qr-suite',
     label: 'QR Suite — Menu + UPI Payment + WhatsApp',
     icon: 'QrCode',
     section: 'automate',
     items: [
-      freeItem('QR code generation (mobile-responsive)'),
-      flatOneTime('Menu landing page design (responsive)', 500),
-      freeItem('UPI payment link / QR integration'),
-      freeItem('WhatsApp click-to-chat QR link'),
-      flatOneTime('Printable A4 PDF with all 3 QR codes', 400),
-      flatOneTime('Sticker / table stand design (print-ready)', 300),
+      flatWithLabour('QR code generation (mobile-responsive)', { setup: 0 }, { setup: 0.5 }),
+      flatWithLabour('Menu landing page design (responsive)', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('UPI payment link / QR integration', { setup: 0 }, { setup: 0.5 }),
+      flatWithLabour('WhatsApp click-to-chat QR link', { setup: 0 }, { setup: 0.5 }),
+      flatWithLabour('Printable A4 PDF with all 3 QR codes', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('Sticker / table stand design (print-ready)', { setup: 300 }, { setup: 2 }),
     ],
     deliverDays: 1, stage: 'design',
   },
-
   {
     id: 'festive-campaign',
     label: 'Festive Campaign Pack — Diwali / Holi / New Year',
     icon: 'Sparkles',
     section: 'grow',
     items: [
-      flatOneTime('Campaign theme design + branding', 600),
-      flatOneTime('Social media posts (5) — Instagram + Facebook', 600),
-      flatOneTime('Email blast template + send', 400),
-      flatOneTime('SMS broadcast template + send', 300),
-      flatOneTime('WhatsApp Business broadcast template', 300),
-      flatOneTime('Festive offer / discount creative (2 variants)', 300),
+      flatWithLabour('Campaign theme design + branding', { setup: 600 }, { setup: 4 }),
+      flatWithLabour('Social media posts (5) — Instagram + Facebook', { setup: 600 }, { setup: 4 }),
+      flatWithLabour('Email blast template + send', { setup: 400 }, { setup: 2 }),
+      flatWithLabour('SMS broadcast template + send', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('WhatsApp Business broadcast template', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Festive offer / discount creative (2 variants)', { setup: 300 }, { setup: 2 }),
     ],
     deliverDays: 2, stage: 'design', clientCostNote: 'SMS credits billed separately (~₹0.25–0.50/msg per broadcast)',
   },
-
   {
     id: 'appointment-booking',
     label: 'Online Appointment Booking Page',
     icon: 'Calendar',
     section: 'automate',
     items: [
-      flatOneTime('Booking page design (branded, responsive)', 500),
-      flatOneTime('Time slot + availability configuration', 300),
-      flatOneTime('Service / treatment selection menu', 300),
-      flatOneTime('WhatsApp + email booking confirmation', 300),
-      freeItem('Google Calendar auto-sync'),
-      flatOneTime('Admin dashboard walkthrough + guide', 200),
-      flatOneTime('Mobile + desktop testing', 100),
+      flatWithLabour('Booking page design (branded, responsive)', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('Time slot + availability configuration', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Service / treatment selection menu', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('WhatsApp + email booking confirmation', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Google Calendar auto-sync', { setup: 0 }, { setup: 0.5 }),
+      flatWithLabour('Admin dashboard walkthrough + guide', { setup: 200 }, { setup: 1 }),
+      flatWithLabour('Mobile + desktop testing', { setup: 100 }, { setup: 1 }),
     ],
     deliverDays: 1.5, stage: 'build',
   },
-
   // --- AI services ---
 
   {
@@ -948,15 +971,14 @@ export const SERVICES: Service[] = [
     section: 'automate',
     items: [
       monthlyItem('WATI / Interakt AI bot subscription', 500, 40, 5000),
-      flatOneTime('FAQ knowledge base setup (50+ Q&A)', 1000),
-      flatOneTime('Business context + tone prompt engineering', 600),
-      flatOneTime('24/7 auto-reply flow — greeting + FAQ + handoff', 700),
-      flatOneTime('Fallback to human trigger setup', 300),
-      flatMonthly('Monthly conversation review + prompt tuning', 600),
+      flatWithLabour('FAQ knowledge base setup (50+ Q&A)', { setup: 1000 }, { setup: 6 }),
+      flatWithLabour('Business context + tone prompt engineering', { setup: 600 }, { setup: 3 }),
+      flatWithLabour('24/7 auto-reply flow — greeting + FAQ + handoff', { setup: 700 }, { setup: 4 }),
+      flatWithLabour('Fallback to human trigger setup', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Monthly conversation review + prompt tuning', { monthly: 600 }, { monthly: 3 }),
     ],
     deliverDays: 1.5, parallel: true,
   },
-
   {
     id: 'ai-content',
     label: 'AI Content Writer — Blogs + Social Captions + Emails',
@@ -964,16 +986,15 @@ export const SERVICES: Service[] = [
     section: 'stay-active',
     items: [
       monthlyItem('OpenAI API credits + usage (~20K tokens/mo)', 200, 10, 2000),
-      flatOneTime('Brand voice + style guide prompt setup', 500),
-      flatMonthly('Blog post generation + editing (4/month)', 750),
-      flatMonthly('Social media caption generation (8/month)', 600),
-      flatMonthly('Email newsletter draft generation (2/month)', 450),
-      flatMonthly('SEO keyword + meta description generation', 300),
-      flatMonthly('Human review + polishing before publish', 450),
+      flatWithLabour('Brand voice + style guide prompt setup', { setup: 500 }, { setup: 2 }),
+      flatWithLabour('Blog post generation + editing (4/month)', { monthly: 750 }, { monthly: 2.5 }),
+      flatWithLabour('Social media caption generation (8/month)', { monthly: 600 }, { monthly: 2 }),
+      flatWithLabour('Email newsletter draft generation (2/month)', { monthly: 450 }, { monthly: 1.5 }),
+      flatWithLabour('SEO keyword + meta description generation', { monthly: 300 }, { monthly: 1 }),
+      flatWithLabour('Human review + polishing before publish', { monthly: 450, annual: 4500 }, { monthly: 3, annual: 30 }),
     ],
     deliverDays: 0.25, parallel: true,
   },
-
   {
     id: 'ai-review-manager',
     label: 'AI Review Manager — Auto-Replies + Monthly Summary',
@@ -981,16 +1002,15 @@ export const SERVICES: Service[] = [
     section: 'get-found',
     items: [
       monthlyItem('OpenAI API credits + usage (~5K tokens/mo)', 100, 10, 1000),
-      freeItem('Review monitoring — Google + Facebook + Justdial'),
-      flatOneTime('Auto-response prompt engineering (per platform)', 800),
-      flatMonthly('Positive review — thank you + upsell reply', 400),
-      flatMonthly('Negative review — empathetic + resolution reply', 500),
-      flatMonthly('Sentiment analysis + escalation rules', 450),
-      flatMonthly('Monthly review sentiment report', 450),
+      flatWithLabour('Review monitoring — Google + Facebook + Justdial', { monthly: 0 }, { monthly: 1 }),
+      flatWithLabour('Auto-response prompt engineering (per platform)', { setup: 800 }, { setup: 4 }),
+      flatWithLabour('Positive review — thank you + upsell reply', { monthly: 400 }, { monthly: 1.5 }),
+      flatWithLabour('Negative review — empathetic + resolution reply', { monthly: 500 }, { monthly: 1.5 }),
+      flatWithLabour('Sentiment analysis + escalation rules', { monthly: 450 }, { monthly: 1.5 }),
+      flatWithLabour('Monthly review sentiment report', { monthly: 450 }, { monthly: 1.5 }),
     ],
     deliverDays: 0.5, parallel: true,
   },
-
   {
     id: 'ai-lead-qualifier',
     label: 'AI Lead Qualifier — Auto-Questions + Scoring on WhatsApp',
@@ -998,31 +1018,29 @@ export const SERVICES: Service[] = [
     section: 'grow',
     items: [
       monthlyItem('WATI / Interakt bot flow + OpenAI integration', 500, 40, 5000),
-      flatOneTime('Qualification script — budget, timeline, requirements', 900),
-      flatOneTime('Intent detection prompt setup', 500),
-      flatOneTime('Lead scoring rules — hot/warm/cold', 450),
-      flatOneTime('Hot lead → instant WhatsApp notification to you', 300),
-      flatMonthly('Monthly conversion + lead quality report', 500),
+      flatWithLabour('Qualification script — budget, timeline, requirements', { setup: 900 }, { setup: 4 }),
+      flatWithLabour('Intent detection prompt setup', { setup: 500 }, { setup: 2 }),
+      flatWithLabour('Lead scoring rules — hot/warm/cold', { setup: 450 }, { setup: 2 }),
+      flatWithLabour('Hot lead → instant WhatsApp notification to you', { setup: 300 }, { setup: 1.5 }),
+      flatWithLabour('Monthly conversion + lead quality report', { monthly: 500 }, { monthly: 2 }),
     ],
     deliverDays: 1, parallel: true,
   },
-
   {
     id: 'ai-product-photos',
     label: 'AI Product Photos — Studio Quality Without Photoshoot',
     icon: 'Image',
     section: 'stay-active',
     items: [
-      flatOneTime('Product photo guidelines — angles, lighting instructions', 250),
-      flatOneTime('Midjourney / DALL-E prompt engineering per product', 500),
-      flatOneTime('Background generation + product placement (10 photos)', 800),
+      flatWithLabour('Product photo guidelines — angles, lighting instructions', { setup: 250 }, { setup: 1.5 }),
+      flatWithLabour('Midjourney / DALL-E prompt engineering per product', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('Background generation + product placement (10 photos)', { setup: 800 }, { setup: 4 }),
       oneTimeItem('AI generation credits (Midjourney/DALL-E)', 1500, 10),
-      flatOneTime('Manual edits + color correction + resize', 500),
-      flatOneTime('Web + social media optimized delivery', 250),
+      flatWithLabour('Manual edits + color correction + resize', { setup: 500 }, { setup: 3 }),
+      flatWithLabour('Web + social media optimized delivery', { setup: 250 }, { setup: 1 }),
     ],
     deliverDays: 2, stage: 'design',
   },
-
   // --- Custom software tools ---
 
   {
@@ -1031,47 +1049,46 @@ export const SERVICES: Service[] = [
     icon: 'Code',
     section: 'custom-software',
     items: [
-      flatOneTime('Discovery + scope document', 2000),
-      flatOneTime('Screen designs + clickable mockups', 2000),
-      flatOneTime('Customer-facing screens & dashboards', 4000),
-      flatOneTime('Business rules & data processing', 6000),
-      flatOneTime('Data storage & organization', 2000),
-      flatOneTime('Staff login & role-based access', 2000),
-      flatOneTime('Admin panel — manage records, filter, export', 4000),
-      flatOneTime('Charts, graphs & KPI dashboards', 2000),
-      flatOneTime('Kanban board — drag & drop pipeline', 1500),
-      flatOneTime('Search, sort & advanced filters', 800),
-      flatOneTime('Email & in-app notifications + reminders', 1200),
-      flatOneTime('Automated workflows & triggers', 1500),
-      flatOneTime('Activity log — who did what, when', 800),
-      flatOneTime('Import existing data (Excel / CSV)', 800),
-      flatOneTime('Customer portal — clients track their status', 2000),
-      flatOneTime('Integrations — payments, email, SMS, WhatsApp', 2000),
-      flatOneTime('File uploads — images, PDFs, documents', 1200),
-      flatOneTime('Live updates — chat, notifications, statuses', 2000),
-      flatOneTime('Reports & invoices (PDF)', 1200),
-      flatOneTime('Testing before launch', 2000),
-      flatOneTime('Deployment — staging + live setup', 1200),
-      flatOneTime('User guide & admin manual', 800),
-      flatOneTime('30-day support after launch', 1200),
-      flatOneTime('Team training & handover session', 800),
+      flatWithLabour('Discovery + scope document', { setup: 2000 }, { setup: 8 }),
+      flatWithLabour('Screen designs + clickable mockups', { setup: 2000 }, { setup: 8 }),
+      flatWithLabour('Customer-facing screens & dashboards', { setup: 4000 }, { setup: 15 }),
+      flatWithLabour('Business rules & data processing', { setup: 6000 }, { setup: 20 }),
+      flatWithLabour('Data storage & organization', { setup: 2000 }, { setup: 5 }),
+      flatWithLabour('Staff login & role-based access', { setup: 2000 }, { setup: 5 }),
+      flatWithLabour('Admin panel — manage records, filter, export', { setup: 4000 }, { setup: 15 }),
+      flatWithLabour('Charts, graphs & KPI dashboards', { setup: 2000 }, { setup: 8 }),
+      flatWithLabour('Kanban board — drag & drop pipeline', { setup: 1500 }, { setup: 6 }),
+      flatWithLabour('Search, sort & advanced filters', { setup: 800 }, { setup: 4 }),
+      flatWithLabour('Email & in-app notifications + reminders', { setup: 1200 }, { setup: 5 }),
+      flatWithLabour('Automated workflows & triggers', { setup: 1500 }, { setup: 6 }),
+      flatWithLabour('Activity log — who did what, when', { setup: 800 }, { setup: 4 }),
+      flatWithLabour('Import existing data (Excel / CSV)', { setup: 800 }, { setup: 4 }),
+      flatWithLabour('Customer portal — clients track their status', { setup: 2000 }, { setup: 10 }),
+      flatWithLabour('Integrations — payments, email, SMS, WhatsApp', { setup: 2000 }, { setup: 10 }),
+      flatWithLabour('File uploads — images, PDFs, documents', { setup: 1200 }, { setup: 5 }),
+      flatWithLabour('Live updates — chat, notifications, statuses', { setup: 2000 }, { setup: 8 }),
+      flatWithLabour('Reports & invoices (PDF)', { setup: 1200 }, { setup: 5 }),
+      flatWithLabour('Testing before launch', { setup: 2000 }, { setup: 10 }),
+      flatWithLabour('Deployment — staging + live setup', { setup: 1200 }, { setup: 5 }),
+      flatWithLabour('User guide & admin manual', { setup: 800 }, { setup: 4 }),
+      flatWithLabour('30-day support after launch', { setup: 1200 }, { setup: 8 }),
+      flatWithLabour('Team training & handover session', { setup: 800 }, { setup: 4 }),
     ],
     clientCostNote: 'All prices are estimates. Final quote depends on project scope. Infrastructure costs (hosting, database, domain) are billed separately by the client.',
   },
-
   {
     id: 'billing-invoicing',
     label: 'Billing & GST Invoicing',
     icon: 'Receipt',
     section: 'custom-software',
     items: [
-      flatOneTime('GST invoices — CGST, SGST & IGST breakdown', 2000),
-      flatOneTime('Customer & item management', 1500),
-      flatOneTime('Payment tracking — paid, pending, overdue', 1000),
-      flatOneTime('UPI / payment links on every invoice', 1000),
-      flatOneTime('Recurring invoices for subscriptions', 1000),
-      flatOneTime('Invoice email + WhatsApp share', 800),
-      flatOneTime('Reports — revenue, outstanding, GST summary', 1000),
+      flatWithLabour('GST invoices — CGST, SGST & IGST breakdown', { setup: 2000 }, { setup: 8 }),
+      flatWithLabour('Customer & item management', { setup: 1500 }, { setup: 6 }),
+      flatWithLabour('Payment tracking — paid, pending, overdue', { setup: 1000 }, { setup: 4 }),
+      flatWithLabour('UPI / payment links on every invoice', { setup: 1000 }, { setup: 4 }),
+      flatWithLabour('Recurring invoices for subscriptions', { setup: 1000 }, { setup: 4 }),
+      flatWithLabour('Invoice email + WhatsApp share', { setup: 800 }, { setup: 4 }),
+      flatWithLabour('Reports — revenue, outstanding, GST summary', { setup: 1000 }, { setup: 5 }),
     ],
     clientCostNote: 'All prices are estimates. Final quote depends on project scope. Payment gateway fees billed separately by Razorpay.',
   },
@@ -1086,6 +1103,41 @@ for (const svc of SERVICES) {
   _serviceMap[svc.id] = svc
 }
 
+// ---------------------------------------------------------------------------
+// Catalog validation — fail fast on data errors so bad catalog data never ships
+// silently (duplicate ids would otherwise overwrite each other in the map).
+// ---------------------------------------------------------------------------
+
+function assertUniqueIds<T extends { id: string }>(items: T[], scope: string): void {
+  const seen = new Set<string>()
+  for (const item of items) {
+    if (seen.has(item.id)) throw new Error(`Duplicate ${scope} id: "${item.id}"`)
+    seen.add(item.id)
+  }
+}
+
+// Reject impossible catalog data: negative costs/markups/selling prices tell you
+// the catalog is broken long before any customer is misquoted.
+function assertPositivePrices(item: ServiceItem): void {
+  const { setup: cs, monthly: cm, annual: ca } = item.costPrice
+  const { setup: ms, monthly: mm, annual: ma } = item.markupPct
+  if (cs < 0 || cm < 0 || ca < 0) throw new Error(`Negative cost on item "${item.label}"`)
+  if (ms < 0 || mm < 0 || ma < 0) throw new Error(`Negative markup on item "${item.label}"`)
+  const s = item.sellingPrice
+  const tiers: Array<[number | undefined, string]> = [
+    [s?.setup, 'setup'],
+    [s?.monthly, 'monthly'],
+    [s?.annual, 'annual'],
+  ]
+  for (const [val, tier] of tiers) {
+    if (val !== undefined && val < 0) throw new Error(`Negative selling price on "${item.label}" (${tier})`)
+  }
+}
+
+for (const svc of SERVICES) {
+  for (const item of svc.items) assertPositivePrices(item)
+}
+
 // Guard: every service must have matching marketing copy, so a missing
 // service-detail page never ships silently.
 for (const svc of SERVICES) {
@@ -1093,6 +1145,8 @@ for (const svc of SERVICES) {
     throw new Error(`Missing SERVICE_CONTENT for service "${svc.id}"`)
   }
 }
+
+assertUniqueIds(SERVICES, 'service')
 
 export function pickServices(ids: string[]): Service[] {
   return ids.map((id) => {
