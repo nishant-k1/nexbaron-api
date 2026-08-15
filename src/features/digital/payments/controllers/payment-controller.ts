@@ -16,7 +16,7 @@ import {
   verifyPaymentSignature,
   verifyWebhookSignature,
 } from '../services/razorpay'
-import { buildLaunchStages, computeOrder, SelectionsInput } from '../services/pricing'
+import { buildLaunchStages, computeOrder, SelectionsInput, splitGst } from '../services/pricing'
 import { runtimeBrand } from '../../../../utils/runtime-brand'
 import { escapeHtml, logoNx, NX_DIGITAL, NX_PRINT } from '../../../../utils/html'
 import { requireAuthenticated } from '../../../../middleware/require-authenticated'
@@ -140,6 +140,7 @@ export async function createCheckout(req: Request, res: Response) {
       setupTotal: computed.setupTotal,
       monthlyTotal: computed.monthlyTotal,
       annualTotal: computed.annualTotal,
+      gst: computed.gst,
       launchDate: computed.launchDate,
       launchDays: computed.launchDays,
       timelineMode: computed.timelineMode,
@@ -193,6 +194,7 @@ export async function myOrder(req: Request, res: Response) {
         amount: order.amount,
         amountPaid: order.amountPaid,
         payments: order.payments || [],
+        gst: splitGst(order.amount || 0),
         launchDate: order.launchDate ?? null,
         launchDays: order.launchDays ?? null,
         milestones: order.milestones ?? [],

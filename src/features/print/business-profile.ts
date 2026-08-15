@@ -18,7 +18,7 @@ export const PRINT_BUSINESS_PROFILE: BusinessProfile = {
   phone: '+919899752254',
   whatsappNumber: '919899752254',
   email: 'print@nexbaron.com',
-  gstin: '10AAKCN1234E1Z6',
+  gstin: '', // Set when the GST registration certificate is received.
   openingHours: {
     days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     opens: '10:00',

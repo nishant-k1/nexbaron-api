@@ -6,12 +6,14 @@ import { IOrder } from '../../../../models/order.model'
 import { canSendMail, sendMail } from '../../../../utils/mailer'
 import { escapeHtml, logoNx, NX_DIGITAL } from '../../../../utils/html'
 import { nextSequence } from '../../../../utils/counter'
+import { splitGst } from './pricing'
+import { DIGITAL_BUSINESS_PROFILE } from '../../business-profile'
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || ''
 const INVOICE_FROM = process.env.INVOICE_FROM_EMAIL || 'billing@nexbaron.com'
-const BILLING_GSTIN = process.env.BILLING_GSTIN || 'BILLING_GSTIN_PLACEHOLDER'
+const BILLING_GSTIN = DIGITAL_BUSINESS_PROFILE.gstin
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
 export function razorpayConfigured(): boolean {
@@ -90,10 +92,7 @@ function invoiceHtml(order: IOrder, invoiceNumber: string): string {
   const items = (order.items ?? []).filter((item) => chargedCycles.has(item.billingCycle))
   // Catalog prices are charged as displayed, so split GST out of the paid total.
   const total = order.amount
-  const taxable = Math.round((total * 100) / 118)
-  const totalTax = total - taxable
-  const cgst = Math.floor(totalTax / 2)
-  const sgst = totalTax - cgst
+  const gst = splitGst(total)
   const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -120,7 +119,7 @@ function invoiceHtml(order: IOrder, invoiceNumber: string): string {
         </div>
       </div>
       <div style="text-align:right;font-size:12px;color:#475569">
-        <div><strong>GSTIN:</strong> ${escapeHtml(BILLING_GSTIN)}</div>
+        ${BILLING_GSTIN ? `<div><strong>GSTIN:</strong> ${escapeHtml(BILLING_GSTIN)}</div>` : '<div><strong>GST</strong></div>'}
         <div>Registered address on file</div>
       </div>
     </div>
@@ -144,10 +143,10 @@ function invoiceHtml(order: IOrder, invoiceNumber: string): string {
       <tbody>${rows}
         <tr>
           <td colspan="3" style="text-align:right;padding:8px;border-top:1px solid #e2e8f0"><strong>Taxable value</strong></td>
-          <td class="r" style="text-align:right;padding:8px;border-top:1px solid #e2e8f0"><strong>${taxable.toLocaleString('en-IN')}</strong></td>
+          <td class="r" style="text-align:right;padding:8px;border-top:1px solid #e2e8f0"><strong>${gst.taxable.toLocaleString('en-IN')}</strong></td>
         </tr>
-        <tr><td colspan="3" style="text-align:right;padding:4px">CGST @ 9%</td><td class="r" style="text-align:right">${cgst.toLocaleString('en-IN')}</td></tr>
-        <tr><td colspan="3" style="text-align:right;padding:4px">SGST @ 9%</td><td class="r" style="text-align:right">${sgst.toLocaleString('en-IN')}</td></tr>
+        <tr><td colspan="3" style="text-align:right;padding:4px">CGST @ 9%</td><td class="r" style="text-align:right">${gst.cgst.toLocaleString('en-IN')}</td></tr>
+        <tr><td colspan="3" style="text-align:right;padding:4px">SGST @ 9%</td><td class="r" style="text-align:right">${gst.sgst.toLocaleString('en-IN')}</td></tr>
         <tr style="background:#f0fdfa">
           <td colspan="3" style="text-align:right;padding:8px;font-size:14px"><strong>Total</strong></td>
           <td class="r" style="text-align:right;padding:8px;font-size:14px"><strong>₹${total.toLocaleString('en-IN')}</strong></td>
