@@ -1,7 +1,7 @@
 import PDFDocument from 'pdfkit'
 import { Model } from 'mongoose'
 
-import { PLAN_CATALOG } from '../../digital/catalog/service-package-pricing-catalog'
+import servicePricingPlans from '../../digital/servicesPlansData/servicePricingPlans'
 import { getProductLabel } from '../../print/product-catalog'
 import { logger } from '../../../utils/logger'
 import { IQuote } from '../../../models/quote.model'
@@ -59,17 +59,10 @@ export function whatsAppDelivery(quote: IQuote): { available: boolean; link?: st
 export function selectionSummary(quote: IQuote): string {
   if (quote.division === 'digital') {
     const planIds = Array.isArray(quote.selection?.planIds) ? (quote.selection.planIds as string[]) : []
-    const addOnIds = Array.isArray(quote.selection?.addOnIds) ? (quote.selection.addOnIds as string[]) : []
     const plans = planIds
-      .map((id) => PLAN_CATALOG.plans.find((p) => p.id === id)?.name ?? id)
+      .map((id) => servicePricingPlans[id]?.name ?? id)
       .join(', ')
-    const addOns = addOnIds
-      .map((id) => {
-        const p = PLAN_CATALOG.plans.flatMap((pl) => pl.addOns).find((a) => a.id === id)
-        return p?.label ?? id
-      })
-      .join(', ')
-    return [plans && `Plans: ${plans}`, addOns && `Add-ons: ${addOns}`].filter(Boolean).join('\n') || '—'
+    return plans ? `Plans: ${plans}` : '—'
   }
   const product = String(quote.selection?.product ?? '')
   const quantity = String(quote.selection?.quantity ?? '')

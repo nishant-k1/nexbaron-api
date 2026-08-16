@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { BUSINESS_CATEGORIES, getBusinesses, getBusinessBySlug } from '../business-catalog'
+import { BUSINESS_CATEGORIES, getBusinesses, getBusinessBySlug } from '../businesses/business-catalog'
 
 export const businessRouter = Router()
 

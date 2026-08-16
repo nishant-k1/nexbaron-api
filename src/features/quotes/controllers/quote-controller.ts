@@ -9,7 +9,7 @@ import { escapeRegex } from '../../../utils/regex'
 import { requireAuthenticated } from '../../../middleware/require-authenticated'
 import { computePrintEstimate } from '../../print/product-catalog'
 import { PRINT_PRODUCTS } from '../../print/product-catalog'
-import { PLAN_CATALOG } from '../../digital/catalog/service-package-pricing-catalog'
+import servicePricingPlans from '../../digital/servicesPlansData/servicePricingPlans'
 import { nextQuoteNumber, sendQuoteEmail, whatsAppDelivery, quoteHtml } from '../services/quote-service'
 import { runtimeBrand } from '../../../utils/runtime-brand'
 import { stringParam } from '../../../utils/route-param'
@@ -124,21 +124,12 @@ export async function submitQuote(req: Request, res: Response) {
         res.status(400).json({ success: false, message: 'Please choose at least one service' })
         return
       }
-      const validPlanIds = new Set(PLAN_CATALOG.plans.map((plan) => plan.id))
+      const validPlanIds = new Set(Object.keys(servicePricingPlans))
       if (planIds.some((id) => !validPlanIds.has(id))) {
         res.status(400).json({ success: false, message: 'Please choose valid digital services' })
         return
       }
-      const addOnIds = Array.isArray(body.addOnIds)
-        ? [...new Set(body.addOnIds.map(String).filter(Boolean))]
-        : []
-      const validAddOnIds = new Set(PLAN_CATALOG.plans.flatMap((plan) => plan.addOns.map((addOn) => addOn.id)))
-      if (addOnIds.some((id) => !validAddOnIds.has(id))) {
-        res.status(400).json({ success: false, message: 'Please choose valid digital add-ons' })
-        return
-      }
       selection.planIds = planIds
-      selection.addOnIds = addOnIds
       details.businessType = String(body.businessType || '').trim() || undefined
       details.goal = String(body.goal || '').trim() || undefined
       details.notes = String(body.notes || '').trim() || undefined

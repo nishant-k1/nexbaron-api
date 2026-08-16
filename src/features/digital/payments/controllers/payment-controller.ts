@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { Types } from 'mongoose'
 import { randomUUID } from 'crypto'
 
-import { PLAN_CATALOG } from '../../catalog/service-package-pricing-catalog'
+import servicePricingPlans, { getPublicServiceLabel } from '../../servicesPlansData/servicePricingPlans'
 import { getDivisionModels } from '../../../../models/registry'
 import { logger } from '../../../../utils/logger'
 import { IOrder } from '../../../../models/order.model'
@@ -174,13 +174,13 @@ export async function myOrder(req: Request, res: Response) {
       success: true,
       orders: orders.map((order) => {
         // Compute progress from plan catalog
-        const plan = PLAN_CATALOG.plans.find((p) => p.id === order.service)
+        const plan = order.service ? servicePricingPlans[order.service] : undefined
         const steps: { label: string; done: boolean }[] = [
           { label: 'Package chosen', done: true },
           { label: 'Payment completed', done: order.status === 'paid' || order.status === 'in_progress' || order.status === 'delivered' },
         ]
         if (plan) {
-          for (const s of plan.services) steps.push({ label: s.label, done: order.status === 'delivered' })
+          for (const s of plan.services) steps.push({ label: getPublicServiceLabel(s), done: order.status === 'delivered' })
         }
         const doneCount = steps.filter((s) => s.done).length
 

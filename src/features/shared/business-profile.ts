@@ -1,6 +1,6 @@
 // Canonical shape for our OWN business details (Nexbaron Digital / Nexbaron
 // Print) — name, address, geo, hours, and service area. Distinct from the
-// "business catalog" (`digital/catalog/business-catalog.ts`), which lists the
+// "business catalog" (`digital/businesses/business-catalog.ts`), which lists the
 // *customer* businesses we serve.
 
 export interface BusinessProfile {

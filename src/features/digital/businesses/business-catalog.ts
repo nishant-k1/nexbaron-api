@@ -1,5 +1,3 @@
-import { resolveServiceBundle, type Service } from './service-items-pricing-catalog'
-
 export type BusinessTier = 'tier1' | 'tier2'
 
 export interface BusinessType {
@@ -12,13 +10,11 @@ export interface BusinessType {
   tagline: string
   problems: string[]
   recommendedPlan: string
-  serviceIds: string[]
-  addOnIds: string[]
 }
 
 export interface ResolvedBusiness extends BusinessType {
-  services: Service[]
-  addOns: Service[]
+  services: { id: string; label: string }[]
+  addOns: { id: string; label: string }[]
   pricing: { setup: number; monthly: number; annual: number }
 }
 
@@ -53,8 +49,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Good reviews going unwritten?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'qr-suite'],
-    addOnIds: ['ordering-page', 'appointment-booking', 'meta-ads-setup'],
   },
   {
     id: 'cafes', slug: 'cafes', label: 'Cafes & Tea Stalls',
@@ -66,8 +60,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'No way for customers to order ahead?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'qr-suite'],
-    addOnIds: ['launch-pages'],
   },
   {
     id: 'bakeries', slug: 'bakeries', label: 'Bakeries & Sweet Shops',
@@ -79,8 +71,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your best cakes hidden from new buyers?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['festive-campaign'],
   },
   {
     id: 'hotels', slug: 'hotels', label: 'Boutique Hotels & Homestays',
@@ -92,8 +82,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Reviews and photos not selling the experience?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
-    addOnIds: ['appointment-booking', 'meta-ads-management', 'sms-marketing'],
   },
   {
     id: 'cloud-kitchens', slug: 'cloud-kitchens', label: 'Cloud Kitchens & Tiffin Services',
@@ -105,8 +93,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your kitchen invisible to hungry locals?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['sms-marketing'],
   },
   {
     id: 'caterers', slug: 'caterers', label: 'Caterers',
@@ -118,8 +104,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Proposals taking too long to send?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'social', 'brochure-pdf'],
-    addOnIds: ['festive-campaign'],
   },
 
   // --- Beauty & Wellness ---
@@ -133,8 +117,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'No-shows costing you revenue?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
-    addOnIds: ['social', 'sms-marketing'],
   },
   {
     id: 'spas', slug: 'spas', label: 'Spas & Wellness Centres',
@@ -146,8 +128,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your atmosphere not coming through online?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'social', 'appointment-booking'],
-    addOnIds: ['sms-marketing', 'festive-campaign'],
   },
   {
     id: 'gyms', slug: 'gyms', label: 'Gyms & Fitness Studios',
@@ -159,8 +139,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Classes under-booked and hard to fill?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
-    addOnIds: ['appointment-booking', 'sms-marketing'],
   },
 
   // --- Healthcare ---
@@ -174,8 +152,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Appointments getting missed?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
-    addOnIds: ['whatsapp-book', 'sms-marketing'],
   },
   {
     id: 'multi-speciality', slug: 'multi-speciality', label: 'Multi-Speciality Clinics',
@@ -187,8 +163,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Follow-ups slipping through the cracks?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'appointment-booking'],
-    addOnIds: ['ai-chatbot', 'email-marketing-setup', 'sms-marketing'],
   },
   {
     id: 'dentists', slug: 'dentists', label: 'Dentists & Dental Clinics',
@@ -200,8 +174,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your clinic not showing for "dentist near me"?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
-    addOnIds: ['whatsapp-book', 'sms-marketing'],
   },
   {
     id: 'diagnostic-labs', slug: 'diagnostic-labs', label: 'Diagnostic Labs & Pathology',
@@ -213,8 +185,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your lab invisible to local searches?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'appointment-booking'],
-    addOnIds: ['sms-marketing', 'ai-chatbot'],
   },
   {
     id: 'opticians', slug: 'opticians', label: 'Opticians & Eye Care',
@@ -226,8 +196,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'New collections not reaching regulars?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['reviews'],
   },
   {
     id: 'physiotherapy', slug: 'physiotherapy', label: 'Physiotherapy Centres',
@@ -239,8 +207,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your expertise not visible to new patients?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
-    addOnIds: ['sms-marketing'],
   },
 
   // --- Education ---
@@ -254,8 +220,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your results and credentials not visible?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'reviews'],
-    addOnIds: ['appointment-booking'],
   },
   {
     id: 'coaching', slug: 'coaching', label: 'Coaching Institutes',
@@ -267,8 +231,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Follow-ups slipping through the cracks?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
-    addOnIds: ['appointment-booking', 'sms-marketing', 'email-marketing-setup'],
   },
   {
     id: 'schools', slug: 'schools', label: 'Schools & Pre-Schools',
@@ -280,8 +242,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Events and achievements not visible?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'social'],
-    addOnIds: ['ai-lead-qualifier', 'email-marketing-setup'],
   },
   {
     id: 'dance-music', slug: 'dance-music', label: 'Dance & Music Academies',
@@ -293,8 +253,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your best performances hidden across apps?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'social-reels'],
-    addOnIds: ['appointment-booking'],
   },
   {
     id: 'daycares', slug: 'daycares', label: 'Daycares & Play Schools',
@@ -306,8 +264,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your safety and activities not visible?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
-    addOnIds: ['reviews'],
   },
   {
     id: 'skill-centres', slug: 'skill-centres', label: 'Skill & Certification Centres',
@@ -319,8 +275,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Placements and results not showcased?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
-    addOnIds: ['email-marketing-setup', 'ai-lead-qualifier'],
   },
 
   // --- Retail ---
@@ -334,8 +288,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Nearby shoppers can\'t find you online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['qr-suite'],
   },
   {
     id: 'boutiques', slug: 'boutiques', label: 'Boutiques & Tailoring',
@@ -347,8 +299,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your craftsmanship invisible online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'social'],
-    addOnIds: ['ai-product-photos'],
   },
   {
     id: 'supermarkets', slug: 'supermarkets', label: 'Supermarkets',
@@ -360,8 +310,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Delivery enquiries hard to manage?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'social'],
-    addOnIds: ['sms-marketing'],
   },
   {
     id: 'pharmacies', slug: 'pharmacies', label: 'Pharmacies & Medical Stores',
@@ -373,8 +321,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your store not showing for "pharmacy near me"?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'ordering-page'],
-    addOnIds: ['sms-marketing'],
   },
   {
     id: 'jewellers', slug: 'jewellers', label: 'Jewellers & Gold Retailers',
@@ -386,8 +332,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your craftsmanship invisible to new buyers?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'social-reels'],
-    addOnIds: ['ai-product-photos', 'festive-campaign'],
   },
   {
     id: 'electronics-mobile', slug: 'electronics-mobile', label: 'Electronics & Mobile Stores',
@@ -399,8 +343,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Nearby shoppers can\'t find you online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['ai-product-photos'],
   },
   {
     id: 'hardware-paint', slug: 'hardware-paint', label: 'Hardware & Paint Shops',
@@ -412,8 +354,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your store not ranking for local searches?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['reviews'],
   },
 
   // --- Home Services ---
@@ -427,8 +367,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your work and reviews not visible?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'reviews'],
-    addOnIds: ['launch-pages'],
   },
   {
     id: 'laundry', slug: 'laundry', label: 'Laundry & Dry Cleaners',
@@ -440,8 +378,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Nearby customers can\'t find you online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: [],
   },
   {
     id: 'car-service', slug: 'car-service', label: 'Car Service Centres',
@@ -453,8 +389,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your centre not ranking for local searches?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'appointment-booking'],
-    addOnIds: ['sms-marketing'],
   },
   {
     id: 'cleaning-services', slug: 'cleaning-services', label: 'Cleaning Services',
@@ -466,8 +400,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Nearby customers can\'t find you online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['reviews'],
   },
 
   // --- Professional Services ---
@@ -481,8 +413,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Consultations going to the firm that does?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'business-email'],
-    addOnIds: ['appointment-booking', 'blog-content'],
   },
   {
     id: 'real-estate', slug: 'real-estate', label: 'Real Estate & Builders',
@@ -494,8 +424,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Projects invisible to local buyers?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'social', 'brochure-pdf'],
-    addOnIds: ['ai-lead-qualifier', 'meta-ads-setup'],
   },
   {
     id: 'astrologers', slug: 'astrologers', label: 'Astrologers & Vastu Consultants',
@@ -507,8 +435,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your expertise invisible online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
-    addOnIds: ['reviews'],
   },
   {
     id: 'consultants-freelancers', slug: 'consultants-freelancers', label: 'Consultants & Freelancers',
@@ -520,8 +446,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'No time to maintain an online presence?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'business-email'],
-    addOnIds: ['blog-content'],
   },
   {
     id: 'insurance-agents', slug: 'insurance-agents', label: 'Insurance Agents & Advisors',
@@ -533,8 +457,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your products and track record not visible?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'business-email'],
-    addOnIds: ['ai-lead-qualifier'],
   },
 
   // --- Creative & Events ---
@@ -548,8 +470,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Bookings coming in while you\'re busy?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'social-reels'],
-    addOnIds: ['branding-identity'],
   },
   {
     id: 'event-planners', slug: 'event-planners', label: 'Event Planners',
@@ -561,8 +481,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Proposals taking too long to send?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'social', 'brochure-pdf'],
-    addOnIds: ['ai-lead-qualifier', 'festive-campaign'],
   },
   {
     id: 'startups', slug: 'startups', label: 'Startups & SMEs',
@@ -574,8 +492,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Lost enquiries after you close for the day?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'analytics', 'branding-identity'],
-    addOnIds: ['business-email'],
   },
 
   // --- Pets & Veterinary ---
@@ -589,8 +505,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your clinic not ranking for local searches?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'appointment-booking'],
-    addOnIds: ['sms-marketing', 'ai-chatbot'],
   },
   {
     id: 'pet-shops', slug: 'pet-shops', label: 'Pet Shops & Grooming',
@@ -602,8 +516,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'New arrivals not reaching pet parents?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['ai-product-photos'],
   },
 
   // --- Automotive Sales ---
@@ -617,8 +529,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Test drives scattered across calls?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'local-seo', 'reviews', 'social'],
-    addOnIds: ['ai-lead-qualifier', 'meta-ads-setup'],
   },
   {
     id: 'used-car-dealers', slug: 'used-car-dealers', label: 'Used Car Dealers',
@@ -630,8 +540,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your trustworthiness not visible online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'social-reels'],
-    addOnIds: ['ai-product-photos'],
   },
 
   // --- Home & Construction ---
@@ -645,8 +553,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your portfolio not showcasing your range?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'social-reels', 'brochure-pdf'],
-    addOnIds: ['ai-lead-qualifier', 'meta-ads-setup'],
   },
   {
     id: 'contractors-builders', slug: 'contractors-builders', label: 'Contractors & Builders',
@@ -658,8 +564,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your firm invisible to local searches?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'reviews', 'brochure-pdf'],
-    addOnIds: ['ai-lead-qualifier'],
   },
   {
     id: 'furniture-showrooms', slug: 'furniture-showrooms', label: 'Furniture Showrooms',
@@ -671,8 +575,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your designs invisible to new buyers?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'ordering-page'],
-    addOnIds: ['ai-product-photos'],
   },
 
   // --- Travel & Transport ---
@@ -686,8 +588,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your packages not reaching serious planners?',
     ],
     recommendedPlan: 'growth',
-    serviceIds: ['website', 'gbp-optimise', 'social', 'blog-content'],
-    addOnIds: ['meta-ads-setup', 'email-marketing-setup'],
   },
   {
     id: 'packers-movers', slug: 'packers-movers', label: 'Packers & Movers',
@@ -699,8 +599,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your reliability not visible to new customers?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'reviews'],
-    addOnIds: [],
   },
 
   // --- Repairs & Maintenance ---
@@ -714,8 +612,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your shop not ranking for "repair near me"?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'reviews'],
-    addOnIds: ['qr-suite'],
   },
   {
     id: 'ac-appliance-repair', slug: 'ac-appliance-repair', label: 'AC & Appliance Repair',
@@ -727,8 +623,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Your work and reviews not visible?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
-    addOnIds: ['sms-marketing'],
   },
   {
     id: 'pest-control', slug: 'pest-control', label: 'Pest Control',
@@ -740,16 +634,11 @@ export const BUSINESS_TYPES: BusinessType[] = [
       'Nearby customers can\'t find you online?',
     ],
     recommendedPlan: 'launch',
-    serviceIds: ['website', 'gbp', 'whatsapp', 'appointment-booking'],
-    addOnIds: ['sms-marketing'],
   },
 ]
 
 export function getBusinesses(): ResolvedBusiness[] {
-  return BUSINESS_TYPES.map((b) => {
-    const bundle = resolveServiceBundle(b.serviceIds, b.addOnIds)
-    return { ...b, services: bundle.services, addOns: bundle.addOns, pricing: bundle.pricing }
-  })
+  return BUSINESS_TYPES.map((b) => ({ ...b, services: [], addOns: [], pricing: { setup: 0, monthly: 0, annual: 0 } }))
 }
 
 export function getBusinessBySlug(slug: string): ResolvedBusiness | undefined {

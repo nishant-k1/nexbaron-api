@@ -5,7 +5,7 @@ import helmet from 'helmet'
 import compression from 'compression'
 import { customerAuthRouter } from './features/auth/routes/auth-routes'
 import { digitalDraftRouter } from './features/digital/onboarding/routes/draft-routes'
-import { catalogRouter } from './features/digital/catalog/routes/catalog-routes'
+import { catalogRouter } from './features/digital/routes/plan-routes'
 import { paymentRouter, paymentWebhookRouter } from './features/digital/payments/routes/payment-routes'
 import { printRouter } from './features/print/routes/print-routes'
 import {
@@ -23,10 +23,8 @@ import { adminReminderRouter } from './features/cron/routes/admin-routes'
 import { adminRecurringRouter } from './features/cron/routes/recurring-routes'
 import { testimonialRouter } from './features/cron/routes/testimonial-routes'
 import { reportRouter } from './features/reports/routes/report-routes'
-import { customPlanAdminRouter } from './features/digital/catalog/routes/custom-plan-routes'
-import { customPlanCustomerRouter } from './features/digital/catalog/routes/custom-plan-customer-routes'
-import { businessRouter } from './features/digital/catalog/routes/business-routes'
-import { serviceRouter } from './features/digital/catalog/routes/service-routes'
+import { businessRouter } from './features/digital/routes/business-routes'
+import { serviceRouter } from './features/digital/routes/service-routes'
 import { businessProfileRouter } from './features/digital/routes/business-profile-routes'
 import { printBusinessProfileRouter } from './features/print/routes/business-profile-routes'
 import cookieParser from 'cookie-parser'
@@ -88,7 +86,6 @@ function mountBrandRoutes(brandBase: string): void {
   if (runtimeBrand === 'digital') {
     app.use(`${brandBase}/drafts`, digitalDraftRouter)
     app.use(`${brandBase}/catalog`, catalogRouter)
-    app.use(`${brandBase}/custom-plan`, customPlanCustomerRouter)
     app.use(`${brandBase}/payments`, paymentRouter)
     app.use(`${brandBase}`, businessRouter)
     app.use(`${brandBase}`, serviceRouter)
@@ -108,7 +105,6 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(`${brandBase}/admin`, adminRecurringRouter)
   app.use(`${brandBase}/admin`, testimonialRouter)
   app.use(`${brandBase}/admin`, reportRouter)
-  app.use(`${brandBase}/admin`, customPlanAdminRouter)
 }
 
 mountBrandRoutes(`/${runtimeBrand}`)

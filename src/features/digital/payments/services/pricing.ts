@@ -1,5 +1,5 @@
-import { PLAN_CATALOG, enrichCatalog, computeItemSelling, Service } from '../../catalog/service-package-pricing-catalog'
 import { IOrderItem } from '../../../../models/order.model'
+import servicePricingPlans from '../../servicesPlansData/servicePricingPlans'
 
 export interface PlanSelectionInput {
   selected: string[]
@@ -49,50 +49,16 @@ export interface ComputedOrder {
 
 const LAUNCH_FIXED_DAYS = 4
 
-function collectItems(
-  service: Service,
-  quantity: number,
-  { kind, planId }: { kind: IOrderItem['kind']; planId: string }
-): IOrderItem[] {
-  const items: IOrderItem[] = []
-  for (const item of service.items) {
-    const sell = computeItemSelling(item)
-
-    if (sell.setup > 0) {
-      items.push({
-        kind,
-        planId,
-        label: `${service.label} — ${item.label}`,
-        billingCycle: 'setup',
-        price: sell.setup * quantity,
-        costPrice: item.costPrice.setup * quantity,
-        quantity,
-      })
-    }
-    if (sell.monthly > 0) {
-      items.push({
-        kind,
-        planId,
-        label: `${service.label} — ${item.label}`,
-        billingCycle: 'monthly',
-        price: sell.monthly * quantity,
-        costPrice: item.costPrice.monthly * quantity,
-        quantity,
-      })
-    }
-    if (sell.annual > 0) {
-      items.push({
-        kind,
-        planId,
-        label: `${service.label} — ${item.label}`,
-        billingCycle: 'annual',
-        price: sell.annual * quantity,
-        costPrice: item.costPrice.annual * quantity,
-        quantity,
-      })
-    }
+// Resolve the inheritance chain for a plan id (Launch ⊂ Growth ⊂ Scale) by
+// following `includes`. Returns the chain from base → chosen plan inclusive.
+function collectIncludedIds(targetId: string): string[] {
+  const chain: string[] = []
+  let currentId: string | undefined = targetId
+  while (currentId && servicePricingPlans[currentId]) {
+    chain.unshift(currentId)
+    currentId = servicePricingPlans[currentId].includes?.[0]
   }
-  return items
+  return chain
 }
 
 export function computeOrder(
@@ -100,93 +66,46 @@ export function computeOrder(
   billingCycle: BillingCycleChoice = 'monthly',
   from = new Date()
 ): ComputedOrder {
-  const catalog = enrichCatalog(PLAN_CATALOG)
-  const selPlanId = selections.planId
-  const chosenIndex = catalog.plans.findIndex((p) => p.id === selPlanId)
-  const chosenPlan = catalog.plans[chosenIndex]
-  if (!chosenPlan) throw new Error(`Unknown plan: ${selPlanId}`)
+  const chosenId = selections.planId
+  const chosenPlan = servicePricingPlans[chosenId]
+  if (!chosenPlan) throw new Error(`Unknown plan: ${chosenId}`)
 
-  let amount = 0
+  // Prices on each plan are its OWN tier price; inheritance (`includes`) means
+  // a higher tier bundles every tier below it, so we sum the whole chain.
+  const chain = collectIncludedIds(chosenId)
   let setupTotal = 0
   let monthlyTotal = 0
   let annualTotal = 0
-  const items: IOrderItem[] = []
-
-  const timelineServices: { parallel?: boolean; deliverDays?: number }[] = []
-
-  for (let i = 0; i <= chosenIndex; i++) {
-    const plan = catalog.plans[i]
-    const sel = selections.plans[plan.id] ?? { selected: [], addOns: [], addOnCounts: {}, inheritedOn: true }
-    const selected = new Set(sel.selected)
-    const chosenAddOns = new Set(sel.addOns)
-    const addOnCounts = sel.addOnCounts ?? {}
-    // A lower tier is included only when it is a real ancestor of the chosen
-    // plan, i.e. every tier between it and the chosen one is `inherited`
-    // (Launch ⊂ Growth ⊂ Scale). Standalone tiers (e.g. AI Growth) never pull
-    // in lower-tier services.
-    const isAncestor = catalog.plans
-      .slice(i + 1, chosenIndex + 1)
-      .every((p) => p.inherited !== undefined)
-    const include = i === chosenIndex || (isAncestor && sel.inheritedOn)
-    if (!include) continue
-
-    // Services — `selected` holds the ids the client chose to KEEP (default: all).
-    for (const svc of plan.services) {
-      const isSelected = selected.has(svc.id)
-      if (i === chosenIndex && !isSelected) continue
-
-      for (const x of collectItems(svc, 1, { kind: 'service', planId: plan.id })) {
-        items.push(x)
-        if (x.billingCycle === 'setup') {
-          amount += x.price
-          setupTotal += x.price
-        } else if (x.billingCycle === 'annual') annualTotal += x.price
-        else monthlyTotal += x.price
-      }
-
-      if (i === chosenIndex) {
-        timelineServices.push(svc)
-      } else {
-        if (svc.deliverDays !== undefined) timelineServices.push(svc)
-      }
-    }
-
-    // Add-ons
-    for (const addon of plan.addOns) {
-      if (!chosenAddOns.has(addon.id)) continue
-      const qty = Math.max(1, addOnCounts[addon.id] ?? 1)
-
-      for (const x of collectItems(addon, qty, { kind: 'addon', planId: plan.id })) {
-        items.push(x)
-        if (x.billingCycle === 'setup') {
-          amount += x.price
-          setupTotal += x.price
-        } else if (x.billingCycle === 'annual') annualTotal += x.price
-        else monthlyTotal += x.price
-      }
-
-      for (let c = 0; c < qty; c++) {
-        timelineServices.push(addon)
-      }
-    }
+  for (const id of chain) {
+    const plan = servicePricingPlans[id]
+    if (!plan || plan.custom) continue
+    setupTotal += plan.price?.oneTime ?? 0
+    monthlyTotal += plan.price?.monthly ?? 0
+    annualTotal += plan.price?.annual ?? 0
   }
 
   // Annual: the discounted care is billed upfront alongside the build fee; the
   // monthlies are deferred to month 2. Setup stays in every charge.
-  if (billingCycle === 'annual') amount = setupTotal + annualTotal
+  const amount = billingCycle === 'annual' ? setupTotal + annualTotal : setupTotal + monthlyTotal
 
-  // Critical path: sum deliverDays for non-parallel items
-  const critical = timelineServices
-    .filter((s) => !s.parallel && (s.deliverDays ?? 0) > 0)
-    .reduce((sum, s) => sum + (s.deliverDays ?? 0), 0)
+  const items: IOrderItem[] = []
+  if (setupTotal > 0) {
+    items.push({ kind: 'plan', planId: chosenId, label: `${chosenPlan.name} — setup`, billingCycle: 'setup', price: setupTotal, quantity: 1 })
+  }
+  if (monthlyTotal > 0) {
+    items.push({ kind: 'plan', planId: chosenId, label: `${chosenPlan.name} — monthly care`, billingCycle: 'monthly', price: monthlyTotal, quantity: 1 })
+  }
+  if (annualTotal > 0) {
+    items.push({ kind: 'plan', planId: chosenId, label: `${chosenPlan.name} — annual care`, billingCycle: 'annual', price: annualTotal, quantity: 1 })
+  }
 
   const phased = chosenPlan.timelineMode === 'phased'
-  const launchDays = phased ? chosenPlan.foundationDays ?? 30 : Math.max(1, Math.round(LAUNCH_FIXED_DAYS + critical))
+  const launchDays = phased ? chosenPlan.foundationDays ?? 30 : LAUNCH_FIXED_DAYS
   const launchDate = new Date(from)
   launchDate.setDate(launchDate.getDate() + launchDays)
 
   return {
-    planId: chosenPlan.id,
+    planId: chosenId,
     planName: chosenPlan.name,
     billingCycle,
     amount,
