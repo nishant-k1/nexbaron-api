@@ -149,14 +149,8 @@ const servicePricingPlans: Record<string, PricingPlan> = {
       digitalMarketingService("socialMedia", "socialMediaManagement", {
         postsPerMonth: 8,
       }),
-      digitalMarketingService("contentMarketing", "socialMediaCreatives", {
+      digitalMarketingService("socialMedia", "socialMediaCreatives", {
         creativesPerMonth: 8,
-      }),
-      digitalMarketingService("leadGeneration", "leadGeneration", {
-        campaignsPerMonth: 1,
-      }),
-      digitalMarketingService("analytics", "conversionTracking", {
-        type: "standard",
       }),
       digitalMarketingService("analytics", "campaignReporting", {
         frequency: "monthly",
@@ -188,7 +182,7 @@ const servicePricingPlans: Record<string, PricingPlan> = {
         campaigns: 2,
         remarketing: true,
       }),
-      digitalMarketingService("contentMarketing", "shortFormVideo", {
+      digitalMarketingService("socialMedia", "shortFormVideo", {
         videosPerMonth: 4,
       }),
       digitalMarketingService("analytics", "marketingAnalytics", {

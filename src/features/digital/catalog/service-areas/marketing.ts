@@ -1,51 +1,52 @@
 export const nexbaronPublicDigitalMarketingServices = {
   socialMedia: {
-    socialMediaManagement: "Social Media Management",
     socialMediaStrategy: "Social Media Strategy",
+    socialMediaAccountSetup:
+      "Social Media Account Setup (Facebook, Instagram, LinkedIn, Twitter)",
+    socialMediaAccountProfileManagement:
+      "Social Media Account Profile Management",
+    socialMediaAccountAuditAndOptimization:
+      "Social Media Account Audit & Optimization",
+    socialMediaPostCreationAndPublishing:
+      "Social Media Post Creation & Publishsing",
+    socialMediaShortsAndReels: "Social Media Shorts & Reels",
+    socialMediaEngagementManagement: "Social Media Engagement Management",
+    socialMediaCommentModeration: "Social Media Comment Moderation",
+    socialMediaCompetitorAnalysis: "Social Media Competitor Analysis",
+    socialMediaTrendMonitoring: "Social Media Trend Monitoring",
   },
 
   seo: {
-    googleBusinessProfile: "Google Business Profile Management",
-    onlineReputationManagement: "Online Reputation Management",
-    seo: "SEO",
-    localSeo: "Local SEO",
+    googleBusinessProfileCreation: "Google Business Profile Creation",
+    googleBusinessProfileManagement: "Google Business Profile Management",
+    googleBusinessProfileOptimization: "Google Business Profile Optimization",
+    googleBusinessProfileReviewManagement:
+      "Google Business Profile Review Management",
+    seoAudit: "SEO Audit",
+    keywordResearch: "Keyword Research",
+    localCitations: "Local Citations",
     technicalSeo: "Technical SEO",
     onPageSeo: "On-Page SEO",
     seoContent: "SEO Content",
+    blogContent: "Blog Content",
+    seoCompetitorAnalysis: "SEO Competitor Analysis",
+    schemaMarkup: "Schema Markup & Structured Data",
+  },
+
+  marketingAnalytics: {
+    googleAnalytics4Setup: "Google Analytics 4 (GA4) Setup",
+    googleSearchConsoleSetup: "Google Search Console Setup",
+    googleConversionTrackingSetup: "Google Conversion Tracking Setup",
+    metaConversionTrackingSetup: "Meta Conversion Tracking Setup",
+    googleAnalytics4Reporting: "Google Analytics 4 (GA4) Reporting",
   },
 
   paidAdvertising: {
-    googleAds: "Google Ads Management",
-    metaAds: "Meta Ads Management",
-    remarketing: "Remarketing",
-  },
-
-  contentMarketing: {
-    contentMarketing: "Content Marketing",
-    blogContent: "Blog Content",
-    socialMediaCreatives: "Social Media Creatives",
-    shortFormVideo: "Short-Form Video Content",
-    copywriting: "Marketing Copywriting",
-  },
-
-  leadGeneration: {
-    leadGeneration: "Lead Generation",
-    landingPageCampaigns: "Landing Page Campaigns",
-  },
-
-  analytics: {
-    marketingAnalytics: "Marketing Analytics",
-    campaignReporting: "Campaign Reporting",
-    conversionTracking: "Conversion Tracking",
-  },
-
-  influencerMarketing: {
-    influencerMarketing: "Influencer Marketing",
-    creatorCampaignManagement: "Creator Campaign Management",
+    googleAdsManagement: "Google Ads Management",
+    metaAdsManagement: "Meta Ads Management",
   },
 
   emailMarketing: {
-    emailMarketing: "Email Marketing",
     emailCampaignManagement: "Email Campaign Management",
     emailMarketingAutomation: "Email Marketing Automation",
   },
