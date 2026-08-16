@@ -1,5 +1,6 @@
 import { Router } from 'express'
-import { optionalAuth, requireAuth } from '../../../middleware/require-auth'
+import { requireAuth } from '../../../middleware/require-auth'
+import { optionalAuth } from '../../../middleware/optional-auth'
 import { requireAdmin, requireDivision, requireRole } from '../../admin/middleware/require-admin'
 import { rateLimit } from '../../../utils/rate-limit'
 import {

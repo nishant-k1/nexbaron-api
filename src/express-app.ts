@@ -15,13 +15,13 @@ import {
 import { adminOrderRouter } from './features/orders/routes/order-routes'
 import { customerQuoteRouter, adminQuoteRouter } from './features/quotes/routes/quote-routes'
 import { customerChatRouter, adminChatRouter } from './features/chat/routes/chat-routes'
-import { uploadRouter } from './features/chat/routes/upload-routes'
+import { customerUploadRouter, adminUploadRouter } from './features/chat/routes/upload-routes'
 import { customerProjectRouter } from './features/projects/routes/project-routes'
 import { adminProjectRouter } from './features/projects/routes/admin-routes'
-import { cronRouter } from './features/cron/routes/cron-routes'
-import { adminReminderRouter } from './features/cron/routes/admin-routes'
-import { adminRecurringRouter } from './features/cron/routes/recurring-routes'
-import { testimonialRouter } from './features/cron/routes/testimonial-routes'
+import { cronRouter } from './features/admin-resources/routes/cron-routes'
+import { adminReminderRouter } from './features/admin-resources/routes/reminder-routes'
+import { adminRecurringRouter } from './features/admin-resources/routes/recurring-routes'
+import { testimonialRouter } from './features/admin-resources/routes/testimonial-routes'
 import { reportRouter } from './features/reports/routes/report-routes'
 import { businessRouter } from './features/digital/routes/business-routes'
 import { serviceRouter } from './features/digital/routes/service-routes'
@@ -31,7 +31,7 @@ import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './features/admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
 import { notFoundHandler } from './middleware/not-found-handler'
-import { runtimeBrand } from './utils/runtime-brand'
+import { runtimeBrand } from './config/brand'
 
 export const app = express()
 
@@ -79,7 +79,7 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(brandBase, brandContactRouter)
   app.use(brandBase, customerQuoteRouter)
   app.use(brandBase, customerChatRouter)
-  app.use(brandBase, uploadRouter)
+  app.use(brandBase, customerUploadRouter)
   app.use(brandBase, customerProjectRouter)
   app.use(brandBase, cronRouter)
 
@@ -105,6 +105,7 @@ function mountBrandRoutes(brandBase: string): void {
   app.use(`${brandBase}/admin`, adminRecurringRouter)
   app.use(`${brandBase}/admin`, testimonialRouter)
   app.use(`${brandBase}/admin`, reportRouter)
+  app.use(`${brandBase}/admin`, adminUploadRouter)
 }
 
 mountBrandRoutes(`/${runtimeBrand}`)

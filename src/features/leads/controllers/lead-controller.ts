@@ -4,9 +4,9 @@ import { LeadStatus } from '../../../models/lead.model'
 import { getDivisionModels } from '../../../models/registry'
 import { logger } from '../../../utils/logger'
 import { escapeRegex } from '../../../utils/regex'
-import { runtimeBrand } from '../../../utils/runtime-brand'
-import { getNextStaffForAssignment } from '../services/auto-assign'
-import { sendLeadAcknowledgment } from '../services/acknowledge'
+import { runtimeBrand } from '../../../config/brand'
+import { getNextStaffForAssignment } from '../services/auto-assign-service'
+import { sendLeadAcknowledgment } from '../services/acknowledge-service'
 
 const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'unqualified', 'proposal', 'won', 'lost', 'dormant']
 

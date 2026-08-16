@@ -12,7 +12,7 @@ import { createChatMessageModel } from './chat-message.model'
 import { createReminderModel } from './reminder.model'
 import { createRecurringServiceModel } from './recurring-service.model'
 import { createTestimonialModel } from './testimonial.model'
-import { runtimeBrand } from '../utils/runtime-brand'
+import { runtimeBrand } from '../config/brand'
 
 export interface DivisionModels {
   Staff: ReturnType<typeof createStaffModel>

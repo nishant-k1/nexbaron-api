@@ -4,8 +4,8 @@ import { randomUUID } from 'crypto'
 import { getDivisionModels } from '../../../models/registry'
 import { logger } from '../../../utils/logger'
 import { escapeRegex } from '../../../utils/regex'
-import { computeProjectStage, PIPELINE_STAGES, type PipelineStage } from '../services/pipeline'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { computeProjectStage, PIPELINE_STAGES, type PipelineStage } from '../services/pipeline-service'
+import { runtimeBrand } from '../../../config/brand'
 
 interface ProjectSummary {
   projectId: string

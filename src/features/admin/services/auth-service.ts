@@ -6,10 +6,10 @@ import {
   hashToken,
   REFRESH_TOKEN_TTL_MS,
   verifyToken,
-} from './token'
+} from './token-service'
 import { getDivisionModels } from '../../../models/registry'
 import type { StaffDivision } from '../../../models/staff.model'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 
 const BCRYPT_ROUNDS = 12
 

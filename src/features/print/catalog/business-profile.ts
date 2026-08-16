@@ -1,4 +1,4 @@
-import type { BusinessProfile } from '../../shared/business-profile'
+import type { BusinessProfile } from '../../../types/business-profile'
 
 // Single source of truth for Nexbaron Print's own business details (NAP, geo,
 // hours, service area). Served at GET /print/business and consumed by

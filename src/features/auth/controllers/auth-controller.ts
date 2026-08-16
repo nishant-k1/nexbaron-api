@@ -3,7 +3,7 @@ import { getDivisionModels } from '../../../models/registry'
 import { createOtp, OtpRequestError, verifyOtp } from '../services/otp-service'
 import { createToken } from '../../../middleware/jwt'
 import { logger } from '../../../utils/logger'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 
 const GOOGLE_TIMEOUT_MS = 5000
 

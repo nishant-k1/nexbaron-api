@@ -1,6 +1,7 @@
 import { ILead } from '../../../models/lead.model'
 import { sendMail, canSendMail, fromAddress } from '../../../utils/mailer'
-import { logoNx, escapeHtml, NX_DIGITAL, NX_PRINT } from '../../../utils/html'
+import { logoNx, escapeHtml } from '../../../utils/html'
+import { NX_DIGITAL, NX_PRINT } from '../../../config/constants'
 import { logger } from '../../../utils/logger'
 
 /**

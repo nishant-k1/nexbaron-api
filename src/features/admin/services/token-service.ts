@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import type { StaffRole, StaffDivision } from '../../../models/staff.model'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 import { base64urlEncode, hmacSha256 } from '../../../utils/token-util'
 
 const ACCESS_TTL = 60 * 15 // 15 minutes

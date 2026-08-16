@@ -3,36 +3,18 @@ import { randomUUID } from 'crypto'
 import { OrderStatus, PaymentMethod } from '../../../models/order.model'
 import { getDivisionModels } from '../../../models/registry'
 import { logger } from '../../../utils/logger'
-import { escapeRegex } from '../../../utils/regex'
+import { findOrders, findOrCreateOrderFromLead, VALID_STATUSES, VALID_PAYMENT_METHODS } from '../services/order-service'
 
-const VALID_STATUSES: OrderStatus[] = ['pending', 'paid', 'in_progress', 'delivered', 'cancelled']
-const VALID_PAYMENT_METHODS: PaymentMethod[] = ['razorpay', 'upi', 'bank', 'cash', 'other']
-
-/** Admin-only: list customers (orders) with filters. */
 export async function listOrders(req: Request, res: Response) {
   try {
-    const status = req.query.status
-    const search = (req.query.search as string) || ''
-
     if (!req.staffAuth) {
       res.status(401).json({ success: false, message: 'Authentication required' })
       return
     }
-    const { Order } = getDivisionModels(req.staffAuth.division)
-    const filter: Record<string, unknown> = { division: req.staffAuth.division }
-    if (VALID_STATUSES.includes(status as OrderStatus)) filter.status = status
-    if (search) {
-      const rx = new RegExp(escapeRegex(search), 'i')
-      filter.$or = [
-        { 'customer.name': rx },
-        { 'customer.email': rx },
-        { 'customer.phone': rx },
-        { 'customer.company': rx },
-        { invoiceNumber: rx },
-      ]
-    }
-
-    const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(500).lean()
+    const orders = await findOrders(req.staffAuth.division, {
+      status: req.query.status as string | undefined,
+      search: (req.query.search as string) || '',
+    })
     res.json({ success: true, orders })
   } catch (error) {
     logger.error('listOrders failed', error)
@@ -48,10 +30,6 @@ interface RecordPaymentBody {
   service?: string
 }
 
-/**
- * Converts a lead into a customer by recording the first payment.
- * Sets the order to `paid` and the lead to `won`.
- */
 export async function recordPaymentFromLead(req: Request, res: Response) {
   try {
     const body = (req.body ?? {}) as RecordPaymentBody
@@ -68,7 +46,7 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
       res.status(401).json({ success: false, message: 'Authentication required' })
       return
     }
-    const { Order, Lead } = getDivisionModels(req.staffAuth.division)
+    const { Lead } = getDivisionModels(req.staffAuth.division)
 
     const lead = await Lead.findById(leadId)
     if (!lead) {
@@ -80,50 +58,15 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
       return
     }
 
-    // One active order per lead — reuse or create.
-    let order = await Order.findOne({ leadId: lead._id, status: { $ne: 'cancelled' } })
+    const { order } = await findOrCreateOrderFromLead(
+      lead,
+      { service: body.service, amount, method, reference: body.reference },
+      req.staffAuth.name
+    )
 
-    if (!order) {
-      order = await Order.create({
-        projectId: lead.projectId,
-        leadId: lead._id,
-        division: lead.division,
-        customer: {
-          name: lead.name,
-          email: lead.email,
-          phone: lead.phone,
-          company: lead.company,
-          city: lead.city,
-        },
-        service: body.service || lead.plan || lead.requirement || undefined,
-        amount,
-        currency: 'INR',
-        payments: [],
-        amountPaid: 0,
-        stageHistory: [{ stage: 'pending', by: req.staffAuth?.name || 'system', at: new Date() }],
-      })
-    }
-
-    // Record the payment and recompute totals/status.
-    const previousStatus = order.status
-    order.payments.push({
-      method,
-      amount,
-      reference: body.reference?.trim() || undefined,
-      receivedAt: new Date(),
-      recordedBy: req.staffAuth?.name,
-    })
-    order.amountPaid = order.payments.reduce((sum, p) => sum + p.amount, 0)
-    order.status = order.amountPaid >= order.amount ? 'paid' : 'pending'
-    if (order.status !== previousStatus) {
-      order.stageHistory.push({ stage: order.status, by: req.staffAuth?.name || 'system', at: new Date() })
-    }
-    await order.save()
-
-    // The lead is now a paying customer.
     if (lead.status !== 'won') {
       lead.status = 'won'
-      lead.statusHistory.push({ status: 'won', by: req.staffAuth?.name, at: new Date() })
+      lead.statusHistory.push({ status: 'won', by: req.staffAuth.name, at: new Date() })
       await lead.save()
     }
 
@@ -134,7 +77,6 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
   }
 }
 
-/** Admin-only: update order status, project fields, onboarding, revisions. */
 export async function updateOrderStatus(req: Request, res: Response) {
   try {
     const body = (req.body ?? {}) as Record<string, any>
@@ -160,7 +102,6 @@ export async function updateOrderStatus(req: Request, res: Response) {
       order.status = nextStatus
       if (nextStatus !== previousStatus) {
         order.stageHistory.push({ stage: nextStatus, by: req.staffAuth.name, at: new Date() })
-        // Auto-schedule follow-up + review request when project completes
         if (nextStatus === 'delivered' && !order.followUpDate) {
           const followUp = new Date()
           followUp.setMonth(followUp.getMonth() + 3)
@@ -236,10 +177,6 @@ export async function updateOrderStatus(req: Request, res: Response) {
   }
 }
 
-/**
- * Repeat business — create a new project directly from an existing client,
- * skipping the lead pipeline entirely since they are already known.
- */
 export async function createProjectFromClient(req: Request, res: Response) {
   try {
     if (!req.staffAuth) {

@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 
 import servicePricingPlans, {
   getPublicServiceLabel,
-} from "../../content/plans";
+} from "../../catalog/plans";
 import { getDivisionModels } from "../../../../models/registry";
 import { logger } from "../../../../utils/logger";
 import { IOrder } from "../../../../models/order.model";
@@ -17,20 +17,16 @@ import {
   razorpayConfigured,
   verifyPaymentSignature,
   verifyWebhookSignature,
-} from "../services/razorpay";
+} from "../services/razorpay-service";
 import {
   buildLaunchStages,
   computeOrder,
   SelectionsInput,
   splitGst,
-} from "../services/pricing";
-import { runtimeBrand } from "../../../../utils/runtime-brand";
-import {
-  escapeHtml,
-  logoNx,
-  NX_DIGITAL,
-  NX_PRINT,
-} from "../../../../utils/html";
+} from "../services/pricing-service";
+import { runtimeBrand } from "../../../../config/brand";
+import { escapeHtml, logoNx } from "../../../../utils/html";
+import { NX_DIGITAL, NX_PRINT } from "../../../../config/constants";
 import { requireAuthenticated } from "../../../../middleware/require-authenticated";
 
 // Client-driven: create a checkout order and return the Razorpay order id.

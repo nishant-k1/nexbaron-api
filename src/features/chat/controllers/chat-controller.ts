@@ -1,10 +1,10 @@
 import { Request, Response } from 'express'
 import { randomUUID } from 'crypto'
 import { getDivisionModels } from '../../../models/registry'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 import { logger } from '../../../utils/logger'
-import { getNextStaffForAssignment } from '../../leads/services/auto-assign'
-import { sendLeadAcknowledgment } from '../../leads/services/acknowledge'
+import { getNextStaffForAssignment } from '../../leads/services/auto-assign-service'
+import { sendLeadAcknowledgment } from '../../leads/services/acknowledge-service'
 
 /**
  * POST /{division}/chat — customer sends a chat message.

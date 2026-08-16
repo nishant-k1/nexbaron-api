@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { generateReminders, sendDueReminders } from '../../leads/services/reminders'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { generateReminders, sendDueReminders } from '../../leads/services/reminder-service'
+import { runtimeBrand } from '../../../config/brand'
 import { logger } from '../../../utils/logger'
 
 export const cronRouter = Router()

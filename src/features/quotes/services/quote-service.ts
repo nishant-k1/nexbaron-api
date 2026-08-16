@@ -1,12 +1,13 @@
 import PDFDocument from "pdfkit";
 import { Model } from "mongoose";
 
-import servicePricingPlans from "../../digital/content/plans";
-import { getProductLabel } from "../../print/content/products";
+import servicePricingPlans from "../../digital/catalog/plans";
+import { getProductLabel } from "../../print/catalog/products";
 import { logger } from "../../../utils/logger";
 import { IQuote } from "../../../models/quote.model";
 import { canSendMail, sendMail } from "../../../utils/mailer";
-import { escapeHtml, logoNx, NX_DIGITAL, NX_PRINT } from "../../../utils/html";
+import { escapeHtml, logoNx } from "../../../utils/html";
+import { NX_DIGITAL, NX_PRINT } from "../../../config/constants";
 import { nextSequence } from "../../../utils/counter";
 
 const WHATSAPP_ENABLED = process.env.QUOTE_WHATSAPP_ENABLED === "true";

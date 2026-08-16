@@ -1,3 +1,5 @@
+import type { NxLogoColors } from '../config/constants'
+
 const ESCAPE_MAP: Record<string, string> = {
   '&': '&amp;',
   '<': '&lt;',
@@ -9,14 +11,6 @@ const ESCAPE_MAP: Record<string, string> = {
 export function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ESCAPE_MAP[ch] ?? ch)
 }
-
-export interface NxLogoColors {
-  stop1: string
-  stop2: string
-}
-
-export const NX_DIGITAL: NxLogoColors = { stop1: '#14b8a6', stop2: '#06b6d4' }
-export const NX_PRINT: NxLogoColors = { stop1: '#f59e0b', stop2: '#f97316' }
 
 /**
  * NX monogram — the official Nexbaron logo (matches nexbaron-web/public/icon.svg).

@@ -1,9 +1,10 @@
 import crypto from 'crypto'
 import { getDivisionModels } from '../../../models/registry'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 import { canSendMail, sendMail } from '../../../utils/mailer'
 import { logger } from '../../../utils/logger'
-import { logoNx, NX_DIGITAL, NX_PRINT } from '../../../utils/html'
+import { logoNx } from '../../../utils/html'
+import { NX_DIGITAL, NX_PRINT } from '../../../config/constants'
 
 export const OTP_TTL_MS = Number(process.env.OTP_TTL_MS) || 10 * 60 * 1000
 export const MAX_ATTEMPTS = 5

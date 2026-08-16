@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { openBrandConnection } from './utils/database'
 import { logger } from './utils/logger'
 import { app } from './express-app'
-import { runtimeBrand } from './utils/runtime-brand'
+import { runtimeBrand } from './config/brand'
 
 const PORT = process.env.PORT || 3001
 

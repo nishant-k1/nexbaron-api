@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 
 /**
  * Cloudflare R2 (S3-compatible) chat attachment storage.

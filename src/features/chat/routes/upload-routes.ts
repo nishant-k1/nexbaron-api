@@ -2,11 +2,9 @@ import { Router, Request, Response } from 'express'
 import { requireAuth } from '../../../middleware/require-auth'
 import { optionalAuth } from '../../../middleware/optional-auth'
 import { requireAdmin, requireDivision } from '../../admin/middleware/require-admin'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 import { rateLimit } from '../../../utils/rate-limit'
 import { createUploadTarget, isAllowedAttachmentName, readConfig } from '../services/r2-service'
-
-const router = Router()
 
 const MAX_FILES_PER_REQUEST = 10
 
@@ -45,6 +43,8 @@ function handleUpload(req: Request, res: Response): void {
   }
 }
 
+export const customerUploadRouter = Router()
+
 /**
  * POST /{division}/upload — mint presigned R2 PUT URLs for direct browser
  * uploads, plus the permanent public URL for each file.
@@ -54,13 +54,7 @@ function handleUpload(req: Request, res: Response): void {
  * and the extension is validated, so a caller can never overwrite other
  * assets or upload arbitrary file types.
  */
-router.post('/upload', requireAuth, rateLimit({ windowMs: 60 * 60 * 1000, max: 120 }), handleUpload)
-
-/**
- * POST /{division}/admin/upload — admin (staff) uploads an attachment to send
- * in a chat reply. Same presigned-PUT flow, scoped to staff cookie auth.
- */
-router.post('/admin/upload', requireAdmin, requireDivision('digital', 'print'), rateLimit({ windowMs: 60 * 60 * 1000, max: 120 }), handleUpload)
+customerUploadRouter.post('/upload', requireAuth, rateLimit({ windowMs: 60 * 60 * 1000, max: 120 }), handleUpload)
 
 /**
  * GET /{division}/chat/download?url=...&name=... — proxy an attachment and
@@ -68,7 +62,7 @@ router.post('/admin/upload', requireAdmin, requireDivision('digital', 'print'), 
  * inline. The url is validated to live under this brand's R2 public bucket so
  * the endpoint cannot be abused as an open proxy.
  */
-router.get('/chat/download', optionalAuth, rateLimit({ windowMs: 60 * 60 * 1000, max: 600 }), async (req: Request, res: Response) => {
+customerUploadRouter.get('/chat/download', optionalAuth, rateLimit({ windowMs: 60 * 60 * 1000, max: 600 }), async (req: Request, res: Response) => {
   try {
     const rawUrl = String(req.query.url ?? '')
     const name = String(req.query.name ?? 'attachment')
@@ -98,4 +92,10 @@ router.get('/chat/download', optionalAuth, rateLimit({ windowMs: 60 * 60 * 1000,
   }
 })
 
-export const uploadRouter = router
+export const adminUploadRouter = Router()
+
+/**
+ * POST /{division}/admin/upload — admin (staff) uploads an attachment to send
+ * in a chat reply. Same presigned-PUT flow, scoped to staff cookie auth.
+ */
+adminUploadRouter.post('/upload', requireAdmin, requireDivision('digital', 'print'), rateLimit({ windowMs: 60 * 60 * 1000, max: 120 }), handleUpload)

@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
-import { verifyToken } from '../services/token'
-import { readAccessCookie } from '../services/cookies'
+import { verifyToken } from '../services/token-service'
+import { readAccessCookie } from '../services/cookie-service'
 import type { StaffRole, StaffDivision } from '../../../models/staff.model'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { runtimeBrand } from '../../../config/brand'
 import { getDivisionModels } from '../../../models/registry'
 
 declare global {

@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { runtimeBrand } from '../utils/runtime-brand'
+import { runtimeBrand } from '../config/brand'
 import { base64urlEncode, hmacSha256 } from '../utils/token-util'
 
 const EXPIRES_IN = Number(process.env.JWT_EXPIRES_IN_SECONDS) || 60 * 60 * 24 * 7

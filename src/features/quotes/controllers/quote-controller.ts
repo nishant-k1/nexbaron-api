@@ -7,16 +7,16 @@ import { QuoteStatus } from "../../../models/quote.model";
 import { logger } from "../../../utils/logger";
 import { escapeRegex } from "../../../utils/regex";
 import { requireAuthenticated } from "../../../middleware/require-authenticated";
-import { computePrintEstimate } from "../../print/content/products";
-import { PRINT_PRODUCTS } from "../../print/content/products";
-import servicePricingPlans from "../../digital/content/plans";
+import { computePrintEstimate } from "../../print/catalog/products";
+import { PRINT_PRODUCTS } from "../../print/catalog/products";
+import servicePricingPlans from "../../digital/catalog/plans";
 import {
   nextQuoteNumber,
   sendQuoteEmail,
   whatsAppDelivery,
   quoteHtml,
 } from "../services/quote-service";
-import { runtimeBrand } from "../../../utils/runtime-brand";
+import { runtimeBrand } from "../../../config/brand";
 import { stringParam } from "../../../utils/route-param";
 
 const VALID_STATUSES: QuoteStatus[] = [

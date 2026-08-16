@@ -1,6 +1,6 @@
 import { Response } from 'express'
-import { ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from './token'
-import { runtimeBrand } from '../../../utils/runtime-brand'
+import { ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from './token-service'
+import { runtimeBrand } from '../../../config/brand'
 
 const IS_PROD = process.env.NODE_ENV === 'production'
 
