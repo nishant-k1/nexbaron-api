@@ -1,54 +1,63 @@
-import { Router } from 'express'
-import { nexbaronPublicEngineeringServices } from '../engineeringServicesData/nexbaronPublicEngineeringServices'
-import { nexbaronPublicDigitalMarketingServices } from '../digitalMarketingServicesData/nexbaronPublicDigitalMarketingServices'
-import servicePricingPlans, { type PublicPlanServiceRef } from '../servicesPlansData/servicePricingPlans'
+import { Router } from "express";
+import { nexbaronPublicEngineeringServices } from "../content/service-areas/engineering";
+import { nexbaronPublicDigitalMarketingServices } from "../content/service-areas/marketing";
+import servicePricingPlans, {
+  type PublicPlanServiceRef,
+  annualPrice,
+} from "../content/plans";
 
-export const catalogRouter = Router()
+export const catalogRouter = Router();
 
-const publicServiceDefinitions: Record<string, Record<string, Record<string, string>>> = {
+const publicServiceDefinitions: Record<
+  string,
+  Record<string, Record<string, string>>
+> = {
   engineering: nexbaronPublicEngineeringServices,
   digitalMarketing: nexbaronPublicDigitalMarketingServices,
-}
+};
 
 function toKebabCase(value: string): string {
   return value
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase()
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
 }
 
 function getServiceId(entry: PublicPlanServiceRef): string {
-  return `${toKebabCase(entry.domain)}-${toKebabCase(entry.category)}-${toKebabCase(entry.service)}`
+  return `${toKebabCase(entry.domain)}-${toKebabCase(entry.category)}-${toKebabCase(entry.service)}`;
 }
 
 function getServiceLabel(entry: PublicPlanServiceRef): string {
-  const label = publicServiceDefinitions[entry.domain]?.[entry.category]?.[entry.service]
+  const label =
+    publicServiceDefinitions[entry.domain]?.[entry.category]?.[entry.service];
 
   if (!label) {
-    throw new Error(`Unknown public service reference: ${entry.domain}.${entry.category}.${entry.service}`)
+    throw new Error(
+      `Unknown public service reference: ${entry.domain}.${entry.category}.${entry.service}`,
+    );
   }
 
-  return label
+  return label;
 }
 
 function formatScopeKey(key: string): string {
   return key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function formatScopeValue(value: unknown): string {
-  if (typeof value === 'boolean') return value ? 'Included' : 'Not included'
-  return String(value)
+  if (typeof value === "boolean") return value ? "Included" : "Not included";
+  return String(value);
 }
 
 function describeScope(scope?: Record<string, unknown>): string | undefined {
-  if (!scope || Object.keys(scope).length === 0) return undefined
+  if (!scope || Object.keys(scope).length === 0) return undefined;
 
   return Object.entries(scope)
     .map(([key, value]) => `${formatScopeKey(key)}: ${formatScopeValue(value)}`)
-    .join(' · ')
+    .join(" · ");
 }
 
 function buildCatalogPlans() {
@@ -62,7 +71,7 @@ function buildCatalogPlans() {
       service: entry.service,
       scope: entry.scope,
       items: [],
-    }))
+    }));
 
     const featureServices = plan.features
       ? plan.features.map((label) => ({
@@ -70,10 +79,12 @@ function buildCatalogPlans() {
           label,
           items: [],
         }))
-      : []
+      : [];
 
-    const includedId = plan.includes?.[0]
-    const includedName = includedId ? servicePricingPlans[includedId]?.name : undefined
+    const includedId = plan.includes?.[0];
+    const includedName = includedId
+      ? servicePricingPlans[includedId]?.name
+      : undefined;
 
     return {
       id,
@@ -82,25 +93,30 @@ function buildCatalogPlans() {
       timeline: plan.timeline,
       icon: plan.icon,
       featured: plan.featured,
-      inherited: includedName ? { label: `Everything in ${includedName}` } : undefined,
+      inherited: includedName
+        ? { label: `Everything in ${includedName}` }
+        : undefined,
       inheritsFrom: includedId,
       services: [...services, ...featureServices],
       addOns: [],
       ctaLabel: plan.ctaLabel,
       timelineMode: plan.timelineMode,
       foundationDays: plan.foundationDays,
-      minimumMonths: plan.minimumMonths,
-    }
-  })
+      pricing: plan.pricing
+        ? { ...plan.pricing, annual: annualPrice(plan.pricing) }
+        : undefined,
+    };
+  });
 }
 
-catalogRouter.get('/', (_req, res) => {
-  res.setHeader('Cache-Control', 'public, max-age=900')
+catalogRouter.get("/", (_req, res) => {
+  res.setHeader("Cache-Control", "public, max-age=900");
   res.json({
-    version: '5.0.0',
-    updatedAt: '2026-08-16T00:00:00.000Z',
-    currency: 'INR',
-    disclaimer: 'Prices are scoped after consultation. This page shows plan inclusions only.',
+    version: "5.0.0",
+    updatedAt: "2026-08-16T00:00:00.000Z",
+    currency: "INR",
+    disclaimer:
+      "One-time setup + monthly care. Prices include GST. Ad budgets (Google/Meta) are billed separately.",
     plans: buildCatalogPlans(),
-  })
-})
+  });
+});

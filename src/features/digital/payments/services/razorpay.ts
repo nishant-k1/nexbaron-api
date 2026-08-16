@@ -7,7 +7,7 @@ import { canSendMail, sendMail } from '../../../../utils/mailer'
 import { escapeHtml, logoNx, NX_DIGITAL } from '../../../../utils/html'
 import { nextSequence } from '../../../../utils/counter'
 import { splitGst } from './pricing'
-import { DIGITAL_BUSINESS_PROFILE } from '../../business-profile'
+import { DIGITAL_BUSINESS_PROFILE } from '../../content/business-profile'
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { PRINT_PRODUCTS, PRINT_STOCK_TIERS, PRINT_FINISHES, PRINT_CATEGORIES } from '../product-catalog'
+import { PRINT_PRODUCTS, PRINT_STOCK_TIERS, PRINT_FINISHES, PRINT_CATEGORIES } from '../content/products'
 
 export const printRouter = Router()
 

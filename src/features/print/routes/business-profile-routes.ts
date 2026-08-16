@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { PRINT_BUSINESS_PROFILE } from '../business-profile'
+import { PRINT_BUSINESS_PROFILE } from '../content/business-profile'
 
 export const printBusinessProfileRouter = Router()
 
