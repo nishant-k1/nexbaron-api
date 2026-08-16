@@ -1,9 +1,6 @@
 import { Request, Response } from 'express'
 import { stringParam } from '../../../utils/route-param'
-import { nexbaronPublicEngineeringServices } from '../catalog/service-areas/engineering'
-import { nexbaronPublicDigitalMarketingServices } from '../catalog/service-areas/marketing'
 import servicePricingPlans, {
-  type PublicPlanServiceRef,
   annualPrice,
 } from '../catalog/plans'
 import { getCanonicalPublicServiceSections, getCanonicalPublicServices } from '../catalog/service-sections'
@@ -14,14 +11,6 @@ import {
 } from '../catalog/service-industries'
 import { DIGITAL_BUSINESS_PROFILE } from '../catalog/business-profile'
 
-const publicServiceDefinitions: Record<
-  string,
-  Record<string, Record<string, string>>
-> = {
-  engineering: nexbaronPublicEngineeringServices,
-  digitalMarketing: nexbaronPublicDigitalMarketingServices,
-}
-
 function toKebabCase(value: string): string {
   return value
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -30,62 +19,15 @@ function toKebabCase(value: string): string {
     .toLowerCase()
 }
 
-function getServiceId(entry: PublicPlanServiceRef): string {
-  return `${toKebabCase(entry.domain)}-${toKebabCase(entry.category)}-${toKebabCase(entry.service)}`
-}
-
-function getServiceLabel(entry: PublicPlanServiceRef): string {
-  const label =
-    publicServiceDefinitions[entry.domain]?.[entry.category]?.[entry.service]
-
-  if (!label) {
-    throw new Error(
-      `Unknown public service reference: ${entry.domain}.${entry.category}.${entry.service}`,
-    )
-  }
-
-  return label
-}
-
-function formatScopeKey(key: string): string {
-  return key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
-}
-
-function formatScopeValue(value: unknown): string {
-  if (typeof value === 'boolean') return value ? 'Included' : 'Not included'
-  return String(value)
-}
-
-function describeScope(scope?: Record<string, unknown>): string | undefined {
-  if (!scope || Object.keys(scope).length === 0) return undefined
-
-  return Object.entries(scope)
-    .map(([key, value]) => `${formatScopeKey(key)}: ${formatScopeValue(value)}`)
-    .join(' · ')
-}
-
 function buildCatalogPlans() {
-  return Object.entries(servicePricingPlans).map(([id, plan]: [string, typeof servicePricingPlans[string]]) => {
-    const services = plan.services.map((entry) => ({
-      id: getServiceId(entry),
-      label: getServiceLabel(entry),
-      description: describeScope(entry.scope),
-      domain: entry.domain,
-      category: entry.category,
-      service: entry.service,
-      scope: entry.scope,
+  return Object.entries(servicePricingPlans).map(([id, plan]) => {
+    const featureItems = (plan.features || []).map((feature) => ({
+      id: toKebabCase(feature.label),
+      label: feature.label,
+      description: feature.description,
+      scope: feature.scope,
       items: [],
     }))
-
-    const featureServices = plan.features
-      ? plan.features.map((label) => ({
-          id: toKebabCase(label),
-          label,
-          items: [],
-        }))
-      : []
 
     const includedId = plan.includes?.[0]
     const includedName = includedId
@@ -103,7 +45,7 @@ function buildCatalogPlans() {
         ? { label: `Everything in ${includedName}` }
         : undefined,
       inheritsFrom: includedId,
-      services: [...services, ...featureServices],
+      services: featureItems,
       addOns: [],
       ctaLabel: plan.ctaLabel,
       timelineMode: plan.timelineMode,

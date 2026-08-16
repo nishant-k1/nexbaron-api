@@ -2,9 +2,7 @@ import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { randomUUID } from "crypto";
 
-import servicePricingPlans, {
-  getPublicServiceLabel,
-} from "../../catalog/plans";
+import servicePricingPlans from "../../catalog/plans";
 import { getDivisionModels } from "../../../../models/registry";
 import { logger } from "../../../../utils/logger";
 import { IOrder } from "../../../../models/order.model";
@@ -216,10 +214,10 @@ export async function myOrder(req: Request, res: Response) {
               order.status === "delivered",
           },
         ];
-        if (plan) {
-          for (const s of plan.services)
+        if (plan?.features) {
+          for (const feature of plan.features)
             steps.push({
-              label: getPublicServiceLabel(s),
+              label: feature.label,
               done: order.status === "delivered",
             });
         }
