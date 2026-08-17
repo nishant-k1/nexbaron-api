@@ -34,6 +34,18 @@ const features: PlanFeature[] = [
     scope: "2 additional forms",
   },
   {
+    label: "Google Conversion Tracking",
+    description: "Google conversion tracking setup",
+    scope: "3 conversion actions",
+    inclusions: [
+      "Conversion action configuration",
+      "Event tracking implementation",
+      "Contact form submission tracking",
+      "WhatsApp click tracking",
+      "Phone call click tracking",
+    ],
+  },
+  {
     label: "Meta Conversion Tracking",
     description: "Meta conversion tracking setup",
     scope: "up to 3 conversion actions",

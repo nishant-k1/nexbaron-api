@@ -88,6 +88,11 @@ const features: PlanFeature[] = [
       "Profile image and cover image setup",
     ],
   },
+  {
+    label: "Social Media Posts",
+    description: "Social Media Post Creation & Publishing",
+    scope: "1 post/month",
+  },
 ];
 
 export default {

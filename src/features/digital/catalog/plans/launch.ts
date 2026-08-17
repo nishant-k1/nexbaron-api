@@ -55,9 +55,19 @@ const features: PlanFeature[] = [
     ],
   },
   {
+    label: "Google Conversion Tracking",
+    description: "Google conversion tracking setup",
+    scope: "1 conversion actions",
+    inclusions: [
+      "Conversion action configuration",
+      "Event tracking implementation",
+      "Contact form submission tracking",
+    ],
+  },
+  {
     label: "Social Media Posts",
     description: "Social Media Post Creation & Publishing",
-    scope: "1 post/month",
+    scope: "2 posts/month",
   },
 ];
 
