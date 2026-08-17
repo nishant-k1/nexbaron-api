@@ -18,7 +18,7 @@ export const DIGITAL_BUSINESS_PROFILE: BusinessProfile = {
   geo: { lat: 12.850875, lng: 77.649625 },
   phone: '+919002785683',
   whatsappNumber: '919002785683',
-  email: 'digital@nexbaron.com',
+  email: 'nexbaron.digital@gmail.com',
   gstin: '', // Set when the GST registration certificate is received.
   openingHours: {
     days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],

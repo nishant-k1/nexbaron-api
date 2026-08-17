@@ -17,7 +17,7 @@ export const PRINT_BUSINESS_PROFILE: BusinessProfile = {
   geo: { lat: 25.555, lng: 86.16725 },
   phone: '+919899752254',
   whatsappNumber: '919899752254',
-  email: 'print@nexbaron.com',
+  email: 'nexbaron.print@gmail.com',
   gstin: '', // Set when the GST registration certificate is received.
   openingHours: {
     days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
