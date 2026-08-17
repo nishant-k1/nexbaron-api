@@ -5,10 +5,10 @@ export const planTerms = {
   billingModel: [
     "All plans include a one-time setup fee and a monthly subscription fee. ",
     "Monthly subscriptions are billed in advance.",
+    "Annual subscriptions are billed upfront and provide 12 months of service at the stated annual price.",
     "The one-time setup fee covers the initial development and configuration of the included services.",
     "The monthly subscription fee covers the recurring services, maintenance, updates, hosting, monitoring, backups, and support included in the selected plan.",
-    "The minimum subscription term is 3 months. If payment is not received by the due date, services may be suspended.",
-    "The outstanding subscription amount for the remaining minimum term remains payable under the agreement.",
+    "The minimum subscription term is 3 months for monthly billing. Cancellation during the minimum term is subject to the terms of the service agreement.",
     "Cancellation during the minimum commitment period does not waive outstanding contractual payments.",
   ],
 

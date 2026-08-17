@@ -5,10 +5,7 @@ export default {
   icon: "MessageSquare",
   ctaLabel: "Contact Us",
   custom: true,
-  priceDescription: {
-    title: "Custom Digital Solutions",
-    subtitle: "Starting from ₹1,50,000",
-  },
+  pricing: "Let's Talk",
   features: [
     {
       label: "Mixed Services",

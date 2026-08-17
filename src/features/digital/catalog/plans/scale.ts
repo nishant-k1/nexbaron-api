@@ -2,10 +2,6 @@ import type { PlanFeature } from "../plans-type";
 
 const features: PlanFeature[] = [
   {
-    label: "All Growth Features",
-    description: "Everything in Growth",
-  },
-  {
     label: "Expanded Pages",
     description:
       "Up to 15 standard pages + 5 Additional Location Pages for SEO",
@@ -22,6 +18,9 @@ const features: PlanFeature[] = [
       "Structured data optimization",
       "Canonical configuration",
       "Open Graph metadata setup",
+      "XML sitemap review",
+      "Robots.txt review",
+      "Redirect review",
     ],
     exclusions: [
       "Search ranking guarantees",
@@ -32,7 +31,7 @@ const features: PlanFeature[] = [
   {
     label: "Custom Forms",
     description: "Up to 2 additional custom forms",
-    scope: "2 additional forms total",
+    scope: "2 additional forms",
   },
   {
     label: "Meta Conversion Tracking",
@@ -50,6 +49,7 @@ const features: PlanFeature[] = [
     scope: "1 lead pipeline",
     inclusions: [
       "Lead database",
+      "Website form lead capture",
       "Lead status management",
       "Lead details",
       "Lead search and filtering",
@@ -69,6 +69,7 @@ const features: PlanFeature[] = [
     inclusions: [
       "Email follow-up workflow",
       "Lead follow-up trigger configuration",
+      "1 workflow with up to 3 follow-up emails",
     ],
     scope: "1 follow-up workflow",
   },

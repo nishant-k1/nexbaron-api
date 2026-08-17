@@ -2,29 +2,23 @@ import type { PlanFeature } from "../plans-type";
 
 const features: PlanFeature[] = [
   {
-    label: "All Launch Features",
-    description: "Everything included in Launch",
-  },
-  {
     label: "Expanded Pages",
     description: "Up to 10 standard pages + 2 location pages",
     scope: "10 standard + 2 location pages",
   },
   {
-    label: "Accessibility, Performance and Best Practices Optimization",
+    label: "Accessibility & Performance  Optimization",
     description:
       "Website accessibility, performance and best practices optimization",
     inclusions: [
       "Accessibility audit and improvements",
-      "Performance optimization for faster loading",
-      "Mobile responsiveness enhancements",
-      "Best practices implementation for web development",
-      "Optimized images",
+      "Performance optimization",
+      "Mobile responsiveness improvements",
+      "Image optimization",
       "Lazy loading",
-      "Sensible asset loading",
+      "Asset loading optimization",
       "Code splitting where applicable",
-      "Basic caching",
-      "Avoiding obvious performance problems",
+      "Basic caching configuration",
     ],
   },
   {
@@ -61,11 +55,10 @@ const features: PlanFeature[] = [
     scope: "Eligible pages within Growth scope",
   },
   {
-    label: "Conversion Tracking",
+    label: "Google Conversion Tracking",
     description: "Google conversion tracking setup",
     scope: "3 conversion actions",
     inclusions: [
-      "Google Tag Manager setup",
       "Conversion action configuration",
       "Event tracking implementation",
       "Contact form submission tracking",
