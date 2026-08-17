@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { randomUUID } from "crypto";
 
-import servicePricingPlans from "../../catalog/plans";
+import servicePricingPlans from "../../catalog/plans-type";
 import { getDivisionModels } from "../../../../models/registry";
 import { logger } from "../../../../utils/logger";
 import { IOrder } from "../../../../models/order.model";
@@ -63,12 +63,10 @@ export async function createCheckout(req: Request, res: Response) {
     const customerEmail = user.email || customer.email;
     const customerPhone = user.phone || customer.phone;
     if (!customerEmail && !customerPhone) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "A verified email or phone number is required",
-        });
+      res.status(400).json({
+        success: false,
+        message: "A verified email or phone number is required",
+      });
       return;
     }
 

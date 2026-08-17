@@ -9,7 +9,7 @@ import { escapeRegex } from "../../../utils/regex";
 import { requireAuthenticated } from "../../../middleware/require-authenticated";
 import { computePrintEstimate } from "../../print/catalog/products";
 import { PRINT_PRODUCTS } from "../../print/catalog/products";
-import servicePricingPlans from "../../digital/catalog/plans";
+import servicePricingPlans from "../../digital/catalog/plans-type";
 import {
   nextQuoteNumber,
   sendQuoteEmail,
@@ -84,12 +84,10 @@ export async function submitQuote(req: Request, res: Response) {
       .trim()
       .toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "A valid email is required to request a quote",
-        });
+      res.status(400).json({
+        success: false,
+        message: "A valid email is required to request a quote",
+      });
       return;
     }
 
@@ -133,24 +131,20 @@ export async function submitQuote(req: Request, res: Response) {
       }
 
       if (items.length === 0) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Please choose at least one product with a valid quantity (min 500)",
-          });
+        res.status(400).json({
+          success: false,
+          message:
+            "Please choose at least one product with a valid quantity (min 500)",
+        });
         return;
       }
 
       for (const item of items) {
         if (!PRINT_PRODUCTS.some((p) => p.id === item.product)) {
-          res
-            .status(400)
-            .json({
-              success: false,
-              message: `Invalid product: ${item.product}`,
-            });
+          res.status(400).json({
+            success: false,
+            message: `Invalid product: ${item.product}`,
+          });
           return;
         }
       }
@@ -177,22 +171,18 @@ export async function submitQuote(req: Request, res: Response) {
         ? [...new Set(body.planIds.map(String).filter(Boolean))]
         : [];
       if (planIds.length === 0) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            message: "Please choose at least one service",
-          });
+        res.status(400).json({
+          success: false,
+          message: "Please choose at least one service",
+        });
         return;
       }
       const validPlanIds = new Set(Object.keys(servicePricingPlans));
       if (planIds.some((id) => !validPlanIds.has(id))) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            message: "Please choose valid digital services",
-          });
+        res.status(400).json({
+          success: false,
+          message: "Please choose valid digital services",
+        });
         return;
       }
       selection.planIds = planIds;
@@ -434,12 +424,10 @@ export async function updateQuote(req: Request, res: Response) {
     }
     if (typeof body.response === "object" && body.response !== null) {
       if (req.staffAuth.role === "staff") {
-        res
-          .status(403)
-          .json({
-            success: false,
-            message: "Only owners and admins can update quote pricing",
-          });
+        res.status(403).json({
+          success: false,
+          message: "Only owners and admins can update quote pricing",
+        });
         return;
       }
       const response = body.response as Record<string, unknown>;
@@ -553,12 +541,10 @@ export async function sendQuote(req: Request, res: Response) {
         !Number.isFinite(body.monthlyPrice) ||
         body.monthlyPrice < 0)
     ) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "Monthly price must be a non-negative number",
-        });
+      res.status(400).json({
+        success: false,
+        message: "Monthly price must be a non-negative number",
+      });
       return;
     }
     if (
@@ -567,12 +553,10 @@ export async function sendQuote(req: Request, res: Response) {
         !Number.isInteger(body.validityDays) ||
         body.validityDays < 1)
     ) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "Validity must be a positive whole number of days",
-        });
+      res.status(400).json({
+        success: false,
+        message: "Validity must be a positive whole number of days",
+      });
       return;
     }
 

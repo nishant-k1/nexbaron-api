@@ -1,73 +1,105 @@
-import type { PlanFeature } from '../plans'
+import type { PlanFeature } from "../plans-type";
 
 const features: PlanFeature[] = [
   {
-    label: 'All Growth Features',
-    description: 'Everything in Growth',
+    label: "All Growth Features",
+    description: "Everything in Growth",
   },
   {
-    label: 'Expanded Pages',
-    description: 'Up to 15 standard pages + 5 Additional Location Pages for SEO',
-    scope: '15 standard + 5 location pages',
-  },
-  {
-    label: 'Advanced SEO',
-    description: 'Advanced SEO setup',
-  },
-  {
-    label: 'Custom Forms',
-    description: 'Up to 2 Additional Custom forms',
-    scope: '2 additional forms',
-  },
-  {
-    label: 'Meta Tracking',
-    description: 'Meta Conversion Tracking Setup',
-  },
-  {
-    label: 'Lead Management',
-    description: 'Lead Management System',
-  },
-  {
-    label: 'Multi-channel Automation',
-    description: 'Email and WhatsApp automation',
-  },
-  {
-    label: 'Follow-up Automation',
-    description: 'Lead follow-up automation',
-  },
-  {
-    label: 'Blog Publishing',
+    label: "Expanded Pages",
     description:
-      'Blog setup and publishing — 2 SEO blog articles/month, up to 1,000 words each',
-    scope: '2 SEO articles/month, up to 1,000 words each',
+      "Up to 15 standard pages + 5 Additional Location Pages for SEO",
+    scope: "15 standard + 5 location pages",
   },
   {
-    label: 'Local Citations',
-    description:
-      'Local Citation Setup — up to 5 relevant business directories',
-    scope: 'up to 5 directories',
+    label: "Advanced SEO",
+    description: "Advanced SEO setup",
+    inclusions: [
+      "Technical SEO review",
+      "Indexation review",
+      "Core Web Vitals review",
+      "Internal linking strategy",
+      "Structured data optimization",
+      "Canonical configuration",
+      "Open Graph metadata setup",
+    ],
+    exclusions: [
+      "Search ranking guarantees",
+      "Backlink acquisition",
+      "Ongoing link building",
+    ],
   },
   {
-    label: 'Social Media Posts',
-    description:
-      'Social Media Post Creation & Publishing — 4 graphic posts and 2 shorts per month',
-    scope: '4 graphic posts + 2 shorts/month',
+    label: "Custom Forms",
+    description: "Up to 2 additional custom forms",
+    scope: "2 additional forms total",
   },
-]
+  {
+    label: "Meta Conversion Tracking",
+    description: "Meta conversion tracking setup",
+    scope: "up to 3 conversion actions",
+    inclusions: [
+      "Meta Pixel setup",
+      "Conversion event configuration",
+      "Event tracking implementation",
+    ],
+  },
+  {
+    label: "Lead Management",
+    description: "Basic lead management system",
+    scope: "1 lead pipeline",
+    inclusions: [
+      "Lead database",
+      "Lead status management",
+      "Lead details",
+      "Lead search and filtering",
+      "Basic lead dashboard",
+    ],
+    exclusions: [
+      "Advanced CRM functionality",
+      "Multi-user role management",
+      "Custom workflow development",
+      "Manual lead management by Nexbaron",
+      "Third-party CRM integration",
+    ],
+  },
+  {
+    label: "Lead Follow-up Automation",
+    description: "Automated lead follow-up through email",
+    inclusions: [
+      "Email follow-up workflow",
+      "Lead follow-up trigger configuration",
+    ],
+    scope: "1 follow-up workflow",
+  },
+  {
+    label: "Local Citations",
+    description: "Local Citation Setup - up to 5 relevant business directories",
+    scope: "up to 5 directories",
+  },
+  {
+    label: "Social Media Posts",
+    description:
+      "Social Media Post Creation & Publishing — 4 graphic posts and 2 shorts per month",
+    scope: "4 graphic posts + 2 shorts/month",
+  },
+];
 
 export default {
-  name: 'Scale',
-  tagline: 'Build systems that help you manage and automate growth.',
-  timeline: 'Monthly scale plan',
-  icon: 'Building2',
-  ctaLabel: 'Discuss Scale',
-  includes: ['growth'],
-  timelineMode: 'phased' as const,
+  name: "Scale",
+  tagline: "Build systems that help you manage and automate growth.",
+  timeline: "Monthly scale plan",
+  icon: "Building2",
+  ctaLabel: "Discuss Scale",
+  includes: ["growth"],
+  timelineMode: "phased" as const,
   foundationDays: 30,
   pricing: {
-    setup: 99999,
-    monthly: 9999,
-    minimumMonths: 12,
+    setup: 59999,
+    monthly: 5999,
+    annual: 59990,
+    minimumMonths: 3,
+    annualDiscount: "Pay for 10 months, get 12 months of service.",
   },
   features,
-}
+};

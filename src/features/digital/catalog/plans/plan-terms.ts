@@ -1,21 +1,32 @@
 export const planTerms = {
   pricingNote:
-    'The above pricing is indicative and may vary based on the complexity of the project and specific requirements. Please contact us for a detailed quote tailored to your business needs.',
-  billingModel:
-    'All plans include a one-time setup fee and a monthly subscription fee. The one-time setup fee covers the initial development and configuration of your website, while the monthly subscription fee covers ongoing maintenance, updates, and support.',
+    "Package pricing applies to the stated scope and limits. Additional requirements, third-party costs, and work outside the included scope may be quoted separately.",
+
+  billingModel: [
+    "All plans include a one-time setup fee and a monthly subscription fee. ",
+    "Monthly subscriptions are billed in advance.",
+    "The one-time setup fee covers the initial development and configuration of the included services.",
+    "The monthly subscription fee covers the recurring services, maintenance, updates, hosting, monitoring, backups, and support included in the selected plan.",
+    "The minimum subscription term is 3 months. If payment is not received by the due date, services may be suspended.",
+    "The outstanding subscription amount for the remaining minimum term remains payable under the agreement.",
+    "Cancellation during the minimum commitment period does not waive outstanding contractual payments.",
+  ],
+
   includedInAllPlans: [
-    'Hosting',
-    'SSL',
-    'Website monitoring',
-    'Backups',
-    'Minor maintenance',
-    'Technical support',
+    "Hosting",
+    "SSL",
+    "Website monitoring",
+    "Backups",
+    "Minor maintenance",
+    "Technical support",
   ],
+
   separateThirdPartyCosts: [
-    'Domain renewal',
-    'Email provider subscription',
-    'Paid plugins',
-    'Payment gateway fees',
-    'Premium third-party APIs',
+    "Domain registration and renewal",
+    "Email provider subscription",
+    "Paid plugins",
+    "Payment gateway fees",
+    "Premium third-party APIs",
+    "Third-party messaging and communication charges",
   ],
-}
+};

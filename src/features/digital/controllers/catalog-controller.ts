@@ -1,22 +1,23 @@
-import { Request, Response } from 'express'
-import { stringParam } from '../../../utils/route-param'
-import servicePricingPlans, {
-  annualPrice,
-} from '../catalog/plans'
-import { getCanonicalPublicServiceSections, getCanonicalPublicServices } from '../catalog/service-sections'
+import { Request, Response } from "express";
+import { stringParam } from "../../../utils/route-param";
+import servicePricingPlans, { annualPrice } from "../catalog/plans-type";
+import {
+  getCanonicalPublicServiceSections,
+  getCanonicalPublicServices,
+} from "../catalog/service-sections";
 import {
   BUSINESS_CATEGORIES,
   getBusinesses as getAllBusinesses,
   getBusinessBySlug,
-} from '../catalog/service-industries'
-import { DIGITAL_BUSINESS_PROFILE } from '../catalog/business-profile'
+} from "../catalog/service-industries";
+import { DIGITAL_BUSINESS_PROFILE } from "../catalog/business-profile";
 
 function toKebabCase(value: string): string {
   return value
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase()
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
 }
 
 function buildCatalogPlans() {
@@ -27,12 +28,12 @@ function buildCatalogPlans() {
       description: feature.description,
       scope: feature.scope,
       items: [],
-    }))
+    }));
 
-    const includedId = plan.includes?.[0]
+    const includedId = plan.includes?.[0];
     const includedName = includedId
       ? servicePricingPlans[includedId]?.name
-      : undefined
+      : undefined;
 
     return {
       id,
@@ -53,56 +54,56 @@ function buildCatalogPlans() {
       pricing: plan.pricing
         ? { ...plan.pricing, annual: annualPrice(plan.pricing) }
         : undefined,
-    }
-  })
+    };
+  });
 }
 
 export function getCatalog(_req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'public, max-age=900')
+  res.setHeader("Cache-Control", "public, max-age=900");
   res.json({
-    version: '5.0.0',
-    updatedAt: '2026-08-16T00:00:00.000Z',
-    currency: 'INR',
+    version: "5.0.0",
+    updatedAt: "2026-08-16T00:00:00.000Z",
+    currency: "INR",
     disclaimer:
-      'One-time setup + monthly care. Prices include GST. Ad budgets (Google/Meta) are billed separately.',
+      "One-time setup + monthly care. Prices include GST. Ad budgets (Google/Meta) are billed separately.",
     plans: buildCatalogPlans(),
-  })
+  });
 }
 
 export function getServices(_req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'public, max-age=900')
+  res.setHeader("Cache-Control", "public, max-age=900");
   res.json({
-    version: '1.0.0',
+    version: "1.0.0",
     sections: getCanonicalPublicServiceSections(),
     services: getCanonicalPublicServices(),
-  })
+  });
 }
 
 export function getBusinesses(_req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'public, max-age=900')
+  res.setHeader("Cache-Control", "public, max-age=900");
   res.json({
-    version: '1.0.0',
+    version: "1.0.0",
     categories: BUSINESS_CATEGORIES,
     businesses: getAllBusinesses(),
-  })
+  });
 }
 
 export function getBusinessBySlugHandler(req: Request, res: Response) {
-  const slug = stringParam(req, 'slug')
+  const slug = stringParam(req, "slug");
   if (!slug) {
-    res.status(400).json({ success: false, message: 'Invalid slug' })
-    return
+    res.status(400).json({ success: false, message: "Invalid slug" });
+    return;
   }
-  const business = getBusinessBySlug(slug)
+  const business = getBusinessBySlug(slug);
   if (!business) {
-    res.status(404).json({ success: false, message: 'Business not found' })
-    return
+    res.status(404).json({ success: false, message: "Business not found" });
+    return;
   }
-  res.setHeader('Cache-Control', 'public, max-age=900')
-  res.json({ success: true, business })
+  res.setHeader("Cache-Control", "public, max-age=900");
+  res.json({ success: true, business });
 }
 
 export function getBusinessProfile(_req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'public, max-age=900')
-  res.json({ success: true, profile: DIGITAL_BUSINESS_PROFILE })
+  res.setHeader("Cache-Control", "public, max-age=900");
+  res.json({ success: true, profile: DIGITAL_BUSINESS_PROFILE });
 }
