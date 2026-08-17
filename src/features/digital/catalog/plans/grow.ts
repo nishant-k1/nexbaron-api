@@ -27,8 +27,8 @@ const features: PlanFeature[] = [
     scope: "1 additional form",
   },
   {
-    label: "Live Chat",
-    description: "Live chat widget setup and website integration",
+    label: "AI Chatbot",
+    description: "AI-powered chatbot for automated customer support",
   },
   {
     label: "On-Page SEO",
@@ -55,6 +55,11 @@ const features: PlanFeature[] = [
     scope: "Eligible pages within Growth scope",
   },
   {
+    label: "Local Citations",
+    description: "Local Citation Setup — up to 2 relevant business directories",
+    scope: "up to 2 directories",
+  },
+  {
     label: "Google Conversion Tracking",
     description: "Google conversion tracking setup",
     scope: "3 conversion actions",
@@ -66,12 +71,6 @@ const features: PlanFeature[] = [
       "Phone call click tracking",
     ],
   },
-  {
-    label: "Local Citations",
-    description: "Local Citation Setup — up to 2 relevant business directories",
-    scope: "up to 2 directories",
-  },
-
   {
     label: "Social Media Posts",
     description:

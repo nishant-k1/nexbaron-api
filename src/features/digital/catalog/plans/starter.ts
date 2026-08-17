@@ -43,6 +43,10 @@ const features: PlanFeature[] = [
     ],
   },
   {
+    label: "Live Chat",
+    description: "Live chat widget setup and website integration",
+  },
+  {
     label: "Google Business Profile",
     description: "Google Business Profile creation",
     inclusions: [

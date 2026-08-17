@@ -2,6 +2,11 @@ import type { PlanFeature } from "../plans-type";
 
 const features: PlanFeature[] = [
   {
+    label: "Expanded Pages",
+    description: "Up to 10 standard pages + 2 location pages",
+    scope: "7 standard + 1 location page",
+  },
+  {
     label: "Basic Performance Optimization",
     description: "Basic Website performance optimization",
     inclusions: [
@@ -22,6 +27,11 @@ const features: PlanFeature[] = [
     ],
   },
   {
+    label: "Google Maps",
+    description: "Google Maps location embed on the website",
+    scope: "1 business location",
+  },
+  {
     label: "WhatsApp Chat",
     description: "Floating WhatsApp Chat Button",
     inclusions: [
@@ -30,9 +40,9 @@ const features: PlanFeature[] = [
     ],
   },
   {
-    label: "Google Maps",
-    description: "Google Maps location embed on the website",
-    scope: "1 business location",
+    label: "On-Page SEO",
+    description: "On-page SEO optimization for up to 10 pages",
+    scope: "up to 7 pages",
   },
   {
     label: "Website Analytics",
@@ -43,6 +53,11 @@ const features: PlanFeature[] = [
       "Website traffic tracking",
       "Basic event tracking",
     ],
+  },
+  {
+    label: "Social Media Posts",
+    description: "Social Media Post Creation & Publishing",
+    scope: "1 post/month",
   },
 ];
 
