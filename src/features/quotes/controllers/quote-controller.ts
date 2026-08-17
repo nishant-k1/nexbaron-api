@@ -9,7 +9,7 @@ import { escapeRegex } from "../../../utils/regex";
 import { requireAuthenticated } from "../../../middleware/require-authenticated";
 import { computePrintEstimate } from "../../print/catalog/products";
 import { PRINT_PRODUCTS } from "../../print/catalog/products";
-import servicePricingPlans from "../../digital/catalog/plans-type";
+import servicePricingPlans from "../../digital/catalog/plans/v1/plans-type";
 import {
   nextQuoteNumber,
   sendQuoteEmail,

@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { stringParam } from "../../../utils/route-param";
-import servicePricingPlans, { annualPrice } from "../catalog/plans-type";
+import servicePricingPlans, {
+  annualPrice,
+} from "../catalog/plans/v1/plans-type";
 import {
   getCanonicalPublicServiceSections,
   getCanonicalPublicServices,

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { randomUUID } from "crypto";
 
-import servicePricingPlans from "../../catalog/plans-type";
+import servicePricingPlans from "../../catalog/plans/v1/plans-type";
 import { getDivisionModels } from "../../../../models/registry";
 import { logger } from "../../../../utils/logger";
 import { IOrder } from "../../../../models/order.model";

@@ -1,4 +1,4 @@
-import type { PlanFeature } from "../plans-type";
+import type { PlanFeature } from "./plans-type";
 
 const features: PlanFeature[] = [
   {
@@ -103,7 +103,7 @@ export default {
   ctaLabel: "Choose Starter",
   pricing: {
     setup: 8999,
-    monthly: 499,
+    monthly: 599,
     annual: 4990,
     minimumMonths: 3,
     annualDiscount: "Pay for 10 months, get 12 months of service.",

@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 import { Model } from "mongoose";
 
-import servicePricingPlans from "../../digital/catalog/plans-type";
+import servicePricingPlans from "../../digital/catalog/plans/v1/plans-type";
 import { getProductLabel } from "../../print/catalog/products";
 import { logger } from "../../../utils/logger";
 import { IQuote } from "../../../models/quote.model";

@@ -3,11 +3,11 @@
 // file under plans/ with structured feature objects — no dependency on the
 // service-areas catalog.
 
-import launch from "./plans/launch";
-import starter from "./plans/starter";
-import growth from "./plans/grow";
-import scale from "./plans/scale";
-import custom from "./plans/custom";
+import launch from "./launch";
+import starter from "./starter";
+import growth from "./grow";
+import scale from "./scale";
+import custom from "./custom";
 
 export type PlanPricing = {
   setup: number;

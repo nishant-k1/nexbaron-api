@@ -1,5 +1,7 @@
 import { IOrderItem } from "../../../../models/order.model";
-import servicePricingPlans, { annualPrice } from "../../catalog/plans-type";
+import servicePricingPlans, {
+  annualPrice,
+} from "../../catalog/plans/v1/plans-type";
 
 export interface PlanSelectionInput {
   selected: string[];

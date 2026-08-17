@@ -1,4 +1,4 @@
-import type { PlanFeature } from "../plans-type";
+import type { PlanFeature } from "./plans-type";
 
 const features: PlanFeature[] = [
   {
