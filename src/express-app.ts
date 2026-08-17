@@ -42,7 +42,7 @@ app.use(cors({
     const allowed = process.env.CORS_ORIGINS
       ?.split(',')
       .map((value) => value.trim())
-      .filter(Boolean) || [(process.env.FRONTEND_URL || 'http://localhost:3000').trim()]
+      .filter(Boolean) || [process.env.FRONTEND_URL!.trim()]
     // Allow requests without an Origin (curl, server-to-server) and whitelisted origins.
     if (!origin || allowed.includes(origin)) {
       callback(null, true)

@@ -8,6 +8,7 @@ import { IQuote } from "../../../models/quote.model";
 import { canSendMail, sendMail } from "../../../utils/mailer";
 import { escapeHtml, logoNx } from "../../../utils/html";
 import { NX_DIGITAL, NX_PRINT } from "../../../config/constants";
+import { requireEnv } from "../../../utils/env";
 import { nextSequence } from "../../../utils/counter";
 
 const WHATSAPP_ENABLED = process.env.QUOTE_WHATSAPP_ENABLED === "true";
@@ -24,7 +25,7 @@ interface BrandConfig {
 const BRANDS: Record<"digital" | "print", BrandConfig> = {
   digital: {
     name: "Nexbaron Digital",
-    fromEmail: process.env.QUOTE_FROM_EMAIL_DIGITAL || "nexbaron.digital@gmail.com",
+    fromEmail: requireEnv("QUOTE_FROM_EMAIL_DIGITAL"),
     accent: "#14b8a6",
     accentLight: "#ccfbf1",
     tagline: "Your website & growth partner",
@@ -32,7 +33,7 @@ const BRANDS: Record<"digital" | "print", BrandConfig> = {
   },
   print: {
     name: "Nexbaron Print",
-    fromEmail: process.env.QUOTE_FROM_EMAIL_PRINT || "nexbaron.print@gmail.com",
+    fromEmail: requireEnv("QUOTE_FROM_EMAIL_PRINT"),
     accent: "#f59e0b",
     accentLight: "#fef3c7",
     tagline: "Commercial printing, done right",

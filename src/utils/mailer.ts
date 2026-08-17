@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import { logger } from './logger'
+import { requireEnv } from './env'
 
 interface MailOptions {
   from: string
@@ -59,6 +60,6 @@ export async function sendMail(options: MailOptions): Promise<void> {
 
 // Helper to construct a from address per brand
 export function fromAddress(user: string): string {
-  const domain = process.env.SMTP_FROM_DOMAIN || 'nexbaron.com'
+  const domain = requireEnv('SMTP_FROM_DOMAIN')
   return `${user}@${domain}`
 }

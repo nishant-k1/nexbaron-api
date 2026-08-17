@@ -9,18 +9,19 @@ import { NX_DIGITAL } from '../../../../config/constants'
 import { nextSequence } from '../../../../utils/counter'
 import { splitGst } from './pricing-service'
 import { DIGITAL_BUSINESS_PROFILE } from '../../catalog/business-profile'
+import { requireEnv } from '../../../../utils/env'
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
-const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || ''
-const INVOICE_FROM = process.env.INVOICE_FROM_EMAIL || 'nexbaron.digital@gmail.com'
+const RAZORPAY_KEY_ID = requireEnv('RAZORPAY_KEY_ID')
+const RAZORPAY_KEY_SECRET = requireEnv('RAZORPAY_KEY_SECRET')
+const RAZORPAY_WEBHOOK_SECRET = requireEnv('RAZORPAY_WEBHOOK_SECRET')
+const INVOICE_FROM = requireEnv('INVOICE_FROM_EMAIL')
 const BILLING_GSTIN = DIGITAL_BUSINESS_PROFILE.gstin
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
+const FRONTEND_URL = requireEnv('FRONTEND_URL')
 
 export function razorpayConfigured(): boolean {
   // Only treat keys as real when they look like actual Razorpay credentials
-  // (rzp_test_ / rzp_live_). Dummy placeholders or empty strings keep the
-  // dev fallback active so the checkout flow is tappable without live keys.
+  // (rzp_test_ / rzp_live_). Dummy placeholders keep the dev fallback active
+  // so the checkout flow is tappable without live keys.
   return Boolean(
     RAZORPAY_KEY_ID &&
       RAZORPAY_KEY_SECRET &&

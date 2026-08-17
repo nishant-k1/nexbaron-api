@@ -5,6 +5,7 @@ import { canSendMail, sendMail } from '../../../utils/mailer'
 import { logger } from '../../../utils/logger'
 import { logoNx } from '../../../utils/html'
 import { NX_DIGITAL, NX_PRINT } from '../../../config/constants'
+import { requireEnv } from '../../../utils/env'
 
 export const OTP_TTL_MS = Number(process.env.OTP_TTL_MS) || 10 * 60 * 1000
 export const MAX_ATTEMPTS = 5
@@ -208,7 +209,7 @@ async function deliverOtp(
   }
 
   const brand = runtimeBrand
-  const from = process.env[`OTP_FROM_EMAIL_${brand.toUpperCase()}`] || `nexbaron.${brand}@gmail.com`
+  const from = requireEnv(`OTP_FROM_EMAIL_${brand.toUpperCase()}`)
   const expiresMinutes = Math.ceil(OTP_TTL_MS / 60000)
 
   try {
