@@ -5,7 +5,10 @@ export default {
   icon: "MessageSquare",
   ctaLabel: "Contact Us",
   custom: true,
-  pricing: "Let's Talk",
+  priceDescription: {
+    title: "Let's Talk",
+    subtitle: "Starting from ₹1,50,000",
+  },
   features: [
     {
       label: "Mixed Services",

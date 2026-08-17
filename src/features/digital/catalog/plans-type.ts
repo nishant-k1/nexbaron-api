@@ -4,6 +4,7 @@
 // service-areas catalog.
 
 import launch from "./plans/launch";
+import starter from "./plans/starter";
 import growth from "./plans/grow";
 import scale from "./plans/scale";
 import custom from "./plans/custom";
@@ -45,6 +46,7 @@ export function annualPrice(pricing: PlanPricing): number {
 }
 
 const servicePricingPlans: Record<string, PricingPlan> = {
+  starter,
   launch,
   growth,
   scale,
