@@ -1,5 +1,5 @@
-import { nexbaronPublicEngineeringServices } from "./service-areas/engineering";
-import { nexbaronPublicDigitalMarketingServices } from "./service-areas/marketing";
+import { nexbaronPublicEngineeringServices } from "../../service-areas/v1/engineering";
+import { nexbaronPublicDigitalMarketingServices } from "../../service-areas/v1/marketing";
 
 export interface PublicServiceSection {
   id: string;

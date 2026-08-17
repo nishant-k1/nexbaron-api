@@ -6,12 +6,12 @@ import servicePricingPlans, {
 import {
   getCanonicalPublicServiceSections,
   getCanonicalPublicServices,
-} from "../catalog/service-sections";
+} from "../catalog/service-industries/v1/service-sections";
 import {
   BUSINESS_CATEGORIES,
   getBusinesses as getAllBusinesses,
   getBusinessBySlug,
-} from "../catalog/service-industries";
+} from "../catalog/service-industries/v1/service-industries";
 import { DIGITAL_BUSINESS_PROFILE } from "../catalog/business-profile";
 
 function toKebabCase(value: string): string {
