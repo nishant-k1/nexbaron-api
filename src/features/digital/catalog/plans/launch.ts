@@ -76,7 +76,7 @@ export default {
   tagline: "Build a professional digital presence.",
   timeline: "Typically 7–14 business days",
   icon: "Rocket",
-  ctaLabel: "Discuss Launch",
+  ctaLabel: "Choose Launch",
   includes: ["starter"],
   pricing: {
     setup: 14999,

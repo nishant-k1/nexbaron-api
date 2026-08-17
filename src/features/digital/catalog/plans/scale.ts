@@ -103,7 +103,7 @@ export default {
   tagline: "Build systems that help you manage and automate growth.",
   timeline: "Monthly scale plan",
   icon: "Building2",
-  ctaLabel: "Discuss Scale",
+  ctaLabel: "Choose Scale",
   includes: ["growth"],
   timelineMode: "phased" as const,
   foundationDays: 30,

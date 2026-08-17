@@ -89,7 +89,7 @@ export default {
   tagline: "Turn your digital presence into a lead-generation channel",
   timeline: "Monthly growth plan",
   icon: "TrendingUp",
-  ctaLabel: "Discuss Growth",
+  ctaLabel: "Choose Growth",
   featured: true,
   includes: ["launch"],
   pricing: {

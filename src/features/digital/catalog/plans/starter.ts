@@ -100,7 +100,7 @@ export default {
   tagline: "A simple website to get your business online and discoverable.",
   timeline: "Typically 5–7 business days",
   icon: "Globe",
-  ctaLabel: "Discuss Starter",
+  ctaLabel: "Choose Starter",
   pricing: {
     setup: 8999,
     monthly: 499,
