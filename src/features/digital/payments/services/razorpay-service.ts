@@ -13,7 +13,7 @@ import { DIGITAL_BUSINESS_PROFILE } from '../../catalog/business-profile'
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || ''
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || ''
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || ''
-const INVOICE_FROM = process.env.INVOICE_FROM_EMAIL || 'billing@nexbaron.com'
+const INVOICE_FROM = process.env.INVOICE_FROM_EMAIL || 'nexbaron.digital@gmail.com'
 const BILLING_GSTIN = DIGITAL_BUSINESS_PROFILE.gstin
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 

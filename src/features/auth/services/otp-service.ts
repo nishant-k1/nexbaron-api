@@ -208,7 +208,7 @@ async function deliverOtp(
   }
 
   const brand = runtimeBrand
-  const from = process.env[`OTP_FROM_EMAIL_${brand.toUpperCase()}`] || `verify@nexbaron.com`
+  const from = process.env[`OTP_FROM_EMAIL_${brand.toUpperCase()}`] || `nexbaron.${brand}@gmail.com`
   const expiresMinutes = Math.ceil(OTP_TTL_MS / 60000)
 
   try {

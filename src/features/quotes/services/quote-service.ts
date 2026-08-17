@@ -24,7 +24,7 @@ interface BrandConfig {
 const BRANDS: Record<"digital" | "print", BrandConfig> = {
   digital: {
     name: "Nexbaron Digital",
-    fromEmail: process.env.QUOTE_FROM_EMAIL_DIGITAL || "billing@nexbaron.com",
+    fromEmail: process.env.QUOTE_FROM_EMAIL_DIGITAL || "nexbaron.digital@gmail.com",
     accent: "#14b8a6",
     accentLight: "#ccfbf1",
     tagline: "Your website & growth partner",
@@ -32,7 +32,7 @@ const BRANDS: Record<"digital" | "print", BrandConfig> = {
   },
   print: {
     name: "Nexbaron Print",
-    fromEmail: process.env.QUOTE_FROM_EMAIL_PRINT || "billing@nexbaron.com",
+    fromEmail: process.env.QUOTE_FROM_EMAIL_PRINT || "nexbaron.print@gmail.com",
     accent: "#f59e0b",
     accentLight: "#fef3c7",
     tagline: "Commercial printing, done right",
