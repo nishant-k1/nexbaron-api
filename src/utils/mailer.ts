@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer'
 import { logger } from './logger'
 import { requireEnv } from './env'
+import { runtimeBrand } from '../config/brand'
 
 interface MailOptions {
   from: string
@@ -10,26 +11,21 @@ interface MailOptions {
   attachments?: { filename: string; content: Buffer | string; contentType?: string }[]
 }
 
-const smtpConfig = {
-  host: process.env.SMTP_HOST || '',
-  port: Number(process.env.SMTP_PORT) || 587,
-  user: process.env.SMTP_USER || '',
-  pass: process.env.SMTP_PASS || '',
-}
-
-let transporter: nodemailer.Transporter | null = null
-
 function getTransporter(): nodemailer.Transporter | null {
-  if (!smtpConfig.host || !smtpConfig.user) return null
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.port === 465,
-      auth: { user: smtpConfig.user, pass: smtpConfig.pass },
-    })
-  }
-  return transporter
+  const brand = runtimeBrand
+  const host = process.env.SMTP_HOST
+  const port = Number(process.env.SMTP_PORT) || 587
+  const user = process.env[`SMTP_${brand.toUpperCase()}_USER`]
+  const pass = process.env[`SMTP_${brand.toUpperCase()}_PASS`]
+
+  if (!host || !user || !pass) return null
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  })
 }
 
 export function canSendMail(): boolean {
