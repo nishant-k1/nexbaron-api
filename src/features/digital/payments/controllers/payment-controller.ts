@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import servicePricingPlans from "../../catalog/plans/v1/plans-type";
 import { getDivisionModels } from "../../../../models/registry";
 import { logger } from "../../../../utils/logger";
+import { handleError } from "../../../../utils/error";
 import { IOrder } from "../../../../models/order.model";
 import { stringParam } from "../../../../utils/route-param";
 import {
@@ -171,10 +172,7 @@ export async function createCheckout(req: Request, res: Response) {
       invoiceNumber,
     });
   } catch (error) {
-    logger.error("createCheckout failed", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Could not start checkout" });
+    return handleError("createCheckout", req, res, error, "Could not start checkout");
   }
 }
 
@@ -247,10 +245,7 @@ export async function myOrder(req: Request, res: Response) {
       }),
     });
   } catch (error) {
-    logger.error("myOrder failed", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Could not load your order" });
+    return handleError("myOrder", req, res, error, "Could not load your order");
   }
 }
 
@@ -334,10 +329,7 @@ export async function downloadReceipt(req: Request, res: Response) {
     );
     res.send(html);
   } catch (error) {
-    logger.error("downloadReceipt failed", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to generate receipt" });
+    return handleError("downloadReceipt", req, res, error, "Failed to generate receipt");
   }
 }
 
@@ -408,10 +400,7 @@ export async function verifyPayment(req: Request, res: Response) {
       milestones: order.milestones,
     });
   } catch (error) {
-    logger.error("verifyPayment failed", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Could not verify payment" });
+    return handleError("verifyPayment", req, res, error, "Could not verify payment");
   }
 }
 
@@ -453,11 +442,10 @@ export async function razorpayWebhook(req: Request, res: Response) {
     const captured = Boolean(order);
     if (order)
       await finalizeOrder(order, { method: "razorpay", paymentId: entity?.id });
-    if (!captured) logger.warn("Webhook for unknown order", orderId);
+    if (!captured) logger.warn({ orderId }, "Webhook for unknown order");
     res.json({ success: true });
   } catch (error) {
-    logger.error("razorpayWebhook failed", error);
-    res.status(500).json({ success: false, message: "Webhook error" });
+    return handleError("razorpayWebhook", req, res, error, "Webhook error");
   }
 }
 

@@ -142,7 +142,7 @@ export async function sendDueReminders(division: 'digital' | 'print'): Promise<n
         })
         mailed = true
       } catch (e) {
-        logger.error(`Failed to send reminder email to ${email}`, e)
+        logger.error({ err: e instanceof Error ? e : new Error(String(e)) }, `Failed to send reminder email to ${email}`)
       }
     }
 

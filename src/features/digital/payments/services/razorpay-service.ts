@@ -48,7 +48,7 @@ export async function createRazorpayOrder(amountPaise: number, receipt: string, 
   })
   if (!response.ok) {
     const body = await response.text()
-    logger.error('Razorpay create-order failed', { status: response.status, body })
+    logger.error({ status: response.status, body }, 'Razorpay create-order failed')
     throw new Error('Failed to create payment order')
   }
   return (await response.json()) as { id: string; amount: number; currency: string }

@@ -4,8 +4,8 @@ import { randomUUID } from "crypto";
 
 import { getDivisionModels } from "../../../models/registry";
 import { QuoteStatus } from "../../../models/quote.model";
-import { logger } from "../../../utils/logger";
 import { escapeRegex } from "../../../utils/regex";
+import { handleError } from "../../../utils/error";
 import { requireAuthenticated } from "../../../middleware/require-authenticated";
 import { computePrintEstimate } from "../../print/catalog/products";
 import { PRINT_PRODUCTS } from "../../print/catalog/products";
@@ -263,10 +263,7 @@ export async function submitQuote(req: Request, res: Response) {
       estimate: serverEstimate,
     });
   } catch (error) {
-    logger.error("submitQuote failed", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Could not save your quote request" });
+    return handleError("submitQuote", req, res, error, "Could not save your quote request");
   }
 }
 
@@ -306,10 +303,7 @@ export async function myQuotes(req: Request, res: Response) {
       })),
     });
   } catch (error) {
-    logger.error("myQuotes failed", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Could not load your quotes" });
+    return handleError("myQuotes", req, res, error, "Could not load your quotes");
   }
 }
 
@@ -349,8 +343,7 @@ export async function listQuotes(req: Request, res: Response) {
       .lean();
     res.json({ success: true, quotes });
   } catch (error) {
-    logger.error("listQuotes failed", error);
-    res.status(500).json({ success: false, message: "Failed to load quotes" });
+    return handleError("listQuotes", req, res, error, "Failed to load quotes");
   }
 }
 
@@ -379,8 +372,7 @@ export async function getQuote(req: Request, res: Response) {
     }
     res.json({ success: true, quote });
   } catch (error) {
-    logger.error("getQuote failed", error);
-    res.status(500).json({ success: false, message: "Failed to load quote" });
+    return handleError("getQuote", req, res, error, "Failed to load quote");
   }
 }
 
@@ -462,8 +454,7 @@ export async function updateQuote(req: Request, res: Response) {
     await quote.save();
     res.json({ success: true, quote });
   } catch (error) {
-    logger.error("updateQuote failed", error);
-    res.status(500).json({ success: false, message: "Failed to update quote" });
+    return handleError("updateQuote", req, res, error, "Failed to update quote");
   }
 }
 
@@ -493,10 +484,7 @@ export async function previewQuote(req: Request, res: Response) {
     const html = quoteHtml(quote);
     res.json({ success: true, html });
   } catch (error) {
-    logger.error("previewQuote failed", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to generate preview" });
+    return handleError("previewQuote", req, res, error, "Failed to generate preview");
   }
 }
 
@@ -596,7 +584,6 @@ export async function sendQuote(req: Request, res: Response) {
       whatsApp: wa.available ? { link: wa.link } : undefined,
     });
   } catch (error) {
-    logger.error("sendQuote failed", error);
-    res.status(500).json({ success: false, message: "Failed to send quote" });
+    return handleError("sendQuote", req, res, error, "Failed to send quote");
   }
 }

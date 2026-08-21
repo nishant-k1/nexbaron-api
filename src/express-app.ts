@@ -31,6 +31,7 @@ import cookieParser from 'cookie-parser'
 import { adminAuthRouter } from './features/admin/routes/auth-routes'
 import { errorHandler } from './middleware/error-handler'
 import { notFoundHandler } from './middleware/not-found-handler'
+import { requestContext } from './middleware/request-context'
 import { runtimeBrand } from './config/brand'
 
 export const app = express()
@@ -55,6 +56,10 @@ app.use(cors({
 
 // Compression
 app.use(compression())
+
+// Request correlation: attach a requestId (echoed as X-Request-Id) and a child
+// logger carrying requestId/division/path/method to every request.
+app.use(requestContext)
 
 // Razorpay webhook — must capture the raw body for signature verification,
 // so mount its raw parser BEFORE the global JSON body parser.

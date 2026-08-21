@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { getDivisionModels } from '../../../models/registry'
 import { runtimeBrand } from '../../../config/brand'
 import { logger } from '../../../utils/logger'
+import { handleError } from '../../../utils/error'
 import { getNextStaffForAssignment } from '../../leads/services/auto-assign-service'
 import { sendLeadAcknowledgment } from '../../leads/services/acknowledge-service'
 
@@ -66,8 +67,7 @@ export async function customerSendMessage(req: Request, res: Response) {
       ...(projectId ? { projectId } : {}),
     })
   } catch (error) {
-    logger.error('customerSendMessage failed', error)
-    res.status(500).json({ success: false, message: 'Failed to save message' })
+    return handleError('customerSendMessage', req, res, error, 'Failed to save message')
   }
 }
 
@@ -80,7 +80,7 @@ async function autoAssignChatLead(lead: { _id: any; division: string; assignedSt
     await Lead.updateOne({ _id: lead._id }, { $set: { assignedStaff: staffName } })
     logger.info(`Chat lead ${lead._id} auto-assigned to ${staffName}`)
   } catch (error) {
-    logger.error('autoAssignChatLead failed', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'autoAssignChatLead failed')
   }
 }
 
@@ -115,8 +115,7 @@ export async function customerGetChat(req: Request, res: Response) {
     const messages = await ChatMessage.find(filter).sort({ createdAt: 1 }).limit(200).lean()
     res.json({ success: true, messages })
   } catch (error) {
-    logger.error('customerGetChat failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load chat' })
+    return handleError('customerGetChat', req, res, error, 'Failed to load chat')
   }
 }
 
@@ -144,8 +143,7 @@ export async function customerMarkRead(req: Request, res: Response) {
     const result = await ChatMessage.updateMany(filter, { $set: { isRead: true } })
     res.json({ success: true, marked: result.modifiedCount })
   } catch (error) {
-    logger.error('customerMarkRead failed', error)
-    res.status(500).json({ success: false, message: 'Failed to mark messages as read' })
+    return handleError('customerMarkRead', req, res, error, 'Failed to mark messages as read')
   }
 }
 
@@ -181,8 +179,7 @@ export async function customerPresence(req: Request, res: Response) {
 
     res.json({ success: true })
   } catch (error) {
-    logger.error('customerPresence failed', error)
-    res.status(500).json({ success: false, message: 'Presence update failed' })
+    return handleError('customerPresence', req, res, error, 'Presence update failed')
   }
 }
 
@@ -238,8 +235,7 @@ export async function customerMergeChat(req: Request, res: Response) {
 
     res.json({ success: true, merged: sessionResult.modifiedCount + phoneResult.modifiedCount + emailResult.modifiedCount })
   } catch (error) {
-    logger.error('customerMergeChat failed', error)
-    res.status(500).json({ success: false, message: 'Merge failed' })
+    return handleError('customerMergeChat', req, res, error, 'Merge failed')
   }
 }
 
@@ -296,8 +292,7 @@ export async function adminListChats(_req: Request, res: Response) {
 
     res.json({ success: true, conversations: result })
   } catch (error) {
-    logger.error('adminListChats failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load chats' })
+    return handleError('adminListChats', _req, res, error, 'Failed to load chats')
   }
 }
 
@@ -330,8 +325,7 @@ export async function adminGetConversation(req: Request, res: Response) {
 
     res.json({ success: true, messages })
   } catch (error) {
-    logger.error('adminGetConversation failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load conversation' })
+    return handleError('adminGetConversation', req, res, error, 'Failed to load conversation')
   }
 }
 
@@ -370,8 +364,7 @@ export async function adminReplyToChat(req: Request, res: Response) {
 
     res.status(201).json({ success: true, message: reply })
   } catch (error) {
-    logger.error('adminReplyToChat failed', error)
-    res.status(500).json({ success: false, message: 'Failed to send reply' })
+    return handleError('adminReplyToChat', req, res, error, 'Failed to send reply')
   }
 }
 
@@ -394,8 +387,7 @@ export async function customerGetProjectChat(req: Request, res: Response) {
     const messages = await ChatMessage.find(filter).sort({ createdAt: 1 }).limit(200).lean()
     res.json({ success: true, messages })
   } catch (error) {
-    logger.error('customerGetProjectChat failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load project chat' })
+    return handleError('customerGetProjectChat', req, res, error, 'Failed to load project chat')
   }
 }
 
@@ -424,8 +416,7 @@ export async function customerSendProjectMessage(req: Request, res: Response) {
 
     res.status(201).json({ success: true, message: { id: message._id, createdAt: message.createdAt } })
   } catch (error) {
-    logger.error('customerSendProjectMessage failed', error)
-    res.status(500).json({ success: false, message: 'Failed to save message' })
+    return handleError('customerSendProjectMessage', req, res, error, 'Failed to save message')
   }
 }
 
@@ -447,8 +438,7 @@ export async function adminGetProjectChat(req: Request, res: Response) {
 
     res.json({ success: true, messages })
   } catch (error) {
-    logger.error('adminGetProjectChat failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load project chat' })
+    return handleError('adminGetProjectChat', req, res, error, 'Failed to load project chat')
   }
 }
 
@@ -474,7 +464,6 @@ export async function adminReplyToProjectChat(req: Request, res: Response) {
 
     res.status(201).json({ success: true, message: reply })
   } catch (error) {
-    logger.error('adminReplyToProjectChat failed', error)
-    res.status(500).json({ success: false, message: 'Failed to send reply' })
+    return handleError('adminReplyToProjectChat', req, res, error, 'Failed to send reply')
   }
 }

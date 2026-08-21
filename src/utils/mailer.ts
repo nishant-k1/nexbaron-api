@@ -49,7 +49,7 @@ export async function sendMail(options: MailOptions): Promise<void> {
     })
     logger.info(`Email sent to ${options.to}`)
   } catch (error) {
-    logger.error('Failed to send email', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'Failed to send email')
     throw error
   }
 }

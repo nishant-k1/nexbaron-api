@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { getDivisionModels } from '../../../models/registry'
 import { createOtp, OtpRequestError, verifyOtp } from '../services/otp-service'
 import { createToken } from '../../../middleware/jwt'
-import { logger } from '../../../utils/logger'
+import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
 
 const GOOGLE_TIMEOUT_MS = 5000
@@ -62,8 +62,7 @@ export async function requestOtp(req: Request, res: Response) {
       res.status(error.status).json({ success: false, message: error.message })
       return
     }
-    logger.error('requestOtp error:', error)
-    res.status(500).json({ success: false, message: 'Failed to send verification code' })
+    return handleError('requestOtp', req, res, error, 'Failed to send verification code')
   }
 }
 
@@ -132,8 +131,7 @@ export async function verifyCode(req: Request, res: Response) {
       },
     })
   } catch (error) {
-    logger.error('verifyCode error:', error)
-    res.status(500).json({ success: false, message: 'Failed to verify code' })
+    return handleError('verifyCode', req, res, error, 'Failed to verify code')
   }
 }
 
@@ -198,8 +196,7 @@ export async function googleSignIn(req: Request, res: Response) {
       res.status(error.status).json({ success: false, message: error.message })
       return
     }
-    logger.error('googleSignIn error:', error)
-    res.status(500).json({ success: false, message: 'Failed to sign in with Google' })
+    return handleError('googleSignIn', req, res, error, 'Failed to sign in with Google')
   }
 }
 
@@ -265,8 +262,7 @@ export async function me(req: Request, res: Response) {
       },
     })
   } catch (error) {
-    logger.error('me error:', error)
-    res.status(500).json({ success: false, message: 'Failed to load user' })
+    return handleError('me', req, res, error, 'Failed to load user')
   }
 }
 
@@ -320,8 +316,7 @@ export async function signup(req: Request, res: Response) {
       },
     })
   } catch (error) {
-    logger.error('signup error:', error)
-    res.status(500).json({ success: false, message: 'Failed to create account' })
+    return handleError('signup', req, res, error, 'Failed to create account')
   }
 }
 
@@ -348,8 +343,7 @@ export async function updateProfile(req: Request, res: Response) {
     await User.updateOne({ _id: req.userId, division: req.division }, { $set: update })
     res.json({ success: true, message: 'Profile updated' })
   } catch (error) {
-    logger.error('updateProfile error:', error)
-    res.status(500).json({ success: false, message: 'Failed to update profile' })
+    return handleError('updateProfile', req, res, error, 'Failed to update profile')
   }
 }
 
@@ -362,8 +356,7 @@ export async function deleteAccount(req: Request, res: Response) {
     await User.deleteOne({ _id: req.userId, division: req.division })
     res.json({ success: true, message: 'Account deleted' })
   } catch (error) {
-    logger.error('deleteAccount error:', error)
-    res.status(500).json({ success: false, message: 'Failed to delete account' })
+    return handleError('deleteAccount', req, res, error, 'Failed to delete account')
   }
 }
 
@@ -395,7 +388,6 @@ export async function savePlan(req: Request, res: Response) {
     )
     res.json({ success: true, message: 'Plan saved' })
   } catch (error) {
-    logger.error('savePlan error:', error)
-    res.status(500).json({ success: false, message: 'Failed to save plan' })
+    return handleError('savePlan', req, res, error, 'Failed to save plan')
   }
 }

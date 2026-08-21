@@ -4,6 +4,7 @@ import { LeadStatus } from '../../../models/lead.model'
 import { getDivisionModels } from '../../../models/registry'
 import { logger } from '../../../utils/logger'
 import { escapeRegex } from '../../../utils/regex'
+import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
 import { getNextStaffForAssignment } from '../services/auto-assign-service'
 import { sendLeadAcknowledgment } from '../services/acknowledge-service'
@@ -63,8 +64,7 @@ export async function submitLead(req: Request, res: Response) {
 
     res.status(201).json({ success: true, leadId: lead._id })
   } catch (error) {
-    logger.error('submitLead failed', error)
-    res.status(500).json({ success: false, message: 'Failed to save lead' })
+    return handleError('submitLead', req, res, error, 'Failed to save lead')
   }
 }
 
@@ -98,8 +98,7 @@ export async function listLeads(req: Request, res: Response) {
     const leads = await Lead.find(filter).sort({ createdAt: -1 }).limit(500).lean()
     res.json({ success: true, leads })
   } catch (error) {
-    logger.error('listLeads failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load leads' })
+    return handleError('listLeads', req, res, error, 'Failed to load leads')
   }
 }
 
@@ -138,8 +137,7 @@ export async function createLead(req: Request, res: Response) {
     })
     res.status(201).json({ success: true, lead })
   } catch (error) {
-    logger.error('createLead failed', error)
-    res.status(500).json({ success: false, message: 'Failed to create lead' })
+    return handleError('createLead', req, res, error, 'Failed to create lead')
   }
 }
 
@@ -179,8 +177,7 @@ export async function updateLeadStatus(req: Request, res: Response) {
     }
     res.json({ success: true, lead: { _id: lead._id, status: lead.status, statusHistory: lead.statusHistory } })
   } catch (error) {
-    logger.error('updateLeadStatus failed', error)
-    res.status(500).json({ success: false, message: 'Failed to update lead' })
+    return handleError('updateLeadStatus', req, res, error, 'Failed to update lead')
   }
 }
 
@@ -193,6 +190,6 @@ async function autoAssignLeadAfterCreate(lead: { _id: any; division: string; ass
     await Lead.updateOne({ _id: lead._id }, { $set: { assignedStaff: staffName } })
     logger.info(`Lead ${lead._id} auto-assigned to ${staffName}`)
   } catch (error) {
-    logger.error('autoAssignLeadAfterCreate failed', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'autoAssignLeadAfterCreate failed')
   }
 }

@@ -54,6 +54,6 @@ export async function sendLeadAcknowledgment(lead: ILead): Promise<void> {
     })
     logger.info(`Lead acknowledgment sent to ${lead.email} (source: ${lead.source})`)
   } catch (error) {
-    logger.error('sendLeadAcknowledgment failed', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'sendLeadAcknowledgment failed')
   }
 }

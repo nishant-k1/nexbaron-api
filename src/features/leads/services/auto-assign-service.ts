@@ -32,7 +32,7 @@ export async function getNextStaffForAssignment(division: string): Promise<strin
 
     return sorted[0].name
   } catch (error) {
-    logger.error('getNextStaffForAssignment failed', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'getNextStaffForAssignment failed')
     return null
   }
 }

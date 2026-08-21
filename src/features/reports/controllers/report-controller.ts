@@ -1,5 +1,4 @@
 import { Request, Response } from 'express'
-import { logger } from '../../../utils/logger'
 import {
   computePipelineOverview,
   computeSourcePerformance,
@@ -7,6 +6,7 @@ import {
   computeRevenueReport,
   computeBottlenecks,
 } from '../services/report-service'
+import { handleError } from '../../../utils/error'
 
 export async function pipelineOverview(req: Request, res: Response) {
   try {
@@ -17,8 +17,7 @@ export async function pipelineOverview(req: Request, res: Response) {
     const data = await computePipelineOverview(req.staffAuth.division)
     res.json({ success: true, ...data })
   } catch (error) {
-    logger.error('pipelineOverview failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load pipeline' })
+    return handleError('pipelineOverview', req, res, error, 'Failed to load pipeline')
   }
 }
 
@@ -31,8 +30,7 @@ export async function sourcePerformance(req: Request, res: Response) {
     const sources = await computeSourcePerformance(req.staffAuth.division)
     res.json({ success: true, sources })
   } catch (error) {
-    logger.error('sourcePerformance failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load source performance' })
+    return handleError('sourcePerformance', req, res, error, 'Failed to load source performance')
   }
 }
 
@@ -45,8 +43,7 @@ export async function teamWorkload(req: Request, res: Response) {
     const data = await computeTeamWorkload(req.staffAuth.division)
     res.json({ success: true, ...data })
   } catch (error) {
-    logger.error('teamWorkload failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load team workload' })
+    return handleError('teamWorkload', req, res, error, 'Failed to load team workload')
   }
 }
 
@@ -61,8 +58,7 @@ export async function revenueReport(req: Request, res: Response) {
     const data = await computeRevenueReport(req.staffAuth.division, daysBack)
     res.json({ success: true, period, ...data })
   } catch (error) {
-    logger.error('revenueReport failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load revenue report' })
+    return handleError('revenueReport', req, res, error, 'Failed to load revenue report')
   }
 }
 
@@ -75,7 +71,6 @@ export async function bottleneckAnalysis(req: Request, res: Response) {
     const data = await computeBottlenecks(req.staffAuth.division)
     res.json({ success: true, ...data })
   } catch (error) {
-    logger.error('bottleneckAnalysis failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load bottleneck analysis' })
+    return handleError('bottleneckAnalysis', req, res, error, 'Failed to load bottleneck analysis')
   }
 }

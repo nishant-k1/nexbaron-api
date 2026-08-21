@@ -1,14 +1,13 @@
 import { Request, Response } from 'express'
 import { loadDraft, saveDraft, resetDraftPlan } from '../services/draft-service'
-import { logger } from '../../../../utils/logger'
+import { handleError } from '../../../../utils/error'
 
 export async function getDraft(req: Request, res: Response) {
   try {
     const draft = await loadDraft(req.userId!, req.division!)
     res.status(200).json({ success: true, draft })
   } catch (error) {
-    logger.error('getDraft error:', error)
-    res.status(500).json({ success: false, message: 'Failed to load draft' })
+    return handleError('getDraft', req, res, error, 'Failed to load draft')
   }
 }
 
@@ -25,8 +24,7 @@ export async function upsertDraft(req: Request, res: Response) {
     const draft = await saveDraft(req.userId!, division, req.body)
     res.status(200).json({ success: true, draft })
   } catch (error) {
-    logger.error('upsertDraft error:', error)
-    res.status(500).json({ success: false, message: 'Failed to save draft' })
+    return handleError('upsertDraft', req, res, error, 'Failed to save draft')
   }
 }
 
@@ -35,7 +33,6 @@ export async function resetPlan(req: Request, res: Response) {
     const draft = await resetDraftPlan(req.userId!, req.division!)
     res.status(200).json({ success: true, draft })
   } catch (error) {
-    logger.error('resetPlan error:', error)
-    res.status(500).json({ success: false, message: 'Failed to reset plan' })
+    return handleError('resetPlan', req, res, error, 'Failed to reset plan')
   }
 }

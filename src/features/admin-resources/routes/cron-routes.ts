@@ -12,12 +12,12 @@ cronRouter.post('/cron/reminders', async (_req, res) => {
     const generated = await generateReminders(runtimeBrand)
     generatedCount = generated.length
   } catch (error) {
-    logger.error('cron generateReminders failed', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'cron generateReminders failed')
   }
   try {
     sentCount = await sendDueReminders(runtimeBrand)
   } catch (error) {
-    logger.error('cron sendDueReminders failed', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'cron sendDueReminders failed')
   }
   logger.info(`Cron completed for ${runtimeBrand}: ${generatedCount} generated, ${sentCount} sent`)
   res.json({ success: true, generated: generatedCount, sent: sentCount })

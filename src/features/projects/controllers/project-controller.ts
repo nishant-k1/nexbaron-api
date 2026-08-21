@@ -2,8 +2,8 @@ import { Request, Response } from 'express'
 import { Types } from 'mongoose'
 import { randomUUID } from 'crypto'
 import { getDivisionModels } from '../../../models/registry'
-import { logger } from '../../../utils/logger'
 import { escapeRegex } from '../../../utils/regex'
+import { handleError } from '../../../utils/error'
 import { computeProjectStage, PIPELINE_STAGES, type PipelineStage } from '../services/pipeline-service'
 import { runtimeBrand } from '../../../config/brand'
 
@@ -124,8 +124,7 @@ export async function getMyProjects(req: Request, res: Response) {
 
     res.json({ success: true, projects, pipeline })
   } catch (error) {
-    logger.error('getMyProjects failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load projects' })
+    return handleError('getMyProjects', req, res, error, 'Failed to load projects')
   }
 }
 
@@ -166,8 +165,7 @@ export async function getMyProject(req: Request, res: Response) {
 
     res.json({ success: true, project: { lead, quotes, orders, chat, stage } })
   } catch (error) {
-    logger.error('getMyProject failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load project' })
+    return handleError('getMyProject', req, res, error, 'Failed to load project')
   }
 }
 
@@ -256,8 +254,7 @@ export async function listProjects(req: Request, res: Response) {
 
     res.json({ success: true, projects: filtered, pipeline })
   } catch (error) {
-    logger.error('listProjects failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load projects' })
+    return handleError('listProjects', req, res, error, 'Failed to load projects')
   }
 }
 
@@ -288,7 +285,6 @@ export async function getProject(req: Request, res: Response) {
 
     res.json({ success: true, project: { lead, quotes, orders, chat, stage } })
   } catch (error) {
-    logger.error('getProject failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load project' })
+    return handleError('getProject', req, res, error, 'Failed to load project')
   }
 }

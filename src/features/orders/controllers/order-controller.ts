@@ -2,8 +2,8 @@ import { Request, Response } from 'express'
 import { randomUUID } from 'crypto'
 import { OrderStatus, PaymentMethod } from '../../../models/order.model'
 import { getDivisionModels } from '../../../models/registry'
-import { logger } from '../../../utils/logger'
 import { findOrders, findOrCreateOrderFromLead, VALID_STATUSES, VALID_PAYMENT_METHODS } from '../services/order-service'
+import { handleError } from '../../../utils/error'
 
 export async function listOrders(req: Request, res: Response) {
   try {
@@ -17,8 +17,7 @@ export async function listOrders(req: Request, res: Response) {
     })
     res.json({ success: true, orders })
   } catch (error) {
-    logger.error('listOrders failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load customers' })
+    return handleError('listOrders', req, res, error, 'Failed to load customers')
   }
 }
 
@@ -72,8 +71,7 @@ export async function recordPaymentFromLead(req: Request, res: Response) {
 
     res.json({ success: true, order, lead })
   } catch (error) {
-    logger.error('recordPaymentFromLead failed', error)
-    res.status(500).json({ success: false, message: 'Failed to record payment' })
+    return handleError('recordPaymentFromLead', req, res, error, 'Failed to record payment')
   }
 }
 
@@ -172,8 +170,7 @@ export async function updateOrderStatus(req: Request, res: Response) {
     await order.save()
     res.json({ success: true, order })
   } catch (error) {
-    logger.error('updateOrderStatus failed', error)
-    res.status(500).json({ success: false, message: 'Failed to update order' })
+    return handleError('updateOrderStatus', req, res, error, 'Failed to update order')
   }
 }
 
@@ -225,7 +222,6 @@ export async function createProjectFromClient(req: Request, res: Response) {
 
     res.status(201).json({ success: true, order })
   } catch (error) {
-    logger.error('createProjectFromClient failed', error)
-    res.status(500).json({ success: false, message: 'Failed to create project' })
+    return handleError('createProjectFromClient', req, res, error, 'Failed to create project')
   }
 }

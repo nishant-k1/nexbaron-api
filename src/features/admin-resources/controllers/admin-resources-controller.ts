@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { logger } from '../../../utils/logger'
+import { handleError } from '../../../utils/error'
 import { listReminders, dismissReminder } from '../services/reminder-service'
 import { listRecurring, createRecurring, updateRecurring } from '../services/recurring-service'
 import { listTestimonials, createTestimonial, updateTestimonial, deleteTestimonial } from '../services/testimonial-service'
@@ -15,8 +15,7 @@ export async function getReminders(req: Request, res: Response) {
     const reminders = await listReminders(req.staffAuth.division, { sent, type })
     res.json({ success: true, reminders })
   } catch (error) {
-    logger.error('listReminders failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load reminders' })
+    return handleError('getReminders', req, res, error, 'Failed to load reminders')
   }
 }
 
@@ -29,8 +28,7 @@ export async function dismissReminderById(req: Request, res: Response) {
     await dismissReminder(req.staffAuth.division, String(req.params.id))
     res.json({ success: true })
   } catch (error) {
-    logger.error('dismissReminder failed', error)
-    res.status(500).json({ success: false, message: 'Failed to dismiss reminder' })
+    return handleError('dismissReminderById', req, res, error, 'Failed to dismiss reminder')
   }
 }
 
@@ -46,8 +44,7 @@ export async function getRecurring(req: Request, res: Response) {
     })
     res.json({ success: true, services })
   } catch (error) {
-    logger.error('listRecurring failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load recurring services' })
+    return handleError('getRecurring', req, res, error, 'Failed to load recurring services')
   }
 }
 
@@ -65,8 +62,7 @@ export async function postRecurring(req: Request, res: Response) {
     const service = await createRecurring(req.staffAuth.division, body)
     res.status(201).json({ success: true, service })
   } catch (error) {
-    logger.error('createRecurring failed', error)
-    res.status(500).json({ success: false, message: 'Failed to create recurring service' })
+    return handleError('postRecurring', req, res, error, 'Failed to create recurring service')
   }
 }
 
@@ -83,8 +79,7 @@ export async function patchRecurring(req: Request, res: Response) {
     }
     res.json({ success: true, service })
   } catch (error) {
-    logger.error('updateRecurring failed', error)
-    res.status(500).json({ success: false, message: 'Failed to update recurring service' })
+    return handleError('patchRecurring', req, res, error, 'Failed to update recurring service')
   }
 }
 
@@ -100,8 +95,7 @@ export async function getTestimonials(req: Request, res: Response) {
     })
     res.json({ success: true, testimonials })
   } catch (error) {
-    logger.error('listTestimonials failed', error)
-    res.status(500).json({ success: false, message: 'Failed to load testimonials' })
+    return handleError('getTestimonials', req, res, error, 'Failed to load testimonials')
   }
 }
 
@@ -119,8 +113,7 @@ export async function postTestimonial(req: Request, res: Response) {
     const testimonial = await createTestimonial(req.staffAuth.division, body)
     res.status(201).json({ success: true, testimonial })
   } catch (error) {
-    logger.error('createTestimonial failed', error)
-    res.status(500).json({ success: false, message: 'Failed to create testimonial' })
+    return handleError('postTestimonial', req, res, error, 'Failed to create testimonial')
   }
 }
 
@@ -137,8 +130,7 @@ export async function patchTestimonial(req: Request, res: Response) {
     }
     res.json({ success: true, testimonial })
   } catch (error) {
-    logger.error('updateTestimonial failed', error)
-    res.status(500).json({ success: false, message: 'Failed to update testimonial' })
+    return handleError('patchTestimonial', req, res, error, 'Failed to update testimonial')
   }
 }
 
@@ -151,7 +143,6 @@ export async function deleteTestimonialById(req: Request, res: Response) {
     await deleteTestimonial(req.staffAuth.division, String(req.params.id))
     res.json({ success: true })
   } catch (error) {
-    logger.error('deleteTestimonial failed', error)
-    res.status(500).json({ success: false, message: 'Failed to delete testimonial' })
+    return handleError('deleteTestimonialById', req, res, error, 'Failed to delete testimonial')
   }
 }

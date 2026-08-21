@@ -219,7 +219,8 @@ async function deliverOtp(
       subject: `${purpose === 'signup' ? 'Sign Up' : 'Log In'} — Nexbaron ${brand.charAt(0).toUpperCase() + brand.slice(1)}`,
       html: otpEmailHtml(code, purpose, expiresMinutes, brand),
     })
-  } catch {
+  } catch (error) {
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'deliverOtp sendMail failed')
     throw new OtpRequestError('Could not send the verification email', 502)
   }
 }
@@ -263,12 +264,12 @@ async function deliverWhatsApp(target: string, code: string, _purpose: string): 
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      logger.error('WhatsApp delivery failed', { status: res.status, error: err })
+      logger.error({ status: res.status, err: err instanceof Error ? err : new Error(String(err)) }, 'WhatsApp delivery failed')
       throw new OtpRequestError('Could not send WhatsApp message', 502)
     }
   } catch (error) {
     if (error instanceof OtpRequestError) throw error
-    logger.error('WhatsApp delivery error', error)
+    logger.error({ err: error instanceof Error ? error : new Error(String(error)) }, 'WhatsApp delivery error')
     throw new OtpRequestError('Could not send WhatsApp message', 502)
   }
 }
