@@ -12,6 +12,7 @@ export type LeadStatus =
 
 export interface ILead extends Document {
   division: 'digital' | 'print'
+  accountId?: string
   projectId: string
   source: string
   // Common contact fields
@@ -76,6 +77,7 @@ const LeadStatusHistorySchema = new Schema(
 const LeadSchema = new Schema<ILead>(
   {
     division: { type: String, enum: ['digital', 'print'], required: true },
+    accountId: { type: String, index: true, sparse: true },
     projectId: { type: String, index: true },
     source: { type: String, default: 'web' },
     name: { type: String, trim: true },

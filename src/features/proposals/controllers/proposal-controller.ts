@@ -1,0 +1,336 @@
+import { Request, Response } from 'express'
+import { getDivisionModels } from '../../../models/registry'
+import { nextCode } from '../../../utils/sequence'
+import { handleError } from '../../../utils/error'
+import { runtimeBrand } from '../../../config/brand'
+import { createProposalModel } from '../../../models/proposal.model'
+import { createPackageModel } from '../../../models/package.model'
+import { createPackageServiceModel } from '../../../models/package-service.model'
+import { createServiceModel } from '../../../models/service.model'
+
+function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
+  return { division, userId }
+}
+
+type PricingInput = {
+  oneTimeEnabled?: boolean
+  oneTimeFee?: number
+  paymentSchedule?: string
+  recurringEnabled?: boolean
+  recurringFee?: number
+  recurringFrequency?: string
+}
+
+function parsePricing(p: PricingInput): Record<string, unknown> | null {
+  const out: Record<string, unknown> = {}
+  if (p.oneTimeEnabled !== undefined) out.oneTimeEnabled = !!p.oneTimeEnabled
+  if (p.oneTimeFee !== undefined) out.oneTimeFee = Number(p.oneTimeFee)
+  if (p.paymentSchedule !== undefined) {
+    if (p.paymentSchedule && p.paymentSchedule !== 'FULL_UPFRONT' && p.paymentSchedule !== 'FIFTY_FIFTY') return null
+    out.paymentSchedule = p.paymentSchedule
+  }
+  if (p.recurringEnabled !== undefined) out.recurringEnabled = !!p.recurringEnabled
+  if (p.recurringFee !== undefined) out.recurringFee = Number(p.recurringFee)
+  if (p.recurringFrequency !== undefined) {
+    if (p.recurringFrequency && p.recurringFrequency !== 'MONTHLY' && p.recurringFrequency !== 'ANNUAL') return null
+    out.recurringFrequency = p.recurringFrequency
+  }
+  return out
+}
+
+export async function getMyProposals(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Account, Proposal } = getDivisionModels(division)
+    const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
+    if (!account) {
+      res.json({ success: true, proposals: [] })
+      return
+    }
+    const proposals = await (Proposal as ReturnType<typeof createProposalModel>)
+      .find({ accountId: account.accountCode, division })
+      .sort({ createdAt: -1 })
+      .lean()
+    res.json({ success: true, proposals })
+  } catch (error) {
+    return handleError('getMyProposals', req, res, error, 'Failed to load proposals')
+  }
+}
+
+export async function listProposals(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
+    const { Proposal } = getDivisionModels(division)
+    const accountCode = req.query.accountCode as string | undefined
+    const status = req.query.status as string | undefined
+    const filter: Record<string, unknown> = { division }
+    if (accountCode) filter.accountId = accountCode
+    if (status) filter.status = status
+    const proposals = await (Proposal as ReturnType<typeof createProposalModel>)
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean()
+    res.json({ success: true, proposals })
+  } catch (error) {
+    return handleError('listProposals', req, res, error, 'Failed to load proposals')
+  }
+}
+
+export async function getProposal(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
+    const { Proposal } = getDivisionModels(division)
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>)
+      .findOne({ proposalCode: String(req.params.code), division })
+      .lean()
+    if (!proposal) {
+      res.status(404).json({ success: false, message: 'Proposal not found' })
+      return
+    }
+    res.json({ success: true, proposal })
+  } catch (error) {
+    return handleError('getProposal', req, res, error, 'Failed to load proposal')
+  }
+}
+
+export async function createProposal(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
+    const { Account, Package, PackageService, Service, Proposal, Sequence } = getDivisionModels(division)
+    const { packageId, title, terms, notes } = req.body
+    if (!packageId) {
+      res.status(400).json({ success: false, message: 'packageId is required' })
+      return
+    }
+    const pkg = await (Package as ReturnType<typeof createPackageModel>).findOne({ packageCode: packageId, division }).lean()
+    if (!pkg) {
+      res.status(404).json({ success: false, message: 'Package not found' })
+      return
+    }
+    const account = await Account.findOne({ accountCode: pkg.accountId, division }).lean()
+    if (!account) {
+      res.status(404).json({ success: false, message: 'Account not found' })
+      return
+    }
+
+    // Service snapshot: PackageService -> Service catalog (do not depend on live catalog later).
+    const links = await (PackageService as ReturnType<typeof createPackageServiceModel>)
+      .find({ packageCode: pkg.packageCode, division })
+      .lean()
+    const serviceCodes = links.map((l) => l.serviceCode)
+    const svcDocs = serviceCodes.length
+      ? await (Service as ReturnType<typeof createServiceModel>).find({ serviceCode: { $in: serviceCodes }, division }).lean()
+      : []
+    const svcMap = new Map(svcDocs.map((s) => [s.serviceCode, s]))
+    const services = links.map((l) => {
+      const svc = svcMap.get(l.serviceCode)
+      return {
+        serviceCode: l.serviceCode,
+        name: l.name || (svc ? svc.name : l.serviceCode),
+        description: l.description || (svc ? svc.description : ''),
+      }
+    })
+
+    // Pricing snapshot from the Package's current commercial configuration.
+    const pricing = {
+      oneTimeEnabled: !!pkg.oneTimeEnabled,
+      oneTimeFee: pkg.oneTimeFee || 0,
+      paymentSchedule: pkg.paymentSchedule,
+      recurringEnabled: !!pkg.recurringEnabled,
+      recurringFee: pkg.recurringFee || 0,
+      recurringFrequency: pkg.recurringFrequency,
+    }
+
+    const proposalCode = await nextCode(Sequence, `proposal-${division}`, 'PRP')
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).create({
+      proposalCode,
+      accountId: pkg.accountId,
+      packageId: pkg.packageCode,
+      division,
+      version: 1,
+      status: 'DRAFT',
+      title: title?.trim() || pkg.name,
+      description: pkg.description || '',
+      services,
+      pricing,
+      terms,
+      notes,
+      createdBy: req.staffAuth.name,
+    })
+    res.status(201).json({ success: true, proposal: proposal.toObject() })
+  } catch (error) {
+    return handleError('createProposal', req, res, error, 'Failed to create proposal')
+  }
+}
+
+export async function updateProposal(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
+    const { Proposal } = getDivisionModels(division)
+    const code = String(req.params.code)
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).findOne({ proposalCode: code, division })
+    if (!proposal) {
+      res.status(404).json({ success: false, message: 'Proposal not found' })
+      return
+    }
+    if (proposal.status === 'ACCEPTED') {
+      res.status(403).json({ success: false, message: 'Accepted proposals are immutable' })
+      return
+    }
+
+    const { title, description, services, pricing, terms, notes } = req.body
+    const set: Record<string, unknown> = {}
+    if (title !== undefined) set.title = String(title).trim()
+    if (description !== undefined) set.description = description
+    if (services !== undefined) {
+      if (!Array.isArray(services)) {
+        res.status(400).json({ success: false, message: 'services must be an array' })
+        return
+      }
+      set.services = services
+    }
+    if (pricing !== undefined) {
+      const parsed = parsePricing(pricing)
+      if (!parsed) {
+        res.status(400).json({ success: false, message: 'Invalid pricing values' })
+        return
+      }
+      set.pricing = parsed
+    }
+    if (terms !== undefined) set.terms = terms
+    if (notes !== undefined) set.notes = notes
+
+    const op: Record<string, unknown> = { $set: set }
+    if (proposal.status === 'SENT') op.$inc = { version: 1 }
+
+    const updated = await (Proposal as ReturnType<typeof createProposalModel>).findOneAndUpdate(
+      { proposalCode: code, division },
+      op,
+      { new: true }
+    )
+    res.json({ success: true, proposal: updated?.toObject() })
+  } catch (error) {
+    return handleError('updateProposal', req, res, error, 'Failed to update proposal')
+  }
+}
+
+export async function sendProposal(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
+    const { Account, Proposal } = getDivisionModels(division)
+    const code = String(req.params.code)
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).findOne({ proposalCode: code, division }).lean()
+    if (!proposal) {
+      res.status(404).json({ success: false, message: 'Proposal not found' })
+      return
+    }
+    if (proposal.status === 'ACCEPTED') {
+      res.status(400).json({ success: false, message: 'Cannot send an accepted proposal' })
+      return
+    }
+    if (proposal.status === 'SENT') {
+      res.json({ success: true, proposal })
+      return
+    }
+    const updated = await (Proposal as ReturnType<typeof createProposalModel>).findOneAndUpdate(
+      { proposalCode: code, division, status: 'DRAFT' },
+      { $set: { status: 'SENT' } },
+      { new: true }
+    )
+    if (updated) {
+      await Account.updateOne(
+        { accountCode: updated.accountId, division },
+        {
+          $set: { lifecycleStage: 'PROPOSAL_SENT' },
+          $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: req.staffAuth.name, at: new Date() } },
+        }
+      )
+    }
+    res.json({ success: true, proposal: updated?.toObject() })
+  } catch (error) {
+    return handleError('sendProposal', req, res, error, 'Failed to send proposal')
+  }
+}
+
+export async function acceptProposal(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { accept } = req.body as { accept?: boolean }
+    if (accept !== true) {
+      res.status(400).json({ success: false, message: 'Explicit acceptance is required' })
+      return
+    }
+    const { Account, Proposal } = getDivisionModels(division)
+    const code = String(req.params.code)
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).findOne({ proposalCode: code, division })
+    if (!proposal) {
+      res.status(404).json({ success: false, message: 'Proposal not found' })
+      return
+    }
+
+    // Ownership must be verified BEFORE exposing any proposal state, including the
+    // already-accepted (idempotent) path, so a customer cannot probe another
+    // customer's proposal existence or acceptance status by guessing a code.
+    const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
+    if (!account || account.accountCode !== proposal.accountId) {
+      res.status(403).json({ success: false, message: 'This proposal is not linked to your account' })
+      return
+    }
+
+    if (proposal.status === 'ACCEPTED') {
+      res.json({ success: true, proposal: proposal.toObject() })
+      return
+    }
+    if (proposal.status !== 'SENT') {
+      res.status(400).json({ success: false, message: 'Proposal is not available for acceptance' })
+      return
+    }
+    proposal.status = 'ACCEPTED'
+    proposal.acceptedAt = new Date()
+    proposal.acceptedBy = account.name || account.email || account.accountCode
+    proposal.acceptedVersion = proposal.version
+    await proposal.save()
+    await Account.updateOne(
+      { accountCode: proposal.accountId, division },
+      {
+        $set: { lifecycleStage: 'PROPOSAL_ACCEPTED' },
+        $push: { stageHistory: { stage: 'PROPOSAL_ACCEPTED', by: account.name, at: new Date() } },
+        $addToSet: { tags: 'proposal-accepted' },
+      }
+    )
+    res.json({ success: true, proposal: proposal.toObject() })
+  } catch (error) {
+    return handleError('acceptProposal', req, res, error, 'Failed to accept proposal')
+  }
+}

@@ -1,0 +1,23 @@
+import { Router } from 'express'
+import { requireAuth } from '../../../middleware/require-auth'
+import { requireAdmin, requireDivision } from '../../admin/middleware/require-admin'
+import {
+  getMyProposals,
+  listProposals,
+  getProposal,
+  createProposal,
+  updateProposal,
+  sendProposal,
+  acceptProposal,
+} from '../controllers/proposal-controller'
+
+export const customerProposalRouter = Router()
+customerProposalRouter.get('/proposals', requireAuth, getMyProposals)
+customerProposalRouter.post('/proposals/:code/accept', requireAuth, acceptProposal)
+
+export const adminProposalRouter = Router()
+adminProposalRouter.get('/proposals', requireAdmin, requireDivision('digital', 'print'), listProposals)
+adminProposalRouter.post('/proposals', requireAdmin, requireDivision('digital', 'print'), createProposal)
+adminProposalRouter.get('/proposals/:code', requireAdmin, requireDivision('digital', 'print'), getProposal)
+adminProposalRouter.patch('/proposals/:code', requireAdmin, requireDivision('digital', 'print'), updateProposal)
+adminProposalRouter.patch('/proposals/:code/send', requireAdmin, requireDivision('digital', 'print'), sendProposal)

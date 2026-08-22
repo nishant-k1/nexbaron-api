@@ -12,6 +12,13 @@ import { createChatMessageModel } from './chat-message.model'
 import { createReminderModel } from './reminder.model'
 import { createRecurringServiceModel } from './recurring-service.model'
 import { createTestimonialModel } from './testimonial.model'
+import { createSequenceModel } from './sequence.model'
+import { createAccountModel } from './account.model'
+import { createServiceModel } from './service.model'
+import { createPackageModel } from './package.model'
+import { createPackageServiceModel } from './package-service.model'
+import { createProposalModel } from './proposal.model'
+import { createInvoiceModel } from './invoice.model'
 import { runtimeBrand } from '../config/brand'
 
 export interface DivisionModels {
@@ -28,6 +35,13 @@ export interface DivisionModels {
   Reminder: ReturnType<typeof createReminderModel>
   RecurringService: ReturnType<typeof createRecurringServiceModel>
   Testimonial: ReturnType<typeof createTestimonialModel>
+  Sequence: ReturnType<typeof createSequenceModel>
+  Account: ReturnType<typeof createAccountModel>
+  Service: ReturnType<typeof createServiceModel>
+  Package: ReturnType<typeof createPackageModel>
+  PackageService: ReturnType<typeof createPackageServiceModel>
+  Proposal: ReturnType<typeof createProposalModel>
+  Invoice: ReturnType<typeof createInvoiceModel>
 }
 
 const _registry: Partial<Record<'digital' | 'print', DivisionModels>> = {}
@@ -53,6 +67,13 @@ export function registerDivisionModels(
     Reminder: createReminderModel(conn),
     RecurringService: createRecurringServiceModel(conn),
     Testimonial: createTestimonialModel(conn),
+    Sequence: createSequenceModel(conn),
+    Account: createAccountModel(conn),
+    Service: createServiceModel(conn),
+    Package: createPackageModel(conn),
+    PackageService: createPackageServiceModel(conn),
+    Proposal: createProposalModel(conn),
+    Invoice: createInvoiceModel(conn),
   }
   _registry[division] = models
   return models
