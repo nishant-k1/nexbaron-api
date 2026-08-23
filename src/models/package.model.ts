@@ -4,6 +4,7 @@ export type PackageType = 'STANDARD' | 'CUSTOM'
 export type RecurringFrequency = 'MONTHLY' | 'ANNUAL'
 export type PackageStatus = 'ANALYSIS' | 'IN_PROGRESS' | 'DELIVERED'
 export type PaymentSchedule = 'FULL_UPFRONT' | 'FIFTY_FIFTY'
+export type PackageVisibility = 'DRAFT' | 'LIVE'
 
 export const PACKAGE_STATUSES: PackageStatus[] = ['ANALYSIS', 'IN_PROGRESS', 'DELIVERED']
 export const PAYMENT_SCHEDULES: PaymentSchedule[] = ['FULL_UPFRONT', 'FIFTY_FIFTY']
@@ -15,6 +16,7 @@ export interface IPackage extends Document {
   type: PackageType
   name: string
   description?: string
+  visibility: PackageVisibility
   deliveryStatus: PackageStatus
   oneTimeEnabled: boolean
   oneTimeFee?: number
@@ -33,6 +35,7 @@ const PackageSchema = new Schema<IPackage>({
   type: { type: String, enum: ['STANDARD', 'CUSTOM'], default: 'STANDARD' },
   name: { type: String, required: true, trim: true },
   description: { type: String },
+  visibility: { type: String, enum: ['DRAFT', 'LIVE'], default: 'LIVE' },
   deliveryStatus: { type: String, enum: PACKAGE_STATUSES, default: 'ANALYSIS' },
   oneTimeEnabled: { type: Boolean, default: false },
   oneTimeFee: { type: Number, min: 0 },

@@ -7,6 +7,7 @@ import { getDivisionModels } from "../../../../models/registry";
 import { logger } from "../../../../utils/logger";
 import { handleError } from "../../../../utils/error";
 import { IOrder } from "../../../../models/order.model";
+import { createInvoiceModel } from "../../../../models/invoice.model";
 import { stringParam } from "../../../../utils/route-param";
 import {
   emailInvoice,
@@ -151,6 +152,30 @@ export async function createCheckout(req: Request, res: Response) {
       billing: { address: customer.address },
       notes: customer.notes,
       stageHistory: [{ stage: "pending", by: "system", at: new Date() }],
+    });
+
+    // Create corresponding Invoice document for billing detail page
+    const { Invoice } = getDivisionModels(req.division!);
+    const lineItems: Array<{ label: string; amount: number; type: "ONE_TIME" | "RECURRING" }> = [];
+    if (computed.setupTotal > 0) {
+      lineItems.push({ label: `${computed.planName} — setup`, amount: computed.setupTotal, type: "ONE_TIME" });
+    }
+    if (computed.billingCycle === "monthly" && computed.monthlyTotal > 0) {
+      lineItems.push({ label: `${computed.planName} — monthly care`, amount: computed.monthlyTotal, type: "RECURRING" });
+    }
+    if (computed.billingCycle === "annual" && computed.annualTotal > 0) {
+      lineItems.push({ label: `${computed.planName} — annual care`, amount: computed.annualTotal, type: "RECURRING" });
+    }
+    await (Invoice as ReturnType<typeof createInvoiceModel>).create({
+      invoiceNumber,
+      accountId: "", // Will be linked when payment is verified and account is created
+      packageId: computed.planId,
+      division: req.division!,
+      status: "PENDING",
+      amount: computed.amount,
+      currency: "INR",
+      lineItems,
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
 
     res.status(201).json({

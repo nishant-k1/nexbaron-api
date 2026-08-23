@@ -24,6 +24,7 @@ export interface IInvoice extends Document {
   invoiceNumber: string
   accountId: string
   packageId?: string
+  proposalCode?: string
   division: 'digital' | 'print'
   status: InvoiceStatus
   amount: number
@@ -31,6 +32,7 @@ export interface IInvoice extends Document {
   dueDate?: Date
   lineItems: IInvoiceLineItem[]
   payments: IPayment[]
+  paymentSchedule?: 'FULL_UPFRONT' | 'FIFTY_FIFTY'
   createdBy?: string
   createdAt: Date
   updatedAt: Date
@@ -56,6 +58,7 @@ const InvoiceSchema = new Schema<IInvoice>({
   invoiceNumber: { type: String, required: true, unique: true, index: true },
   accountId: { type: String, required: true, index: true },
   packageId: { type: String },
+  proposalCode: { type: String, index: true },
   division: { type: String, enum: ['digital', 'print'], required: true },
   status: { type: String, enum: ['DRAFT', 'PENDING', 'PAID', 'FAILED', 'CANCELLED'], default: 'PENDING' },
   amount: { type: Number, required: true },
@@ -63,6 +66,7 @@ const InvoiceSchema = new Schema<IInvoice>({
   dueDate: { type: Date },
   lineItems: { type: [InvoiceLineItemSchema], default: [] },
   payments: { type: [PaymentSchema], default: [] },
+  paymentSchedule: { type: String, enum: ['FULL_UPFRONT', 'FIFTY_FIFTY'], default: 'FULL_UPFRONT' },
   createdBy: { type: String },
 }, { timestamps: true })
 

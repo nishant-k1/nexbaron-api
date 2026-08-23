@@ -105,6 +105,7 @@ export interface IOrder extends Document {
     address?: string
   }
   invoiceNumber?: string
+  proposalCode?: string
   notes?: string
   // Project lifecycle
   assignedTeamMember?: string
@@ -261,6 +262,7 @@ const OrderSchema = new Schema<IOrder>(
     razorpay: { type: RazorpaySchema },
     billing: { type: BillingSchema },
     invoiceNumber: { type: String, trim: true },
+    proposalCode: { type: String, trim: true, index: true },
     notes: { type: String, trim: true },
     assignedTeamMember: { type: String, trim: true },
     onboardingChecklist: { type: [OnboardingItemSchema], default: [] },

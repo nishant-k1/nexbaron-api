@@ -3,9 +3,13 @@ import { getDivisionModels } from '../../../models/registry'
 import { nextCode } from '../../../utils/sequence'
 import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
-import type { PackageType, RecurringFrequency, PackageStatus } from '../../../models/package.model'
+import { notifyChatAgentMessage } from '../../../utils/chat-service'
+import type { PackageType, RecurringFrequency, PackageStatus, PackageVisibility } from '../../../models/package.model'
 import { createServiceModel } from '../../../models/service.model'
 import { createPackageServiceModel } from '../../../models/package-service.model'
+
+const PACKAGE_TAILORED_MESSAGE =
+  'Package has been tailored according to your specific requirement please go to the package page proceed with the package.'
 
 const DELIVERY_STATUSES: PackageStatus[] = ['ANALYSIS', 'IN_PROGRESS', 'DELIVERED']
 
@@ -81,7 +85,9 @@ export async function getMyPackages(req: Request, res: Response) {
       res.json({ success: true, packages: [] })
       return
     }
-    const packages = await Package.find({ accountId: account.accountCode, division })
+    // `visibility` defaults to LIVE for new packages, but legacy documents have
+    // no field at all — treat "missing" as visible by excluding only DRAFT.
+    const packages = await Package.find({ accountId: account.accountCode, division, visibility: { $ne: 'DRAFT' } })
       .sort({ createdAt: -1 })
       .lean()
     const getServices = await decorateServices(division, packages)
@@ -134,6 +140,7 @@ export async function createPackage(req: Request, res: Response) {
       recurringEnabled,
       recurringFee,
       recurringFrequency,
+      visibility,
     } = req.body
     if (!accountCode || !name?.trim()) {
       res.status(400).json({ success: false, message: 'accountCode and name are required' })
@@ -158,13 +165,17 @@ export async function createPackage(req: Request, res: Response) {
       }
     }
     const packageCode = await nextCode(Sequence, `package-${division}`, 'PKG')
+    const pkgType: PackageType = (type as PackageType) || 'STANDARD'
+    const pkgVisibility: PackageVisibility =
+      (visibility as PackageVisibility) || (pkgType === 'CUSTOM' ? 'DRAFT' : 'LIVE')
     await Package.create({
       packageCode,
       accountId: account.accountCode,
       division,
-      type: (type as PackageType) || 'STANDARD',
+      type: pkgType,
       name: name.trim(),
       description,
+      visibility: pkgVisibility,
       oneTimeEnabled: oneTimeEnabled ?? !!oneTimeFee,
       oneTimeFee,
       paymentSchedule,
@@ -235,9 +246,14 @@ export async function updatePackage(req: Request, res: Response) {
       recurringEnabled,
       recurringFee,
       recurringFrequency,
+      visibility,
     } = req.body
     if (type !== undefined && type !== 'STANDARD' && type !== 'CUSTOM') {
       res.status(400).json({ success: false, message: 'Invalid package type' })
+      return
+    }
+    if (visibility !== undefined && visibility !== 'DRAFT' && visibility !== 'LIVE') {
+      res.status(400).json({ success: false, message: 'Invalid visibility' })
       return
     }
     if (paymentSchedule !== undefined && paymentSchedule !== 'FULL_UPFRONT' && paymentSchedule !== 'FIFTY_FIFTY') {
@@ -248,6 +264,7 @@ export async function updatePackage(req: Request, res: Response) {
       res.status(400).json({ success: false, message: 'Invalid recurring frequency' })
       return
     }
+    const wasLive = existing.visibility === 'LIVE'
     const update: Record<string, unknown> = {}
     if (name !== undefined) update.name = String(name).trim()
     if (description !== undefined) update.description = description
@@ -258,8 +275,20 @@ export async function updatePackage(req: Request, res: Response) {
     if (recurringEnabled !== undefined) update.recurringEnabled = !!recurringEnabled
     if (recurringFee !== undefined) update.recurringFee = Number(recurringFee)
     if (recurringFrequency !== undefined) update.recurringFrequency = recurringFrequency
+    if (visibility !== undefined) update.visibility = visibility
     await Package.findOneAndUpdate({ packageCode, division }, { $set: update })
     const resolved = await packageWithServices(division, packageCode)
+
+    // P2: when a custom package is published (flipped to LIVE), notify the
+    // customer in chat that a tailored package is ready.
+    if (visibility === 'LIVE' && !wasLive && existing.type === 'CUSTOM') {
+      const { Account } = getDivisionModels(division)
+      const acc = await Account.findOne({ accountCode: existing.accountId, division }).lean()
+      if (acc?.userId) {
+        await notifyChatAgentMessage(division, String(acc.userId), PACKAGE_TAILORED_MESSAGE)
+      }
+    }
+
     res.json({ success: true, pkg: resolved })
   } catch (error) {
     return handleError('updatePackage', req, res, error, 'Failed to update package')

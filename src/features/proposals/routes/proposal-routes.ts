@@ -6,14 +6,20 @@ import {
   listProposals,
   getProposal,
   createProposal,
+  createProposalFromPlan,
+  createProposalFromPackage,
   updateProposal,
   sendProposal,
   acceptProposal,
+  getInvoiceForProposal,
 } from '../controllers/proposal-controller'
 
 export const customerProposalRouter = Router()
 customerProposalRouter.get('/proposals', requireAuth, getMyProposals)
+customerProposalRouter.post('/proposals/from-plan', requireAuth, createProposalFromPlan)
+customerProposalRouter.post('/proposals/from-package', requireAuth, createProposalFromPackage)
 customerProposalRouter.post('/proposals/:code/accept', requireAuth, acceptProposal)
+customerProposalRouter.get('/proposals/:code/invoice', requireAuth, getInvoiceForProposal)
 
 export const adminProposalRouter = Router()
 adminProposalRouter.get('/proposals', requireAdmin, requireDivision('digital', 'print'), listProposals)

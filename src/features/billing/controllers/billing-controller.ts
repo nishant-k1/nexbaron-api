@@ -167,8 +167,22 @@ export async function createPaymentOrder(req: Request, res: Response) {
       res.status(404).json({ success: false, message: 'Invoice not found or already paid' })
       return
     }
+    
+    // Support partial payment for FIFTY_FIFTY schedule
+    const requestedAmount = req.body.amount ? Number(req.body.amount) : null
+    let payAmount = invoice.amount
+    if (requestedAmount && requestedAmount > 0 && requestedAmount <= invoice.amount) {
+      // Allow partial payment only for FIFTY_FIFTY schedule
+      if (invoice.paymentSchedule === 'FIFTY_FIFTY') {
+        payAmount = requestedAmount
+      } else {
+        res.status(400).json({ success: false, message: 'Partial payment not allowed for this invoice' })
+        return
+      }
+    }
+    
     const { createRazorpayOrder, razorpayConfigured } = await import('../../digital/payments/services/razorpay-service.js')
-    const order = await createRazorpayOrder(invoice.amount * 100, invoice.invoiceNumber, {
+    const order = await createRazorpayOrder(payAmount * 100, invoice.invoiceNumber, {
       accountId: account.accountCode,
       division,
     })

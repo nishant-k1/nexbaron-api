@@ -225,3 +225,48 @@ export async function createProjectFromClient(req: Request, res: Response) {
     return handleError('createProjectFromClient', req, res, error, 'Failed to create project')
   }
 }
+
+export async function getMyOrders(req: Request, res: Response) {
+  try {
+    const division = req.division!
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Order } = getDivisionModels(division)
+    const orders = await Order.find({ division, userId }).sort({ createdAt: -1 }).lean()
+    res.json({ success: true, orders })
+  } catch (error) {
+    return handleError('getMyOrders', req, res, error, 'Failed to load orders')
+  }
+}
+
+export async function getOrderDetail(req: Request, res: Response) {
+  try {
+    const division = req.division!
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Order, Invoice } = getDivisionModels(division)
+    const order = await Order.findOne({ _id: req.params.id, division, userId }).lean()
+    if (!order) {
+      res.status(404).json({ success: false, message: 'Order not found' })
+      return
+    }
+    
+    // Populate proposalCode from invoice if available
+    if (order.invoiceNumber) {
+      const invoice = await Invoice.findOne({ invoiceNumber: order.invoiceNumber, division }).lean()
+      if (invoice?.proposalCode) {
+        order.proposalCode = invoice.proposalCode
+      }
+    }
+    
+    res.json({ success: true, order })
+  } catch (error) {
+    return handleError('getOrderDetail', req, res, error, 'Failed to load order')
+  }
+}

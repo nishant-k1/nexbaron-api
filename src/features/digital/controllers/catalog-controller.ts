@@ -44,6 +44,7 @@ function buildCatalogPlans() {
       timeline: plan.timeline,
       icon: plan.icon,
       featured: plan.featured,
+      custom: plan.custom,
       inherited: includedName
         ? { label: `Everything in ${includedName}` }
         : undefined,
@@ -58,6 +59,20 @@ function buildCatalogPlans() {
         : undefined,
     };
   });
+}
+
+export function getPlanById(planId: string) {
+  return buildCatalogPlans().find((p) => p.id === planId)
+}
+
+export function getCatalogPlanById(req: Request, res: Response) {
+  const planId = String(req.params.planId)
+  const plan = getPlanById(planId)
+  if (!plan) {
+    res.status(404).json({ success: false, message: 'Plan not found' })
+    return
+  }
+  res.json({ success: true, plan })
 }
 
 export function getCatalog(_req: Request, res: Response) {

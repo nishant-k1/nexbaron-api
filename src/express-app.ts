@@ -6,10 +6,11 @@ import compression from 'compression'
 import { customerAuthRouter } from './features/auth/routes/auth-routes'
 import { adminAuthRouter } from './features/admin/routes/auth-routes'
 import { businessProfileRouter } from './features/digital/routes/business-profile-routes'
+import { catalogRouter } from './features/digital/routes/plan-routes'
 import { printBusinessProfileRouter } from './features/print/routes/business-profile-routes'
 import { printRouter } from './features/print/routes/print-routes'
 import { adminLeadRouter, brandContactRouter } from './features/leads/routes/lead-routes'
-import { adminOrderRouter } from './features/orders/routes/order-routes'
+import { adminOrderRouter, customerOrderRouter } from './features/orders/routes/order-routes'
 import { adminReminderRouter } from './features/admin-resources/routes/reminder-routes'
 import { testimonialRouter } from './features/admin-resources/routes/testimonial-routes'
 import { reportRouter } from './features/reports/routes/report-routes'
@@ -69,10 +70,12 @@ function mountBrandRoutes(brandBase: string): void {
 
   if (runtimeBrand === 'digital') {
     app.use(`${brandBase}`, businessProfileRouter)
+    app.use(`${brandBase}/catalog`, catalogRouter)
     app.use(brandBase, customerAccountRouter)
     app.use(brandBase, customerPackageRouter)
     app.use(brandBase, customerProposalRouter)
     app.use(brandBase, customerBillingRouter)
+    app.use(brandBase, customerOrderRouter)
     app.use(`${brandBase}/admin`, adminAccountRouter)
     app.use(`${brandBase}/admin`, adminPackageRouter)
     app.use(`${brandBase}/admin`, adminServiceRouter)

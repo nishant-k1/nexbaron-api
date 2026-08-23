@@ -4,6 +4,8 @@ import { nextCode } from '../../../utils/sequence'
 import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
 import { createProposalModel } from '../../../models/proposal.model'
+import { createInvoiceModel } from '../../../models/invoice.model'
+import { getPlanById } from '../../digital/controllers/catalog-controller'
 import { createPackageModel } from '../../../models/package.model'
 import { createPackageServiceModel } from '../../../models/package-service.model'
 import { createServiceModel } from '../../../models/service.model'
@@ -38,6 +40,209 @@ function parsePricing(p: PricingInput): Record<string, unknown> | null {
   return out
 }
 
+export async function createProposalFromPlan(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { planId, billingCycle } = req.body as { planId?: string; billingCycle?: string }
+    if (!planId) {
+      res.status(400).json({ success: false, message: 'planId is required' })
+      return
+    }
+    const plan = getPlanById(planId)
+    if (!plan) {
+      res.status(404).json({ success: false, message: 'Plan not found' })
+      return
+    }
+    if (plan.custom) {
+      res.status(400).json({
+        success: false,
+        message: 'Custom plans are prepared by our team — please contact us to request a proposal.',
+      })
+      return
+    }
+
+    const cycle: 'MONTHLY' | 'ANNUAL' = billingCycle === 'annual' ? 'ANNUAL' : 'MONTHLY'
+    const { Account, Proposal, Sequence } = getDivisionModels(division)
+    const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
+    if (!account) {
+      res.status(400).json({ success: false, message: 'Account not found' })
+      return
+    }
+
+    // Idempotency: reuse an existing SENT/ACCEPTED proposal for the same plan.
+    // If a DRAFT exists (from a previous attempt), upgrade it to SENT.
+    const existing = await (Proposal as ReturnType<typeof createProposalModel>)
+      .findOne({ accountId: account.accountCode, division, packageId: plan.id })
+      .lean()
+    if (existing) {
+      if (existing.status === 'DRAFT') {
+        const updated = await (Proposal as ReturnType<typeof createProposalModel>).findOneAndUpdate(
+          { _id: existing._id, division, status: 'DRAFT' },
+          { $set: { status: 'SENT' } },
+          { new: true }
+        )
+        if (updated) {
+          await Account.updateOne(
+            { accountCode: account.accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD', 'PACKAGE_SELECTED'] } },
+            { $set: { lifecycleStage: 'PROPOSAL_SENT' }, $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: (account as { name?: string }).name || 'customer', at: new Date() } } }
+          ).catch(() => {})
+        }
+        res.json({ success: true, proposal: updated || existing, existing: true })
+        return
+      }
+      // SENT or ACCEPTED - return as-is
+      res.json({ success: true, proposal: existing, existing: true })
+      return
+    }
+
+    const pricing = plan.pricing
+    const recurringFee =
+      cycle === 'ANNUAL'
+        ? pricing?.annual ?? pricing?.monthly ?? 0
+        : pricing?.monthly ?? 0
+
+    const proposalCode = await nextCode(Sequence, `proposal-${division}`, 'PRP')
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).create({
+      proposalCode,
+      accountId: account.accountCode,
+      packageId: plan.id,
+      division,
+      version: 1,
+      status: 'SENT',
+      title: plan.name,
+      description: plan.tagline,
+      services: (plan.services || []).map((s) => ({
+        serviceCode: s.id || (s.label ? s.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'service'),
+        name: s.label,
+        description: s.description || '',
+      })),
+      pricing: {
+        oneTimeEnabled: !!pricing?.setup,
+        oneTimeFee: pricing?.setup || 0,
+        paymentSchedule: 'FULL_UPFRONT',
+        recurringEnabled: true,
+        recurringFee: recurringFee || 0,
+        recurringFrequency: cycle,
+      },
+      createdBy: (account as { name?: string }).name || 'customer',
+    })
+
+    // Automatically advance account to PROPOSAL_SENT for standard plans (proposal is sent immediately).
+    await Account.updateOne(
+      { accountCode: account.accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD', 'PACKAGE_SELECTED'] } },
+      {
+        $set: { lifecycleStage: 'PROPOSAL_SENT' },
+        $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: (account as { name?: string }).name || 'customer', at: new Date() } },
+      }
+    ).catch(() => {})
+
+    res.status(201).json({ success: true, proposal: proposal.toObject() })
+  } catch (error) {
+    return handleError('createProposalFromPlan', req, res, error, 'Failed to create proposal')
+  }
+}
+
+export async function createProposalFromPackage(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { packageCode } = req.body as { packageCode?: string }
+    if (!packageCode) {
+      res.status(400).json({ success: false, message: 'packageCode is required' })
+      return
+    }
+    const { Account, Package, PackageService, Service, Proposal, Sequence } = getDivisionModels(division)
+    const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
+    if (!account) {
+      res.status(400).json({ success: false, message: 'Account not found' })
+      return
+    }
+    const pkg = await (Package as ReturnType<typeof createPackageModel>).findOne({
+      packageCode,
+      accountId: account.accountCode,
+      division,
+      visibility: { $ne: 'DRAFT' },
+    }).lean()
+    if (!pkg) {
+      res.status(404).json({ success: false, message: 'Package not found' })
+      return
+    }
+
+    // Idempotency: reuse an existing proposal for the same package.
+    const existing = await (Proposal as ReturnType<typeof createProposalModel>)
+      .findOne({ accountId: account.accountCode, division, packageId: pkg.packageCode })
+      .lean()
+    if (existing) {
+      res.json({ success: true, proposal: existing, existing: true })
+      return
+    }
+
+    // Service snapshot: PackageService -> Service catalog.
+    const links = await (PackageService as ReturnType<typeof createPackageServiceModel>)
+      .find({ packageCode: pkg.packageCode, division })
+      .lean()
+    const serviceCodes = links.map((l) => l.serviceCode)
+    const svcDocs = serviceCodes.length
+      ? await (Service as ReturnType<typeof createServiceModel>).find({ serviceCode: { $in: serviceCodes }, division }).lean()
+      : []
+    const svcMap = new Map(svcDocs.map((s) => [s.serviceCode, s]))
+    const services = links.map((l) => {
+      const svc = svcMap.get(l.serviceCode)
+      return {
+        serviceCode: l.serviceCode,
+        name: l.name || (svc ? svc.name : l.serviceCode),
+        description: l.description || (svc ? svc.description : ''),
+      }
+    })
+
+    const pricing = {
+      oneTimeEnabled: !!pkg.oneTimeEnabled,
+      oneTimeFee: pkg.oneTimeFee || 0,
+      paymentSchedule: pkg.paymentSchedule,
+      recurringEnabled: !!pkg.recurringEnabled,
+      recurringFee: pkg.recurringFee || 0,
+      recurringFrequency: pkg.recurringFrequency,
+    }
+
+    const proposalCode = await nextCode(Sequence, `proposal-${division}`, 'PRP')
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).create({
+      proposalCode,
+      accountId: account.accountCode,
+      packageId: pkg.packageCode,
+      division,
+      version: 1,
+      status: 'DRAFT',
+      title: pkg.name,
+      description: pkg.description || '',
+      services,
+      pricing,
+      createdBy: (account as { name?: string }).name || 'customer',
+    })
+
+    // Reflect the selection on the account (only if still early-stage).
+    await Account.updateOne(
+      { accountCode: account.accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD'] } },
+      {
+        $set: { lifecycleStage: 'PACKAGE_SELECTED' },
+        $push: { stageHistory: { stage: 'PACKAGE_SELECTED', by: (account as { name?: string }).name || 'customer', at: new Date() } },
+      }
+    ).catch(() => {})
+
+    res.status(201).json({ success: true, proposal: proposal.toObject() })
+  } catch (error) {
+    return handleError('createProposalFromPackage', req, res, error, 'Failed to create proposal')
+  }
+}
+
 export async function getMyProposals(req: Request, res: Response) {
   try {
     const division = runtimeBrand
@@ -53,7 +258,7 @@ export async function getMyProposals(req: Request, res: Response) {
       return
     }
     const proposals = await (Proposal as ReturnType<typeof createProposalModel>)
-      .find({ accountId: account.accountCode, division })
+      .find({ accountId: account.accountCode, division, status: { $in: ['SENT', 'ACCEPTED'] } })
       .sort({ createdAt: -1 })
       .lean()
     res.json({ success: true, proposals })
@@ -329,8 +534,72 @@ export async function acceptProposal(req: Request, res: Response) {
         $addToSet: { tags: 'proposal-accepted' },
       }
     )
+
+    // Auto-create PENDING invoice from accepted proposal so the customer can pay immediately.
+    const { Invoice, Sequence } = getDivisionModels(division)
+    const invoiceCode = await nextCode(Sequence, `invoice-${division}`, 'INV')
+    const pricing = proposal.pricing
+    const totalAmount = (pricing?.oneTimeFee || 0) + (pricing?.recurringFee || 0)
+    const lineItems: Array<{ label: string; amount: number; type: 'ONE_TIME' | 'RECURRING' }> = []
+    if (pricing?.oneTimeEnabled && pricing?.oneTimeFee) {
+      lineItems.push({ label: `${proposal.title} - Setup`, amount: pricing.oneTimeFee, type: 'ONE_TIME' })
+    }
+    if (pricing?.recurringEnabled && pricing?.recurringFee) {
+      lineItems.push({ label: `${proposal.title} - ${pricing.recurringFrequency === 'ANNUAL' ? 'Annual' : 'Monthly'}`, amount: pricing.recurringFee, type: 'RECURRING' })
+    }
+    await Invoice.create({
+      invoiceNumber: invoiceCode,
+      accountId: proposal.accountId,
+      packageId: proposal.packageId,
+      proposalCode: proposal.proposalCode,
+      division,
+      status: 'PENDING',
+      amount: totalAmount,
+      currency: 'INR',
+      lineItems,
+      paymentSchedule: pricing?.paymentSchedule || 'FULL_UPFRONT',
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+    })
+
     res.json({ success: true, proposal: proposal.toObject() })
   } catch (error) {
     return handleError('acceptProposal', req, res, error, 'Failed to accept proposal')
+  }
+}
+
+export async function getInvoiceForProposal(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Account, Proposal, Invoice } = getDivisionModels(division)
+    const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
+    if (!account) {
+      res.status(403).json({ success: false, message: 'Not linked to an account' })
+      return
+    }
+    const proposalCode = String(req.params.code)
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>)
+      .findOne({ proposalCode, accountId: account.accountCode, division })
+      .lean()
+    if (!proposal) {
+      res.status(404).json({ success: false, message: 'Proposal not found' })
+      return
+    }
+    const invoice = await (Invoice as ReturnType<typeof createInvoiceModel>)
+      .findOne({ proposalCode: proposal.proposalCode, accountId: account.accountCode, division })
+      .lean()
+    if (!invoice) {
+      res.status(404).json({ success: false, message: 'No invoice found for this proposal' })
+      return
+    }
+    const rk = process.env.RAZORPAY_KEY_ID
+    const razorpayKeyId = rk && (rk.startsWith('rzp_test_') || rk.startsWith('rzp_live_')) ? rk : ''
+    res.json({ success: true, invoice, razorpayKeyId })
+  } catch (error) {
+    return handleError('getInvoiceForProposal', req, res, error, 'Failed to load invoice')
   }
 }
