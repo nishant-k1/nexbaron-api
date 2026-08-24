@@ -1,5 +1,7 @@
 # AGENTS.md — nexbaron-api
 
+> **Root contract:** See `nexbaron/AGENTS.md` §0 — **API is single source of truth (MANDATORY).** Never hardcode business data in `nexbaron-hub/crm/web`; implement service + controller + model in `nexbaron-api` first, then have clients consume the API response as-is. This file is repo-specific detail — root overrides any weaker rule.
+
 Backend API for Nexbaron (two divisions: **Digital** — website/growth plans; **Print** — commercial printing). Powers both `nexbaron-web` (public site) and `nexbaron-crm` (staff CRM). Sibling repos: `/Users/nishantkumar/dev/nexbaron-web`, `/Users/nishantkumar/dev/nexbaron-crm`.
 
 ## Commands

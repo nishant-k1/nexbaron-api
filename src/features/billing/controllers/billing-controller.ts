@@ -6,6 +6,7 @@ import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
 import { createInvoiceModel } from '../../../models/invoice.model'
 import { buildLaunchStages } from '../../digital/payments/services/pricing-service'
+import { computeBillingSummary, computeInstallments } from '../services/billing-service'
 
 function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
   return { division, userId }
@@ -60,7 +61,9 @@ export async function getMyInvoice(req: Request, res: Response) {
     }
     const rk = process.env.RAZORPAY_KEY_ID
     const razorpayKeyId = rk && (rk.startsWith('rzp_test_') || rk.startsWith('rzp_live_')) ? rk : ''
-    res.json({ success: true, invoice, razorpayKeyId })
+    const summary = computeBillingSummary(invoice)
+    const installments = computeInstallments(invoice)
+    res.json({ success: true, invoice, razorpayKeyId, summary, installments })
   } catch (error) {
     return handleError('getMyInvoice', req, res, error, 'Failed to load invoice')
   }
@@ -105,7 +108,9 @@ export async function getInvoice(req: Request, res: Response) {
       res.status(404).json({ success: false, message: 'Invoice not found' })
       return
     }
-    res.json({ success: true, invoice })
+    const summary = computeBillingSummary(invoice)
+    const installments = computeInstallments(invoice)
+    res.json({ success: true, invoice, summary, installments })
   } catch (error) {
     return handleError('getInvoice', req, res, error, 'Failed to load invoice')
   }
