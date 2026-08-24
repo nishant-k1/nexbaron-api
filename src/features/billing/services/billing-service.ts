@@ -19,6 +19,7 @@ export interface BillingInstallment {
   amount: number
   status: 'paid' | 'due' | 'overdue'
   paidAt?: string
+  paymentId?: string
 }
 
 export function computeBillingSummary(invoice: IInvoice | any): BillingSummary {
@@ -66,11 +67,15 @@ export function computeInstallments(invoice: IInvoice | any, planMonths?: number
     const isPaid = installmentPaidAmount >= installmentAmount * 0.9
     const isOverdue = !isPaid && dueDate < new Date()
     let paidAt: string | undefined
+    let paymentId: string | undefined
     if (isPaid) {
       const relevantPayment = successfulPayments.filter((p: any) => new Date(p.at) <= dueDate).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
-      if (relevantPayment) paidAt = new Date(relevantPayment.at).toISOString()
+      if (relevantPayment) {
+        paidAt = new Date(relevantPayment.at).toISOString()
+        paymentId = relevantPayment.paymentId || relevantPayment.razorpayPaymentId
+      }
     }
-    installments.push({ number: i + 1, dueDate, amount: installmentAmount, status: isPaid ? 'paid' : isOverdue ? 'overdue' : 'due', paidAt })
+    installments.push({ number: i + 1, dueDate, amount: installmentAmount, status: isPaid ? 'paid' : isOverdue ? 'overdue' : 'due', paidAt, paymentId })
   }
   return installments
 }

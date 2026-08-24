@@ -9,10 +9,13 @@ import {
   createInvoice,
   createPaymentOrder,
   verifyPayment,
+  downloadInvoiceReceipt,
 } from '../controllers/billing-controller'
 
 export const customerBillingRouter = Router()
 customerBillingRouter.get('/billing/invoices', requireAuth, getMyInvoices)
+customerBillingRouter.get('/billing/invoices/:number/receipt/:paymentId', requireAuth, downloadInvoiceReceipt)
+customerBillingRouter.get('/billing/invoices/:number/receipt', requireAuth, downloadInvoiceReceipt)
 customerBillingRouter.get('/billing/invoices/:number', requireAuth, getMyInvoice)
 customerBillingRouter.post('/billing/invoices/:number/pay', requireAuth, createPaymentOrder)
 customerBillingRouter.post('/billing/payments/verify', requireAuth, verifyPayment)

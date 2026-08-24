@@ -7,6 +7,8 @@ import { runtimeBrand } from '../../../config/brand'
 import { createInvoiceModel } from '../../../models/invoice.model'
 import { buildLaunchStages } from '../../digital/payments/services/pricing-service'
 import { computeBillingSummary, computeInstallments } from '../services/billing-service'
+import { escapeHtml, logoNx } from '../../../utils/html'
+import { NX_DIGITAL, NX_PRINT } from '../../../config/constants'
 
 function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
   return { division, userId }
@@ -114,6 +116,130 @@ export async function getInvoice(req: Request, res: Response) {
   } catch (error) {
     return handleError('getInvoice', req, res, error, 'Failed to load invoice')
   }
+}
+
+export async function downloadInvoiceReceipt(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const invoiceNumber = String(req.params.number || '').trim()
+    const paymentId = req.params.paymentId ? String(req.params.paymentId).trim() : undefined
+    if (!invoiceNumber) {
+      res.status(400).json({ success: false, message: 'Invoice number required' })
+      return
+    }
+    const { Account, Invoice } = getDivisionModels(division)
+    const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
+    if (!account) {
+      res.status(403).json({ success: false, message: 'Not linked to an account' })
+      return
+    }
+    const invoice = await (Invoice as ReturnType<typeof createInvoiceModel>)
+      .findOne({ invoiceNumber, accountId: account.accountCode, division })
+      .lean()
+    if (!invoice) {
+      res.status(404).json({ success: false, message: 'Invoice not found' })
+      return
+    }
+    const summary = computeBillingSummary(invoice)
+    if (summary.totalPaid <= 0) {
+      res.status(400).json({ success: false, message: 'No paid amount to generate receipt' })
+      return
+    }
+    let targetPayment: any = null
+    let receiptAmount = summary.totalPaid
+    let receiptDate = invoice.updatedAt || invoice.createdAt
+    let receiptId = invoiceNumber
+    if (paymentId) {
+      targetPayment = (invoice.payments || []).find((p: any) => p.paymentId === paymentId || p.razorpayPaymentId === paymentId)
+      if (!targetPayment || targetPayment.status !== 'SUCCESS') {
+        res.status(404).json({ success: false, message: 'Payment not found or not successful' })
+        return
+      }
+      receiptAmount = targetPayment.amount
+      receiptDate = targetPayment.at
+      receiptId = `${invoiceNumber}-${targetPayment.paymentId.slice(-6).toUpperCase()}`
+    }
+    const brand = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+    const colors = division === 'digital' ? NX_DIGITAL : NX_PRINT
+    const accent = colors.stop1
+    const date = new Date(receiptDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    const createdDate = new Date(invoice.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    const customerName = escapeHtml(account.name || '—')
+    const customerEmail = escapeHtml(account.email || '')
+    const customerPhone = escapeHtml(account.phone || '')
+    const safeInvoice = escapeHtml(invoiceNumber)
+    const safeReceiptId = escapeHtml(receiptId)
+    const lineRows = (invoice.lineItems || [])
+      .map(
+        (li: any) =>
+          `<tr><td>${escapeHtml(li.label)}</td><td style="text-align:right">${inrFormat(li.amount)}</td><td style="text-align:center;color:#64748b">${escapeHtml(li.type)}</td></tr>`,
+      )
+      .join('')
+    const paymentsToShow = paymentId && targetPayment ? [targetPayment] : (invoice.payments || []).filter((p: any) => p.status === 'SUCCESS')
+    const paymentRows = paymentsToShow
+      .map(
+        (p: any) =>
+          `<tr><td>${new Date(p.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ${escapeHtml(p.razorpayPaymentId || p.paymentId.slice(-8).toUpperCase())}</td><td style="text-align:right">${inrFormat(p.amount)}</td><td style="text-align:center;color:#059669">Paid</td></tr>`,
+      )
+      .join('')
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${safeReceiptId}</title>
+<style>body{font-family:Arial,sans-serif;max-width:640px;margin:40px auto;color:#0f172a;padding:0 16px}
+.header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid ${accent};padding-bottom:16px;margin-bottom:24px}
+.header h1{font-size:20px;margin:0}.header p{font-size:12px;color:#64748b;margin:2px 0}
+.brand{display:flex;align-items:center;gap:12px}
+.meta{display:flex;justify-content:space-between;font-size:13px;margin-bottom:24px;gap:16px}
+.meta strong{color:#64748b}
+.table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}
+.table th{text-align:left;padding:10px 8px;background:#f8fafc;border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;text-transform:uppercase}
+.table td{padding:10px 8px;border-bottom:1px solid #f1f5f9}
+.total{width:100%;border-collapse:collapse;margin-bottom:20px}
+.total td{padding:8px;text-align:right;font-size:13px}
+.total .grand{font-size:18px;font-weight:bold;border-top:2px solid #0f172a}
+.footer{font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;margin-top:24px;text-align:center}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;background:#ecfdf5;color:#059669}
+</style></head><body>
+<div class="header">
+  <div class="brand">
+    ${logoNx(colors)}
+    <div><h1>${brand}</h1><p>Payment Receipt</p></div>
+  </div>
+  <div style="text-align:right"><p><strong>Receipt #</strong> ${safeReceiptId}</p><p>${date}</p><p><span class="badge">Paid</span></p></div>
+</div>
+<div class="meta">
+  <div><strong>Bill to</strong><br>${customerName}${customerEmail ? `<br>${customerEmail}` : ''}${customerPhone ? `<br>${customerPhone}` : ''}<br><span style="color:#64748b">${escapeHtml(account.accountCode)}</span></div>
+  <div style="text-align:right"><strong>Invoice</strong><br>${safeInvoice}<br>${createdDate}<br>${escapeHtml(invoice.status)}</div>
+</div>
+<table class="table">
+  <tr><th>Description</th><th style="text-align:right">Amount</th><th style="text-align:center">Type</th></tr>
+  ${lineRows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8">No line items</td></tr>'}
+</table>
+<table class="table">
+  <tr><th>Date</th><th style="text-align:right">Paid</th><th style="text-align:center">Status</th></tr>
+  ${paymentRows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8">No payments</td></tr>'}
+</table>
+<table class="total">
+  <tr><td>Invoice Total</td><td style="text-align:right">${inrFormat(invoice.amount)}</td></tr>
+  <tr><td>Total Paid${paymentId ? ` (this receipt)` : ''}</td><td style="text-align:right;color:#059669">${inrFormat(receiptAmount)}</td></tr>
+  <tr><td>Amount Due</td><td style="text-align:right">${inrFormat(invoice.amount - summary.totalPaid)}</td></tr>
+  <tr><td class="grand" colspan="2" style="text-align:right">Balance Due: ${inrFormat(Math.max(0, invoice.amount - summary.totalPaid))}</td></tr>
+</table>
+<div class="footer">${brand} · nexbaron.com · This is a computer-generated receipt. For support, contact hello@nexbaron.com</div>
+</body></html>`
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    res.setHeader('Content-Disposition', `inline; filename="receipt-${receiptId}.html"`)
+    res.send(html)
+  } catch (error) {
+    return handleError('downloadInvoiceReceipt', req, res, error, 'Failed to generate receipt')
+  }
+}
+
+function inrFormat(n: number): string {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 }
 
 export async function createInvoice(req: Request, res: Response) {
