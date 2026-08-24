@@ -7,11 +7,31 @@ import { notifyChatAgentMessage } from '../../../utils/chat-service'
 import type { PackageType, RecurringFrequency, PackageStatus, PackageVisibility } from '../../../models/package.model'
 import { createServiceModel } from '../../../models/service.model'
 import { createPackageServiceModel } from '../../../models/package-service.model'
+import servicePricingPlans, { annualPrice } from '../../digital/catalog/plans/v1/plans-type'
+import { logger } from '../../../utils/logger'
 
 const PACKAGE_TAILORED_MESSAGE =
   'Package has been tailored according to your specific requirement please go to the package page proceed with the package.'
 
 const DELIVERY_STATUSES: PackageStatus[] = ['ANALYSIS', 'IN_PROGRESS', 'DELIVERED']
+
+function allowedRecurringFees(): Set<number> {
+  const fees = new Set<number>()
+  for (const plan of Object.values(servicePricingPlans)) {
+    if (plan.pricing?.monthly) {
+      fees.add(plan.pricing.monthly)
+      fees.add(annualPrice(plan.pricing))
+    }
+  }
+  return fees
+}
+function allowedOneTimeFees(): Set<number> {
+  const fees = new Set<number>()
+  for (const plan of Object.values(servicePricingPlans)) {
+    if (plan.pricing?.setup) fees.add(plan.pricing.setup)
+  }
+  return fees
+}
 
 type ResolvedService = { serviceCode: string; name: string; description?: string }
 
@@ -168,6 +188,28 @@ export async function createPackage(req: Request, res: Response) {
     const pkgType: PackageType = (type as PackageType) || 'STANDARD'
     const pkgVisibility: PackageVisibility =
       (visibility as PackageVisibility) || (pkgType === 'CUSTOM' ? 'DRAFT' : 'LIVE')
+    // Single source: STANDARD packages must use catalog pricing; CUSTOM may use any price but is logged
+    if (pkgType === 'STANDARD') {
+      if (oneTimeFee !== undefined && oneTimeFee !== '' && oneTimeFee !== null) {
+        const fee = Number(oneTimeFee)
+        if (!allowedOneTimeFees().has(fee)) {
+          res.status(400).json({ success: false, message: `Standard package one-time fee must be one of ${[...allowedOneTimeFees()].join(', ')} (catalog). Use CUSTOM type for custom pricing.` })
+          return
+        }
+      }
+      if (recurringEnabled || (recurringFee !== undefined && recurringFee !== '' && recurringFee !== null)) {
+        const fee = Number(recurringFee)
+        if (recurringFee !== undefined && recurringFee !== '' && recurringFee !== null && !allowedRecurringFees().has(fee)) {
+          res.status(400).json({ success: false, message: `Standard package recurring fee must be one of ${[...allowedRecurringFees()].join(', ')} (catalog monthly/annual). Use CUSTOM type for custom pricing.` })
+          return
+        }
+      }
+    } else if (pkgType === 'CUSTOM' && recurringFee !== undefined && recurringFee !== '' && recurringFee !== null) {
+      const fee = Number(recurringFee)
+      if (fee === 10000) {
+        logger.warn({ accountCode, recurringFee: fee }, 'Custom package with suspicious recurring fee 10000 — likely test data, consider using catalog value')
+      }
+    }
     await Package.create({
       packageCode,
       accountId: account.accountCode,
@@ -265,6 +307,25 @@ export async function updatePackage(req: Request, res: Response) {
       return
     }
     const wasLive = existing.visibility === 'LIVE'
+    // Validate catalog pricing for STANDARD (single source)
+    const effectiveType = (type as PackageType) ?? (existing.type as PackageType)
+    if (effectiveType === 'STANDARD') {
+      if (oneTimeFee !== undefined && oneTimeFee !== '' && oneTimeFee !== null) {
+        const fee = Number(oneTimeFee)
+        if (!allowedOneTimeFees().has(fee)) {
+          res.status(400).json({ success: false, message: `Standard package one-time fee must be one of ${[...allowedOneTimeFees()].join(', ')}` })
+          return
+        }
+      }
+      const effectiveRecurringEnabled = recurringEnabled !== undefined ? !!recurringEnabled : !!existing.recurringEnabled
+      if (effectiveRecurringEnabled && recurringFee !== undefined && recurringFee !== '' && recurringFee !== null) {
+        const fee = Number(recurringFee)
+        if (!allowedRecurringFees().has(fee)) {
+          res.status(400).json({ success: false, message: `Standard package recurring fee must be one of ${[...allowedRecurringFees()].join(', ')}` })
+          return
+        }
+      }
+    }
     const update: Record<string, unknown> = {}
     if (name !== undefined) update.name = String(name).trim()
     if (description !== undefined) update.description = description

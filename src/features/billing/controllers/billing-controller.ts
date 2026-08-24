@@ -9,6 +9,8 @@ import { buildLaunchStages } from '../../digital/payments/services/pricing-servi
 import { computeBillingSummary, computeInstallments } from '../services/billing-service'
 import { escapeHtml, logoNx } from '../../../utils/html'
 import { NX_DIGITAL, NX_PRINT } from '../../../config/constants'
+import { canSendMail, sendMail } from '../../../utils/mailer'
+import { renderInvoiceReceiptPdf } from '../services/billing-receipt-pdf'
 
 function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
   return { division, userId }
@@ -187,6 +189,14 @@ export async function downloadInvoiceReceipt(req: Request, res: Response) {
           `<tr><td>${new Date(p.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ${escapeHtml(p.razorpayPaymentId || p.paymentId.slice(-8).toUpperCase())}</td><td style="text-align:right">${inrFormat(p.amount)}</td><td style="text-align:center;color:#059669">Paid</td></tr>`,
       )
       .join('')
+    const wantPdf = String((req.query as any).format || '').toLowerCase() === 'pdf' || String(req.headers.accept || '').includes('application/pdf')
+    if (wantPdf) {
+      const pdf = await renderInvoiceReceiptPdf(invoice, account, { paymentId })
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `attachment; filename="receipt-${receiptId}.pdf"`)
+      res.send(pdf)
+      return
+    }
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${safeReceiptId}</title>
 <style>body{font-family:Arial,sans-serif;max-width:640px;margin:40px auto;color:#0f172a;padding:0 16px}
 .header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid ${accent};padding-bottom:16px;margin-bottom:24px}
@@ -254,6 +264,29 @@ export async function createInvoice(req: Request, res: Response) {
     if (!accountCode || !amount || amount <= 0) {
       res.status(400).json({ success: false, message: 'accountCode and a positive amount are required' })
       return
+    }
+    // Validate lineItems if provided — sum must equal amount, types must be valid
+    if (Array.isArray(lineItems) && lineItems.length > 0) {
+      const validTypes = new Set(['ONE_TIME', 'RECURRING'])
+      for (const li of lineItems) {
+        if (typeof li.label !== 'string' || !li.label.trim()) {
+          res.status(400).json({ success: false, message: 'Each line item must have a label' })
+          return
+        }
+        if (typeof li.amount !== 'number' || li.amount < 0) {
+          res.status(400).json({ success: false, message: 'Each line item must have a non-negative amount' })
+          return
+        }
+        if (!validTypes.has(li.type)) {
+          res.status(400).json({ success: false, message: 'Line item type must be ONE_TIME or RECURRING' })
+          return
+        }
+      }
+      const sum = lineItems.reduce((s: number, li: any) => s + Number(li.amount || 0), 0)
+      if (sum !== Number(amount)) {
+        res.status(400).json({ success: false, message: `Sum of line items (${sum}) must equal amount (${amount})` })
+        return
+      }
     }
     const account = await Account.findOne({ accountCode, division }).lean()
     if (!account) {
@@ -381,10 +414,11 @@ export async function verifyPayment(req: Request, res: Response) {
     const isFullyPaid = newTotalPaid >= invoice.amount
     const newStatus = isFullyPaid ? 'PAID' : 'PENDING'
 
+    const newPaymentId = `pay_${Date.now()}`
     await (Invoice as ReturnType<typeof createInvoiceModel>).updateOne(
       { _id: invoice._id },
       {
-        $push: { payments: { paymentId: `pay_${Date.now()}`, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: payAmount, status: 'SUCCESS', at: new Date() } },
+        $push: { payments: { paymentId: newPaymentId, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: payAmount, status: 'SUCCESS', at: new Date() } },
         $set: { status: newStatus },
       }
     )
@@ -492,6 +526,26 @@ export async function verifyPayment(req: Request, res: Response) {
         // Don't block payment success if order creation fails
         console.error('Failed to create order from invoice', e)
       }
+    }
+
+    // Email PDF receipt automatically (single-payment, like razorpay-service.ts:175)
+    try {
+      if (canSendMail() && account.email) {
+        const freshInvoice = await (Invoice as ReturnType<typeof createInvoiceModel>).findOne({ _id: invoice._id }).lean()
+        if (freshInvoice) {
+          const pdf = await renderInvoiceReceiptPdf(freshInvoice as any, account as any, { paymentId: newPaymentId })
+          const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+          await sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER || 'hello@nexbaron.com',
+            to: account.email,
+            subject: `Payment receipt — ${freshInvoice.invoiceNumber} — ${inrFormat(payAmount)} paid`,
+            html: `<p>Hi ${escapeHtml(account.name)},</p><p>Your payment of ${inrFormat(payAmount)} for invoice ${escapeHtml(freshInvoice.invoiceNumber)} was successful. Receipt attached.</p><p> — ${brandName}</p>`,
+            attachments: [{ filename: `receipt-${freshInvoice.invoiceNumber}-${newPaymentId.slice(-6)}.pdf`, content: pdf }],
+          })
+        }
+      }
+    } catch (e) {
+      console.error('Failed to email receipt', e)
     }
 
     res.json({ success: true, message: 'Payment successful', paidAmount: payAmount, totalPaid: newTotalPaid, isFullyPaid, orderId })

@@ -83,7 +83,7 @@ export function computeOrder(
       quantity: 1,
     });
   }
-  if (monthlyTotal > 0) {
+  if (billingCycle === "monthly" && monthlyTotal > 0) {
     items.push({
       kind: "plan",
       planId: chosenId,
@@ -93,7 +93,7 @@ export function computeOrder(
       quantity: 1,
     });
   }
-  if (annualTotal > 0) {
+  if (billingCycle === "annual" && annualTotal > 0) {
     items.push({
       kind: "plan",
       planId: chosenId,
