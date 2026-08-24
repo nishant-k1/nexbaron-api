@@ -22,40 +22,51 @@ async function fix() {
 
   logger.info(`Fixing Test Plan artifacts for division ${runtimeBrand}...`)
 
-  // 1. Packages
+  // 1. Packages — dev only, so delete all Test Plan artifacts (suspicious 10k)
   const testPackages = await Package.find({ division: runtimeBrand, name: /Test Plan/i }).lean()
   logger.info(`Found ${testPackages.length} Test Plan packages`)
-
-  for (const pkg of testPackages) {
-    const hasSuspiciousRecurring = pkg.recurringFee === 10000
-    const hasSuspiciousOneTime = pkg.oneTimeFee === 10000
-    if (!hasSuspiciousRecurring && !hasSuspiciousOneTime) {
-      logger.info(`Skipping ${pkg.packageCode} — fees look catalog-correct (oneTime:${pkg.oneTimeFee} recurring:${pkg.recurringFee})`)
-      continue
-    }
-    // If STANDARD with 10k, convert to CUSTOM and keep fees (preserve data, fix type)
-    // If you prefer to correct to catalog, set recurringFee to 999 (Launch monthly) etc.
-    // Here we convert to CUSTOM and log for manual decision
-    const update: any = {}
-    if (pkg.type !== 'CUSTOM') {
-      update.type = 'CUSTOM'
-      update.visibility = 'DRAFT' // quarantine test data
-      logger.warn(`Converting ${pkg.packageCode} (${pkg.name}) from ${pkg.type} to CUSTOM and DRAFT due to suspicious fees`)
-    }
-    if (Object.keys(update).length) {
-      await Package.updateOne({ packageCode: pkg.packageCode, division: runtimeBrand }, { $set: update })
-      logger.info(`Updated ${pkg.packageCode} → ${JSON.stringify(update)}`)
+  if (testPackages.length) {
+    const del = await Package.deleteMany({ division: runtimeBrand, name: /Test Plan/i })
+    logger.warn(`Deleted ${del.deletedCount} Test Plan packages (dev data)`)
+    // Also clean related PackageService links
+    const { PackageService } = getDivisionModels(runtimeBrand)
+    const codes = testPackages.map((p) => p.packageCode)
+    if (codes.length) {
+      const psDel = await (PackageService as any).deleteMany({ packageCode: { $in: codes }, division: runtimeBrand })
+      logger.warn(`Deleted ${psDel.deletedCount} PackageService links for Test Plan`)
     }
   }
 
-  // 2. Invoices - just log, don't auto-mutate financial records
+  // 2. Invoices — dev only, delete all Test Plan invoices (suspicious 10k) instead of just logging
   const testInvoices = await Invoice.find({ division: runtimeBrand, 'lineItems.label': /Test Plan/i }).lean()
   logger.info(`Found ${testInvoices.length} Test Plan invoices`)
-  for (const inv of testInvoices as any[]) {
-    const hasSuspicious = (inv.lineItems || []).some((li: any) => li.amount === 10000)
-    if (hasSuspicious) {
-      logger.warn(`Invoice ${inv.invoiceNumber} has Test Plan line with ₹10,000 — packageId:${inv.packageId} amount:${inv.amount} lineItems:${JSON.stringify(inv.lineItems)} — manual review needed (should map to catalog 599/999/2999/5999 or be voided)`)
-    }
+  if (testInvoices.length) {
+    const delInv = await Invoice.deleteMany({ division: runtimeBrand, 'lineItems.label': /Test Plan/i })
+    logger.warn(`Deleted ${delInv.deletedCount} Test Plan invoices (dev data) — was ${testInvoices.map((i: any) => i.invoiceNumber).join(', ')}`)
+  }
+  // Also delete any invoice where any lineItem amount === 10000 and no catalog match (likely test)
+  const suspiciousInvoices = await Invoice.find({ division: runtimeBrand, 'lineItems.amount': 10000 }).lean()
+  const remainingSuspicious = suspiciousInvoices.filter((inv: any) => !testInvoices.some((t: any) => t._id.toString() === inv._id.toString()))
+  if (remainingSuspicious.length) {
+    logger.warn(`Found ${remainingSuspicious.length} additional invoices with ₹10,000 line (non-Test-Plan) — deleting as dev data`)
+    await Invoice.deleteMany({ division: runtimeBrand, 'lineItems.amount': 10000 })
+    logger.warn(`Deleted ${remainingSuspicious.length} invoices with ₹10,000 line`)
+  }
+
+  // 2b. Orders — dev only, delete all Test Plan orders (suspicious 10k) — Hub Orders page was still showing INV-TEST-50
+  const { Order } = getDivisionModels(runtimeBrand)
+  const testOrders = await (Order as any).find({ division: runtimeBrand, 'items.label': /Test Plan/i }).lean()
+  logger.info(`Found ${testOrders.length} Test Plan orders`)
+  if (testOrders.length) {
+    const delOrd = await (Order as any).deleteMany({ division: runtimeBrand, 'items.label': /Test Plan/i })
+    logger.warn(`Deleted ${delOrd.deletedCount} Test Plan orders (dev data) — was ${testOrders.map((o: any) => o.invoiceNumber || o._id).join(', ')}`)
+  }
+  const suspiciousOrders = await (Order as any).find({ division: runtimeBrand, 'items.price': 10000 }).lean()
+  const remainingSuspiciousOrders = suspiciousOrders.filter((o: any) => !testOrders.some((t: any) => t._id.toString() === o._id.toString()))
+  if (remainingSuspiciousOrders.length) {
+    logger.warn(`Found ${remainingSuspiciousOrders.length} additional orders with ₹10,000 price — deleting as dev data`)
+    await (Order as any).deleteMany({ division: runtimeBrand, 'items.price': 10000 })
+    logger.warn(`Deleted ${remainingSuspiciousOrders.length} orders with ₹10,000 price`)
   }
 
   // 3. General: find any invoice where lineItems sum !== amount (drift from old bug)
