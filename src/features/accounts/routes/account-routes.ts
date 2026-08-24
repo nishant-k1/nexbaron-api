@@ -7,6 +7,7 @@ import {
   getAccount,
   createAccount,
   advanceStage,
+  updateAccount,
 } from '../controllers/account-controller'
 
 export const customerAccountRouter = Router()
@@ -16,4 +17,5 @@ export const adminAccountRouter = Router()
 adminAccountRouter.get('/accounts', requireAdmin, requireDivision('digital', 'print'), listAccounts)
 adminAccountRouter.post('/accounts', requireAdmin, requireDivision('digital', 'print'), createAccount)
 adminAccountRouter.get('/accounts/:code', requireAdmin, requireDivision('digital', 'print'), getAccount)
+adminAccountRouter.patch('/accounts/:code', requireAdmin, requireDivision('digital', 'print'), updateAccount)
 adminAccountRouter.patch('/accounts/:code/stage', requireAdmin, requireDivision('digital', 'print'), advanceStage)

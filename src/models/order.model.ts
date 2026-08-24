@@ -69,6 +69,19 @@ export interface IStageTransition {
   at: Date
 }
 
+export interface ISocialLinks {
+  instagram?: string
+  facebook?: string
+  linkedin?: string
+  twitter?: string
+  website?: string
+}
+
+export interface ILiveUrl {
+  label: string
+  url: string
+}
+
 export interface IOrder extends Document {
   projectId: string
   userId?: Types.ObjectId
@@ -113,6 +126,9 @@ export interface IOrder extends Document {
   revisions: IRevisionTracking
   stageHistory: IStageTransition[]
   stagingUrl?: string
+  liveWebsiteUrl?: string
+  liveUrls?: ILiveUrl[]
+  socialLinks?: ISocialLinks
   googleBusinessProfile?: {
     created: boolean
     verified: boolean
@@ -230,6 +246,25 @@ const GoogleBusinessProfileSchema = new Schema(
   { _id: false }
 )
 
+const SocialLinksSchema = new Schema<ISocialLinks>(
+  {
+    instagram: { type: String, trim: true },
+    facebook: { type: String, trim: true },
+    linkedin: { type: String, trim: true },
+    twitter: { type: String, trim: true },
+    website: { type: String, trim: true },
+  },
+  { _id: false }
+)
+
+const LiveUrlSchema = new Schema<ILiveUrl>(
+  {
+    label: { type: String, required: true, trim: true },
+    url: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+)
+
 const OrderSchema = new Schema<IOrder>(
   {
     projectId: { type: String, index: true },
@@ -269,6 +304,9 @@ const OrderSchema = new Schema<IOrder>(
     revisions: { type: RevisionTrackingSchema, default: () => ({ used: 0, max: 2, feedback: [] }) },
     stageHistory: { type: [StageTransitionSchema], default: [] },
     stagingUrl: { type: String, trim: true },
+    liveWebsiteUrl: { type: String, trim: true },
+    liveUrls: { type: [LiveUrlSchema], default: undefined },
+    socialLinks: { type: SocialLinksSchema, default: undefined },
     googleBusinessProfile: { type: GoogleBusinessProfileSchema, default: () => ({ created: false, verified: false }) },
     paymentTerms: { type: String, trim: true },
     followUpDate: { type: Date },

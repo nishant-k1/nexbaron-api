@@ -131,6 +131,39 @@ export async function updateOrderStatus(req: Request, res: Response) {
       order.stagingUrl = body.stagingUrl.trim() || undefined
     }
 
+    if (typeof body.liveWebsiteUrl === 'string') {
+      order.liveWebsiteUrl = body.liveWebsiteUrl.trim() || undefined
+    }
+
+    if (Array.isArray(body.liveUrls)) {
+      const urls = body.liveUrls
+        .map((u: any) => ({
+          label: String(u.label || '').trim().slice(0, 60),
+          url: String(u.url || '').trim(),
+        }))
+        .filter((u: any) => u.label && u.url)
+        .slice(0, 20)
+      order.liveUrls = urls.length > 0 ? urls : undefined
+      order.markModified('liveUrls')
+    } else if (body.liveUrls === null || body.liveUrls === undefined) {
+      // if explicitly cleared by passing undefined/null via omission we keep existing; but allow explicit null to clear
+      if (body.liveUrls === null) {
+        order.liveUrls = undefined
+        order.markModified('liveUrls')
+      }
+    }
+
+    if (body.socialLinks && typeof body.socialLinks === 'object') {
+      const links: any = {}
+      if (typeof body.socialLinks.instagram === 'string' && body.socialLinks.instagram.trim()) links.instagram = body.socialLinks.instagram.trim()
+      if (typeof body.socialLinks.facebook === 'string' && body.socialLinks.facebook.trim()) links.facebook = body.socialLinks.facebook.trim()
+      if (typeof body.socialLinks.linkedin === 'string' && body.socialLinks.linkedin.trim()) links.linkedin = body.socialLinks.linkedin.trim()
+      if (typeof body.socialLinks.twitter === 'string' && body.socialLinks.twitter.trim()) links.twitter = body.socialLinks.twitter.trim()
+      if (typeof body.socialLinks.website === 'string' && body.socialLinks.website.trim()) links.website = body.socialLinks.website.trim()
+      order.socialLinks = Object.keys(links).length > 0 ? links : undefined
+      order.markModified('socialLinks')
+    }
+
     if (typeof body.paymentTerms === 'string') {
       order.paymentTerms = body.paymentTerms.trim() || undefined
     }

@@ -178,3 +178,53 @@ export async function advanceStage(req: Request, res: Response) {
     return handleError('advanceStage', req, res, error, 'Failed to update account stage')
   }
 }
+
+export async function updateAccount(req: Request, res: Response) {
+  try {
+    if (!req.staffAuth) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const division = req.staffAuth.division
+    const { Account } = getDivisionModels(division)
+    const accountCode = String(req.params.code)
+    const { name, email, phone, company, liveWebsiteUrl, liveUrls, socialLinks } = req.body
+    const update: Record<string, any> = {}
+    if (name !== undefined) update.name = String(name).trim()
+    if (email !== undefined) update.email = String(email).trim().toLowerCase() || undefined
+    if (phone !== undefined) update.phone = String(phone).trim() || undefined
+    if (company !== undefined) update.company = String(company).trim() || undefined
+    if (liveWebsiteUrl !== undefined) update.liveWebsiteUrl = String(liveWebsiteUrl).trim() || undefined
+    if (liveUrls !== undefined) {
+      if (Array.isArray(liveUrls)) {
+        const urls = liveUrls
+          .map((u: any) => ({
+            label: String(u.label || '').trim().slice(0, 60),
+            url: String(u.url || '').trim(),
+          }))
+          .filter((u: any) => u.label && u.url)
+          .slice(0, 20)
+        update.liveUrls = urls.length > 0 ? urls : undefined
+      } else if (liveUrls === null) {
+        update.liveUrls = undefined
+      }
+    }
+    if (socialLinks !== undefined && typeof socialLinks === 'object' && socialLinks !== null) {
+      const links: Record<string, string> = {}
+      if (typeof socialLinks.instagram === 'string' && socialLinks.instagram.trim()) links.instagram = socialLinks.instagram.trim()
+      if (typeof socialLinks.facebook === 'string' && socialLinks.facebook.trim()) links.facebook = socialLinks.facebook.trim()
+      if (typeof socialLinks.linkedin === 'string' && socialLinks.linkedin.trim()) links.linkedin = socialLinks.linkedin.trim()
+      if (typeof socialLinks.twitter === 'string' && socialLinks.twitter.trim()) links.twitter = socialLinks.twitter.trim()
+      if (typeof socialLinks.website === 'string' && socialLinks.website.trim()) links.website = socialLinks.website.trim()
+      update.socialLinks = Object.keys(links).length > 0 ? links : undefined
+    }
+    const account = await Account.findOneAndUpdate({ accountCode, division }, { $set: update }, { new: true })
+    if (!account) {
+      res.status(404).json({ success: false, message: 'Account not found' })
+      return
+    }
+    res.json({ success: true, account: account.toObject() })
+  } catch (error) {
+    return handleError('updateAccount', req, res, error, 'Failed to update account')
+  }
+}

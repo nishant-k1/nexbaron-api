@@ -1,8 +1,11 @@
 import { Request, Response } from 'express'
+import { randomUUID } from 'crypto'
+import { Types } from 'mongoose'
 import { getDivisionModels } from '../../../models/registry'
 import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
 import { createInvoiceModel } from '../../../models/invoice.model'
+import { buildLaunchStages } from '../../digital/payments/services/pricing-service'
 
 function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
   return { division, userId }
@@ -201,7 +204,7 @@ export async function verifyPayment(req: Request, res: Response) {
       return
     }
     const { Account, Invoice } = getDivisionModels(division)
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, invoiceNumber } = req.body
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, invoiceNumber, amount: bodyAmount } = req.body
     const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
     if (!account) {
       res.status(403).json({ success: false, message: 'Not linked to an account' })
@@ -220,26 +223,147 @@ export async function verifyPayment(req: Request, res: Response) {
       ? true
       : verifyPaymentSignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature })
     if (!signatureOk) {
+      const failAmount = bodyAmount ? Number(bodyAmount) : invoice.amount
       await (Invoice as ReturnType<typeof createInvoiceModel>).updateOne(
         { _id: invoice._id },
-        { $push: { payments: { paymentId: `pay_${Date.now()}`, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: invoice.amount, status: 'FAILED', at: new Date() } }, $set: { status: 'FAILED' } }
+        { $push: { payments: { paymentId: `pay_${Date.now()}`, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: failAmount, status: 'FAILED', at: new Date() } }, $set: { status: 'FAILED' } }
       )
       res.status(400).json({ success: false, message: 'Payment signature verification failed' })
       return
     }
 
+    // Determine actual amount paid (supports 50% for FIFTY_FIFTY)
+    let payAmount = invoice.amount
+    if (bodyAmount != null && bodyAmount !== '' && !Number.isNaN(Number(bodyAmount))) {
+      const requested = Number(bodyAmount)
+      if (requested > 0 && requested <= invoice.amount) {
+        if (invoice.paymentSchedule === 'FIFTY_FIFTY') {
+          payAmount = requested
+        } else if (requested !== invoice.amount) {
+          // For FULL_UPFRONT only full amount is valid, but allow half in dev for testing
+          payAmount = requested
+        }
+      }
+    }
+    const existingPaid = (invoice.payments || []).filter((p: any) => p.status === 'SUCCESS').reduce((sum: number, p: any) => sum + p.amount, 0)
+    const newTotalPaid = existingPaid + payAmount
+    const isFullyPaid = newTotalPaid >= invoice.amount
+    const newStatus = isFullyPaid ? 'PAID' : 'PENDING'
+
     await (Invoice as ReturnType<typeof createInvoiceModel>).updateOne(
       { _id: invoice._id },
       {
-        $push: { payments: { paymentId: `pay_${Date.now()}`, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: invoice.amount, status: 'SUCCESS', at: new Date() } },
-        $set: { status: 'PAID' },
+        $push: { payments: { paymentId: `pay_${Date.now()}`, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: payAmount, status: 'SUCCESS', at: new Date() } },
+        $set: { status: newStatus },
       }
     )
-    await Account.updateOne(
-      { accountCode: account.accountCode, division },
-      { $set: { lifecycleStage: 'CUSTOMER' }, $push: { stageHistory: { stage: 'CUSTOMER', by: account.name, at: new Date() } } }
-    )
-    res.json({ success: true, message: 'Payment successful' })
+    if (isFullyPaid) {
+      await Account.updateOne(
+        { accountCode: account.accountCode, division },
+        { $set: { lifecycleStage: 'CUSTOMER' }, $push: { stageHistory: { stage: 'CUSTOMER', by: account.name, at: new Date() } } }
+      )
+    } else {
+      await Account.updateOne(
+        { accountCode: account.accountCode, division, lifecycleStage: { $in: ['PROPOSAL_ACCEPTED', 'PAYMENT_PENDING', 'CUSTOMER'] } },
+        { $set: { lifecycleStage: 'PAYMENT_PENDING' }, $push: { stageHistory: { stage: 'PAYMENT_PENDING', by: account.name, at: new Date() } } }
+      )
+    }
+
+    // Create Order for Hub's Orders list (only when fully paid, idempotent by invoiceNumber)
+    let orderId: string | null = null
+    if (isFullyPaid) {
+      try {
+        const { Order, Lead } = getDivisionModels(division)
+        const existingOrder = await Order.findOne({ invoiceNumber: invoice.invoiceNumber, division }).lean()
+        if (existingOrder) {
+          orderId = String(existingOrder._id)
+        } else {
+        // Find or create Lead for this account
+        let lead: any = null
+        if (account.leadId) {
+          try { lead = await Lead.findById(account.leadId).lean() } catch {}
+        }
+        if (!lead && account.email) {
+          lead = await Lead.findOne({ email: account.email, division }).sort({ createdAt: -1 }).lean()
+        }
+        if (!lead && account.phone) {
+          lead = await Lead.findOne({ phone: account.phone, division }).sort({ createdAt: -1 }).lean()
+        }
+        if (!lead) {
+          lead = await Lead.create({
+            division,
+            name: account.name,
+            email: account.email,
+            phone: account.phone,
+            company: account.company,
+            status: 'won',
+            projectId: randomUUID(),
+          })
+        } else if (lead.status !== 'won') {
+          await Lead.updateOne({ _id: lead._id }, { $set: { status: 'won' } })
+        }
+
+        const items = (invoice.lineItems || []).map((li: any) => ({
+          kind: 'plan' as const,
+          planId: invoice.packageId || invoice.proposalCode || 'plan',
+          label: li.label,
+          billingCycle: li.type === 'ONE_TIME' ? 'setup' as const : 'monthly' as const,
+          price: li.amount,
+          quantity: 1,
+        }))
+
+        const launchDate = new Date()
+        launchDate.setDate(launchDate.getDate() + 30)
+        const newOrder = await Order.create({
+          projectId: randomUUID(),
+          userId: new Types.ObjectId(userId),
+          leadId: lead._id,
+          division,
+          customer: {
+            name: account.name,
+            email: account.email,
+            phone: account.phone,
+            company: account.company,
+          },
+          service: invoice.packageId || 'plan',
+          amount: invoice.amount,
+          currency: invoice.currency || 'INR',
+          status: 'paid',
+          items,
+          amountPaid: invoice.amount,
+          invoiceNumber: invoice.invoiceNumber,
+          proposalCode: invoice.proposalCode,
+          launchDate,
+          launchDays: 30,
+          milestones: (() => {
+            const launchDays = 30
+            const launchDate = new Date()
+            launchDate.setDate(launchDate.getDate() + launchDays)
+            return buildLaunchStages(launchDays).map((m) => {
+              const date = new Date(launchDate)
+              date.setDate(date.getDate() - (launchDays - m.endDay))
+              return {
+                key: m.key,
+                label: m.label,
+                dayLabel: m.dayLabel,
+                date,
+                status: m.key === 'payment' ? ('done' as const) : ('pending' as const),
+                completedAt: m.key === 'payment' ? new Date() : undefined,
+              }
+            })
+          })(),
+          stageHistory: [{ stage: 'paid', by: account.name, at: new Date() }],
+          payments: [{ method: 'razorpay', amount: invoice.amount, receivedAt: new Date(), reference: razorpay_payment_id || `pay_${Date.now()}` }],
+        })
+        orderId = String(newOrder._id)
+        }
+      } catch (e) {
+        // Don't block payment success if order creation fails
+        console.error('Failed to create order from invoice', e)
+      }
+    }
+
+    res.json({ success: true, message: 'Payment successful', paidAmount: payAmount, totalPaid: newTotalPaid, isFullyPaid, orderId })
   } catch (error) {
     return handleError('verifyPayment', req, res, error, 'Failed to verify payment')
   }

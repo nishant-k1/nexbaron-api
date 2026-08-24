@@ -31,6 +31,19 @@ export interface IAccountStageHistory {
   at: Date
 }
 
+export interface ISocialLinks {
+  instagram?: string
+  facebook?: string
+  linkedin?: string
+  twitter?: string
+  website?: string
+}
+
+export interface ILiveUrl {
+  label: string
+  url: string
+}
+
 export interface IAccount extends Document {
   accountCode: string
   userId?: string
@@ -40,6 +53,9 @@ export interface IAccount extends Document {
   email?: string
   phone?: string
   company?: string
+  liveWebsiteUrl?: string
+  liveUrls?: ILiveUrl[]
+  socialLinks?: ISocialLinks
   lifecycleStage: LifecycleStage
   source?: string
   tags: string[]
@@ -61,6 +77,25 @@ const AccountStageHistorySchema = new Schema<IAccountStageHistory>({
   at: { type: Date, default: Date.now },
 }, { _id: false })
 
+const SocialLinksSchema = new Schema<ISocialLinks>(
+  {
+    instagram: { type: String, trim: true },
+    facebook: { type: String, trim: true },
+    linkedin: { type: String, trim: true },
+    twitter: { type: String, trim: true },
+    website: { type: String, trim: true },
+  },
+  { _id: false }
+)
+
+const LiveUrlSchema = new Schema<ILiveUrl>(
+  {
+    label: { type: String, required: true, trim: true },
+    url: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+)
+
 const AccountSchema = new Schema<IAccount>({
   accountCode: { type: String, required: true, unique: true, index: true },
   userId: { type: String, index: true, sparse: true },
@@ -70,6 +105,9 @@ const AccountSchema = new Schema<IAccount>({
   email: { type: String, trim: true, lowercase: true },
   phone: { type: String, trim: true },
   company: { type: String, trim: true },
+  liveWebsiteUrl: { type: String, trim: true },
+  liveUrls: { type: [LiveUrlSchema], default: undefined },
+  socialLinks: { type: SocialLinksSchema, default: undefined },
   lifecycleStage: { type: String, enum: LIFECYCLE_STAGES, default: 'REGISTERED' },
   source: { type: String },
   tags: { type: [String], default: [] },
