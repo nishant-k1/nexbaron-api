@@ -84,6 +84,8 @@ function mountBrandRoutes(brandBase: string): void {
   } else {
     app.use(brandBase, printBusinessProfileRouter)
     app.use(brandBase, printRouter)
+    // Hub needs account for both divisions (HubDashboard fetches /print/account)
+    app.use(brandBase, customerAccountRouter)
   }
 
   app.use(`${brandBase}/admin/auth`, adminAuthRouter)
@@ -95,6 +97,19 @@ function mountBrandRoutes(brandBase: string): void {
 }
 
 mountBrandRoutes(`/${runtimeBrand}`)
+
+// Dev convenience: single API instance serves both catalogs so
+// nexbaron-web doesn't require two separate ports (3001 + 3002) locally.
+// Print catalog is static (no DB) so safe to expose cross-brand in dev.
+if (process.env.NODE_ENV !== 'production') {
+  if (runtimeBrand === 'digital') {
+    app.use('/print', printRouter)
+    app.use('/print', printBusinessProfileRouter)
+  } else {
+    app.use('/digital/catalog', catalogRouter)
+    app.use('/digital', businessProfileRouter)
+  }
+}
 
 // Error handling
 app.use(notFoundHandler)
