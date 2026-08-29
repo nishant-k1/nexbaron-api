@@ -1,5 +1,12 @@
 import { Schema, Document, Connection } from 'mongoose'
 
+export interface PlanConfig {
+  planId: string
+  removedServices: string[]
+  addOns: Record<string, number>
+  billingCycle: 'monthly' | 'annual'
+}
+
 export interface IUser extends Document {
   name: string
   email?: string
@@ -8,6 +15,7 @@ export interface IUser extends Document {
   photo?: string
   division: 'digital' | 'print'
   authProviders: string[]
+  planConfig?: PlanConfig
   createdAt: Date
   updatedAt: Date
 }
@@ -47,6 +55,13 @@ const UserSchema = new Schema<IUser>(
     authProviders: {
       type: [String],
       default: [],
+    },
+    planConfig: {
+      planId: { type: String },
+      removedServices: { type: [String], default: undefined },
+      addOns: { type: Schema.Types.Mixed, default: undefined },
+      billingCycle: { type: String, enum: ['monthly', 'annual'], default: undefined },
+      _id: false,
     },
   },
   {

@@ -12,9 +12,20 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+function extractToken(req: Request): string | undefined {
   const header = req.headers.authorization
-  const token = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined
+  if (header?.startsWith('Bearer ')) {
+    const t = header.slice(7).trim()
+    if (t) return t
+  }
+  const cookieName = `nexbaron_token_${runtimeBrand}`
+  const fromCookie = (req as any).cookies?.[cookieName] as string | undefined
+  if (fromCookie?.trim()) return fromCookie.trim()
+  return undefined
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = extractToken(req)
 
   if (!token) {
     res.status(401).json({ success: false, message: 'Authentication required' })

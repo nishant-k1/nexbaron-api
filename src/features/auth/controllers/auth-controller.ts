@@ -4,6 +4,7 @@ import { createOtp, OtpRequestError, verifyOtp } from '../services/otp-service'
 import { createToken } from '../../../middleware/jwt'
 import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
+import { setCustomerCookie, clearCustomerCookie } from '../services/customer-cookie-service'
 
 const GOOGLE_TIMEOUT_MS = 5000
 
@@ -118,6 +119,7 @@ export async function verifyCode(req: Request, res: Response) {
     }
 
     const token = createToken({ sub: String(user._id), division: d })
+    setCustomerCookie(res, token)
 
     res.status(200).json({
       success: true,
@@ -178,6 +180,7 @@ export async function googleSignIn(req: Request, res: Response) {
     }
 
     const token = createToken({ sub: String(user._id), division: d })
+    setCustomerCookie(res, token)
 
     res.status(200).json({
       success: true,
@@ -302,6 +305,7 @@ export async function signup(req: Request, res: Response) {
     // so the signup flow can log the visitor straight into the hub. No token
     // is ever minted for pre-existing accounts (login requires OTP).
     const token = createToken({ sub: user._id.toString(), division: user.division })
+    setCustomerCookie(res, token)
 
     res.status(201).json({
       success: true,
@@ -348,12 +352,21 @@ export async function updateProfile(req: Request, res: Response) {
 }
 
 /**
+ * Sign out — clears the customer cookie ( Bearer token stays valid until expiry ).
+ */
+export async function signOut(_req: Request, res: Response) {
+  clearCustomerCookie(res)
+  res.json({ success: true, message: 'Signed out' })
+}
+
+/**
  * Permanently delete the authenticated user's account.
  */
 export async function deleteAccount(req: Request, res: Response) {
   try {
     const { User } = getDivisionModels(req.division!)
     await User.deleteOne({ _id: req.userId, division: req.division })
+    clearCustomerCookie(res)
     res.json({ success: true, message: 'Account deleted' })
   } catch (error) {
     return handleError('deleteAccount', req, res, error, 'Failed to delete account')

@@ -6,13 +6,24 @@ import { runtimeBrand } from '../config/brand'
  * Optional auth — parses the JWT if present but allows unauthenticated access.
  * Sets req.userId/req.auth/req.division only when a valid token is provided.
  */
-export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+function extractTokenOptional(req: Request): string | undefined {
   const header = req.headers.authorization
-  if (!header || !header.startsWith('Bearer ')) {
+  if (header?.startsWith('Bearer ')) {
+    const t = header.slice(7).trim()
+    if (t) return t
+  }
+  const cookieName = `nexbaron_token_${runtimeBrand}`
+  const fromCookie = (req as any).cookies?.[cookieName] as string | undefined
+  if (fromCookie?.trim()) return fromCookie.trim()
+  return undefined
+}
+
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const token = extractTokenOptional(req)
+  if (!token) {
     next()
     return
   }
-  const token = header.slice(7)
   const payload = verifyToken(token)
   if (!payload || payload.division !== runtimeBrand) {
     next()
