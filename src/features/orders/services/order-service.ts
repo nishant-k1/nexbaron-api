@@ -31,7 +31,8 @@ export async function findOrCreateOrderFromLead(
 ) {
   const { Order } = getDivisionModels(lead.division)
 
-  let order = await Order.findOne({ leadId: lead._id, status: { $ne: 'cancelled' } })
+  // Only reuse a pending/in_progress order — never append to a terminal paid/delivered
+  let order = await Order.findOne({ leadId: lead._id, status: { $in: ['pending', 'in_progress'] } }).sort({ createdAt: -1 })
 
   if (!order) {
     order = await Order.create({

@@ -105,12 +105,19 @@ export async function verifyCode(req: Request, res: Response) {
     let user = await User.findOne(lookup)
 
     if (!user) {
-      user = await User.create({
-        name: name?.trim() || 'Customer',
-        ...(channel === 'email' ? { email: normalized } : { phone: normalized }),
-        division: d,
-        authProviders: [channel === 'email' ? 'email' : 'phone'],
-      })
+      try {
+        user = await User.create({
+          name: name?.trim() || 'Customer',
+          ...(channel === 'email' ? { email: normalized } : { phone: normalized }),
+          division: d,
+          authProviders: [channel === 'email' ? 'email' : 'phone'],
+        })
+      } catch (e: any) {
+        if (e?.code === 11000) {
+          user = await User.findOne(lookup)
+          if (!user) throw e
+        } else throw e
+      }
     }
 
     if (name?.trim() && user.name === 'Customer') {
@@ -294,12 +301,23 @@ export async function signup(req: Request, res: Response) {
       return
     }
 
-    const user = await User.create({
-      division,
-      name: name.trim(),
-      email: normalizedEmail,
-      phone: normalizedPhone,
-    })
+    let user: any
+    try {
+      user = await User.create({
+        division,
+        name: name.trim(),
+        email: normalizedEmail,
+        phone: normalizedPhone,
+      })
+    } catch (e: any) {
+      // Race: concurrent signup with same email both passed findOne check — second hits unique index
+      if (e?.code === 11000) {
+        const dup = await User.findOne({ email: normalizedEmail, division }).lean()
+        res.status(409).json({ success: false, message: 'Account already exists', userId: dup?._id })
+        return
+      }
+      throw e
+    }
 
     // The account was just created in this request — return its session token
     // so the signup flow can log the visitor straight into the hub. No token

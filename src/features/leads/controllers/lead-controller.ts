@@ -35,6 +35,21 @@ export async function submitLead(req: Request, res: Response) {
 
     const { Lead } = getDivisionModels(division)
 
+    // Dedup double-click / retry within 90s for same clientRef + plan + message (not across different plans)
+    if (clientRef) {
+      const recent = await Lead.findOne({
+        division,
+        clientRef,
+        plan: body.plan || undefined,
+        message: body.message?.trim(),
+        createdAt: { $gte: new Date(Date.now() - 90 * 1000) },
+      }).sort({ createdAt: -1 }).lean()
+      if (recent) {
+        res.status(201).json({ success: true, leadId: recent._id, duplicate: true })
+        return
+      }
+    }
+
     const lead = await Lead.create({
       division,
       projectId: randomUUID(),

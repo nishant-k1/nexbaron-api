@@ -229,9 +229,10 @@ export async function createPackage(req: Request, res: Response) {
     if (requested.length) {
       await writePackageServices(division, packageCode, requested)
     }
+    // Monotone — only advance from early stages, never regress CUSTOMER
     if (account.lifecycleStage === 'REGISTERED' || account.lifecycleStage === 'LEAD') {
       await Account.updateOne(
-        { accountCode, division },
+        { accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD'] } },
         {
           $set: { lifecycleStage: 'PACKAGE_SELECTED' },
           $push: { stageHistory: { stage: 'PACKAGE_SELECTED', by: req.staffAuth.name, at: new Date() } },

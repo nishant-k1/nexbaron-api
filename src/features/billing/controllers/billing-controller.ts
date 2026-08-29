@@ -335,17 +335,21 @@ export async function createPaymentOrder(req: Request, res: Response) {
       return
     }
     
-    // Support partial payment for FIFTY_FIFTY schedule
+    // Support partial/advance payment — clamp to amountDue (not invoice.amount) to prevent overpay on second half
+    const { computeBillingSummary: _summary } = await import('../services/billing-service.js')
+    const _s = _summary(invoice as any)
+    const amountDue = _s.amountDue
+    if (amountDue <= 0) {
+      res.status(400).json({ success: false, message: 'Invoice already paid' })
+      return
+    }
     const requestedAmount = req.body.amount ? Number(req.body.amount) : null
-    let payAmount = invoice.amount
-    if (requestedAmount && requestedAmount > 0 && requestedAmount <= invoice.amount) {
-      // Allow partial payment only for FIFTY_FIFTY schedule
-      if (invoice.paymentSchedule === 'FIFTY_FIFTY') {
-        payAmount = requestedAmount
-      } else {
-        res.status(400).json({ success: false, message: 'Partial payment not allowed for this invoice' })
-        return
-      }
+    let payAmount = amountDue
+    if (requestedAmount && requestedAmount > 0 && requestedAmount <= amountDue) {
+      payAmount = requestedAmount
+    } else if (requestedAmount && requestedAmount > amountDue) {
+      res.status(400).json({ success: false, message: `Amount exceeds due balance of ${amountDue}` })
+      return
     }
     
     const { createRazorpayOrder, razorpayConfigured } = await import('../../digital/payments/services/razorpay-service.js')
@@ -381,32 +385,49 @@ export async function verifyPayment(req: Request, res: Response) {
       return
     }
 
+    // Idempotency: if this razorpay_payment_id already recorded as SUCCESS, return early (webhook retry / double-click)
+    if (razorpay_payment_id) {
+      const dup = (invoice.payments || []).some((p: any) => p.razorpayPaymentId === razorpay_payment_id && p.status === 'SUCCESS')
+      if (dup) {
+        const { computeBillingSummary: _s } = await import('../services/billing-service.js')
+        const _sum = _s(invoice as any)
+        res.json({ success: true, message: 'Payment already recorded', paidAmount: 0, totalPaid: _sum.totalPaid, isFullyPaid: invoice.status === 'PAID', orderId: null, duplicate: true })
+        return
+      }
+    }
+
     const { verifyPaymentSignature, razorpayConfigured } = await import('../../digital/payments/services/razorpay-service.js')
     const devMode = !razorpayConfigured()
     const signatureOk = devMode
       ? true
       : verifyPaymentSignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature })
     if (!signatureOk) {
-      const failAmount = bodyAmount ? Number(bodyAmount) : invoice.amount
+      const failAmount = bodyAmount ? Number(bodyAmount) : 0
+      // Don't terminally FAIL the invoice — allow retry (keep PENDING), just log failed attempt
       await (Invoice as ReturnType<typeof createInvoiceModel>).updateOne(
         { _id: invoice._id },
-        { $push: { payments: { paymentId: `pay_${Date.now()}`, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: failAmount, status: 'FAILED', at: new Date() } }, $set: { status: 'FAILED' } }
+        { $push: { payments: { paymentId: `pay_${Date.now()}`, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: failAmount || 0, status: 'FAILED', at: new Date() } } }
       )
       res.status(400).json({ success: false, message: 'Payment signature verification failed' })
       return
     }
 
-    // Determine actual amount paid (supports 50% for FIFTY_FIFTY)
-    let payAmount = invoice.amount
+    // Determine actual amount paid — clamp to amountDue to prevent overpay on partial second half
+    const { computeBillingSummary: _bSummary } = await import('../services/billing-service.js')
+    const _billing = _bSummary(invoice as any)
+    const amountDue = _billing.amountDue
+    if (amountDue <= 0) {
+      res.status(400).json({ success: false, message: 'Invoice already paid' })
+      return
+    }
+    let payAmount = amountDue
     if (bodyAmount != null && bodyAmount !== '' && !Number.isNaN(Number(bodyAmount))) {
       const requested = Number(bodyAmount)
-      if (requested > 0 && requested <= invoice.amount) {
-        if (invoice.paymentSchedule === 'FIFTY_FIFTY') {
-          payAmount = requested
-        } else if (requested !== invoice.amount) {
-          // For FULL_UPFRONT only full amount is valid, but allow half in dev for testing
-          payAmount = requested
-        }
+      if (requested > 0 && requested <= amountDue) {
+        payAmount = requested
+      } else if (requested > amountDue) {
+        res.status(400).json({ success: false, message: `Amount exceeds due balance of ${amountDue}` })
+        return
       }
     }
     const existingPaid = (invoice.payments || []).filter((p: any) => p.status === 'SUCCESS').reduce((sum: number, p: any) => sum + p.amount, 0)
@@ -414,22 +435,30 @@ export async function verifyPayment(req: Request, res: Response) {
     const isFullyPaid = newTotalPaid >= invoice.amount
     const newStatus = isFullyPaid ? 'PAID' : 'PENDING'
 
-    const newPaymentId = `pay_${Date.now()}`
-    await (Invoice as ReturnType<typeof createInvoiceModel>).updateOne(
-      { _id: invoice._id },
+    const newPaymentId = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    // Atomic guard against duplicate razorpay_payment_id race
+    const updateRes = await (Invoice as ReturnType<typeof createInvoiceModel>).updateOne(
+      { _id: invoice._id, 'payments.razorpayPaymentId': { $ne: razorpay_payment_id } } as any,
       {
         $push: { payments: { paymentId: newPaymentId, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: payAmount, status: 'SUCCESS', at: new Date() } },
         $set: { status: newStatus },
       }
     )
+    if (updateRes.modifiedCount === 0 && razorpay_payment_id) {
+      // Another concurrent verify already inserted this payment
+      res.json({ success: true, message: 'Payment already recorded', paidAmount: 0, totalPaid: newTotalPaid, isFullyPaid: newStatus === 'PAID', orderId: null, duplicate: true })
+      return
+    }
     if (isFullyPaid) {
+      // Only advance to CUSTOMER if not already there — monotone, no duplicate history on retry
       await Account.updateOne(
-        { accountCode: account.accountCode, division },
+        { accountCode: account.accountCode, division, lifecycleStage: { $ne: 'CUSTOMER' } },
         { $set: { lifecycleStage: 'CUSTOMER' }, $push: { stageHistory: { stage: 'CUSTOMER', by: account.name, at: new Date() } } }
       )
     } else {
+      // Partial: move to PAYMENT_PENDING but never regress a CUSTOMER (second purchase's 50% shouldn't drag back)
       await Account.updateOne(
-        { accountCode: account.accountCode, division, lifecycleStage: { $in: ['PROPOSAL_ACCEPTED', 'PAYMENT_PENDING', 'CUSTOMER'] } },
+        { accountCode: account.accountCode, division, lifecycleStage: { $in: ['PROPOSAL_ACCEPTED', 'PAYMENT_PENDING'] } },
         { $set: { lifecycleStage: 'PAYMENT_PENDING' }, $push: { stageHistory: { stage: 'PAYMENT_PENDING', by: account.name, at: new Date() } } }
       )
     }

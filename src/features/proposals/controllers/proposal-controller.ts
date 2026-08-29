@@ -74,10 +74,12 @@ export async function createProposalFromPlan(req: Request, res: Response) {
       return
     }
 
-    // Idempotency: reuse an existing SENT/ACCEPTED proposal for the same plan.
-    // If a DRAFT exists (from a previous attempt), upgrade it to SENT.
+    // Idempotency: reuse a pending proposal for the same plan to avoid double-click duplicates.
+    // If the latest proposal is already ACCEPTED (terminal — invoice already created, possibly paid),
+    // allow a fresh proposal so the same plan can be re-ordered. Uses unique proposalCode per request.
     const existing = await (Proposal as ReturnType<typeof createProposalModel>)
       .findOne({ accountId: account.accountCode, division, packageId: plan.id })
+      .sort({ createdAt: -1 })
       .lean()
     if (existing) {
       if (existing.status === 'DRAFT') {
@@ -95,9 +97,12 @@ export async function createProposalFromPlan(req: Request, res: Response) {
         res.json({ success: true, proposal: updated || existing, existing: true })
         return
       }
-      // SENT or ACCEPTED - return as-is
-      res.json({ success: true, proposal: existing, existing: true })
-      return
+      if (existing.status === 'SENT') {
+        // Pending — return as-is (idempotent retry)
+        res.json({ success: true, proposal: existing, existing: true })
+        return
+      }
+      // ACCEPTED is terminal — fall through to create a fresh proposal with a new proposalCode/invoice
     }
 
     const pricing = plan.pricing
@@ -177,11 +182,12 @@ export async function createProposalFromPackage(req: Request, res: Response) {
       return
     }
 
-    // Idempotency: reuse an existing proposal for the same package.
+    // Idempotency per package: reuse pending (DRAFT/SENT), allow new after ACCEPTED
     const existing = await (Proposal as ReturnType<typeof createProposalModel>)
       .findOne({ accountId: account.accountCode, division, packageId: pkg.packageCode })
+      .sort({ createdAt: -1 })
       .lean()
-    if (existing) {
+    if (existing && existing.status !== 'ACCEPTED') {
       res.json({ success: true, proposal: existing, existing: true })
       return
     }
@@ -469,8 +475,9 @@ export async function sendProposal(req: Request, res: Response) {
       { new: true }
     )
     if (updated) {
+      // Monotone — only advance, never regress CUSTOMER/PAYMENT_PENDING back to SENT
       await Account.updateOne(
-        { accountCode: updated.accountId, division },
+        { accountCode: updated.accountId, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD', 'PACKAGE_SELECTED'] } },
         {
           $set: { lifecycleStage: 'PROPOSAL_SENT' },
           $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: req.staffAuth.name, at: new Date() } },
@@ -498,36 +505,44 @@ export async function acceptProposal(req: Request, res: Response) {
     }
     const { Account, Proposal } = getDivisionModels(division)
     const code = String(req.params.code)
-    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).findOne({ proposalCode: code, division })
-    if (!proposal) {
+    // Ownership first — fetch any proposal with this code, verify ownership before any state change
+    const anyProposal = await (Proposal as ReturnType<typeof createProposalModel>).findOne({ proposalCode: code, division }).lean()
+    if (!anyProposal) {
       res.status(404).json({ success: false, message: 'Proposal not found' })
       return
     }
-
-    // Ownership must be verified BEFORE exposing any proposal state, including the
-    // already-accepted (idempotent) path, so a customer cannot probe another
-    // customer's proposal existence or acceptance status by guessing a code.
     const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
-    if (!account || account.accountCode !== proposal.accountId) {
+    if (!account || account.accountCode !== anyProposal.accountId) {
       res.status(403).json({ success: false, message: 'This proposal is not linked to your account' })
       return
     }
-
-    if (proposal.status === 'ACCEPTED') {
-      res.json({ success: true, proposal: proposal.toObject() })
+    if (anyProposal.status === 'ACCEPTED') {
+      res.json({ success: true, proposal: anyProposal })
       return
     }
-    if (proposal.status !== 'SENT') {
+    if (anyProposal.status !== 'SENT') {
       res.status(400).json({ success: false, message: 'Proposal is not available for acceptance' })
       return
     }
-    proposal.status = 'ACCEPTED'
-    proposal.acceptedAt = new Date()
-    proposal.acceptedBy = account.name || account.email || account.accountCode
-    proposal.acceptedVersion = proposal.version
-    await proposal.save()
+    // Atomic transition SENT -> ACCEPTED (prevents double invoice on double-click/race)
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>).findOneAndUpdate(
+      { proposalCode: code, division, status: 'SENT' },
+      { $set: { status: 'ACCEPTED', acceptedAt: new Date(), acceptedBy: account.name || account.email || account.accountCode, acceptedVersion: anyProposal.version } },
+      { new: true }
+    )
+    if (!proposal) {
+      // Lost race — another request already accepted; return idempotent
+      const raced = await (Proposal as ReturnType<typeof createProposalModel>).findOne({ proposalCode: code, division }).lean()
+      if (raced && raced.status === 'ACCEPTED') {
+        res.json({ success: true, proposal: raced })
+        return
+      }
+      res.status(400).json({ success: false, message: 'Proposal is not available for acceptance' })
+      return
+    }
+    // Monotone lifecycle — don't regress a CUSTOMER (second purchase) back to PROPOSAL_ACCEPTED
     await Account.updateOne(
-      { accountCode: proposal.accountId, division },
+      { accountCode: proposal.accountId, division, lifecycleStage: { $ne: 'CUSTOMER' } },
       {
         $set: { lifecycleStage: 'PROPOSAL_ACCEPTED' },
         $push: { stageHistory: { stage: 'PROPOSAL_ACCEPTED', by: account.name, at: new Date() } },
@@ -535,8 +550,13 @@ export async function acceptProposal(req: Request, res: Response) {
       }
     )
 
-    // Auto-create PENDING invoice from accepted proposal so the customer can pay immediately.
+    // Auto-create PENDING invoice — idempotent per proposalCode (handles accept double-click/orphan race)
     const { Invoice, Sequence } = getDivisionModels(division)
+    const existingInvoice = await (Invoice as ReturnType<typeof createInvoiceModel>).findOne({ proposalCode: proposal.proposalCode, division }).lean()
+    if (existingInvoice) {
+      res.json({ success: true, proposal: proposal.toObject() })
+      return
+    }
     const invoiceCode = await nextCode(Sequence, `invoice-${division}`, 'INV')
     const pricing = proposal.pricing
     const totalAmount = (pricing?.oneTimeFee || 0) + (pricing?.recurringFee || 0)
@@ -547,19 +567,25 @@ export async function acceptProposal(req: Request, res: Response) {
     if (pricing?.recurringEnabled && pricing?.recurringFee) {
       lineItems.push({ label: `${proposal.title} - ${pricing.recurringFrequency === 'ANNUAL' ? 'Annual' : 'Monthly'}`, amount: pricing.recurringFee, type: 'RECURRING' })
     }
-    await Invoice.create({
-      invoiceNumber: invoiceCode,
-      accountId: proposal.accountId,
-      packageId: proposal.packageId,
-      proposalCode: proposal.proposalCode,
-      division,
-      status: 'PENDING',
-      amount: totalAmount,
-      currency: 'INR',
-      lineItems,
-      paymentSchedule: pricing?.paymentSchedule || 'FULL_UPFRONT',
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
-    })
+    // Use insert with duplicate guard — if race inserts first, swallow duplicate and return existing
+    try {
+      await Invoice.create({
+        invoiceNumber: invoiceCode,
+        accountId: proposal.accountId,
+        packageId: proposal.packageId,
+        proposalCode: proposal.proposalCode,
+        division,
+        status: 'PENDING',
+        amount: totalAmount,
+        currency: 'INR',
+        lineItems,
+        paymentSchedule: pricing?.paymentSchedule || 'FULL_UPFRONT',
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+      })
+    } catch (e: any) {
+      if (e?.code !== 11000) throw e
+      // duplicate proposalCode — another concurrent accept already created invoice
+    }
 
     res.json({ success: true, proposal: proposal.toObject() })
   } catch (error) {
@@ -601,5 +627,45 @@ export async function getInvoiceForProposal(req: Request, res: Response) {
     res.json({ success: true, invoice, razorpayKeyId })
   } catch (error) {
     return handleError('getInvoiceForProposal', req, res, error, 'Failed to load invoice')
+  }
+}
+
+export async function getProposalPdf(req: Request, res: Response) {
+  try {
+    const division = runtimeBrand
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+    const { Account, Proposal } = getDivisionModels(division)
+    const account = await Account.findOne(accountFilterForUser(division, userId)).lean()
+    if (!account) {
+      res.status(403).json({ success: false, message: 'Not linked to an account' })
+      return
+    }
+    const proposalCode = String(req.params.code)
+    const proposal = await (Proposal as ReturnType<typeof createProposalModel>)
+      .findOne({ proposalCode, accountId: account.accountCode, division })
+      .lean()
+    if (!proposal) {
+      res.status(404).json({ success: false, message: 'Proposal not found' })
+      return
+    }
+    // ETag for client caching — re-render only when proposal changes
+    const etag = `"${String(proposal.updatedAt || proposal.createdAt)}-${proposal.version}"`
+    if (req.headers['if-none-match'] === etag) {
+      res.status(304).end()
+      return
+    }
+    const { renderProposalPdf } = await import('../services/proposal-pdf.js')
+    const pdf = await renderProposalPdf(proposal as any, account)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="proposal-${proposal.proposalCode}.pdf"`)
+    res.setHeader('ETag', etag)
+    res.setHeader('Cache-Control', 'private, max-age=60')
+    res.send(pdf)
+  } catch (error) {
+    return handleError('getProposalPdf', req, res, error, 'Failed to generate proposal PDF')
   }
 }

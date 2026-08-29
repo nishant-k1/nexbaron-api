@@ -12,6 +12,7 @@ import {
   sendProposal,
   acceptProposal,
   getInvoiceForProposal,
+  getProposalPdf,
 } from '../controllers/proposal-controller'
 
 export const customerProposalRouter = Router()
@@ -20,6 +21,7 @@ customerProposalRouter.post('/proposals/from-plan', requireAuth, createProposalF
 customerProposalRouter.post('/proposals/from-package', requireAuth, createProposalFromPackage)
 customerProposalRouter.post('/proposals/:code/accept', requireAuth, acceptProposal)
 customerProposalRouter.get('/proposals/:code/invoice', requireAuth, getInvoiceForProposal)
+customerProposalRouter.get('/proposals/:code/pdf', requireAuth, getProposalPdf)
 
 export const adminProposalRouter = Router()
 adminProposalRouter.get('/proposals', requireAdmin, requireDivision('digital', 'print'), listProposals)

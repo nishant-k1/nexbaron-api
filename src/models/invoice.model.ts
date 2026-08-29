@@ -58,7 +58,7 @@ const InvoiceSchema = new Schema<IInvoice>({
   invoiceNumber: { type: String, required: true, unique: true, index: true },
   accountId: { type: String, required: true, index: true },
   packageId: { type: String },
-  proposalCode: { type: String, index: true },
+  proposalCode: { type: String, index: true, sparse: true },
   division: { type: String, enum: ['digital', 'print'], required: true },
   status: { type: String, enum: ['DRAFT', 'PENDING', 'PAID', 'FAILED', 'CANCELLED'], default: 'PENDING' },
   amount: { type: Number, required: true },
@@ -69,6 +69,8 @@ const InvoiceSchema = new Schema<IInvoice>({
   paymentSchedule: { type: String, enum: ['FULL_UPFRONT', 'FIFTY_FIFTY'], default: 'FULL_UPFRONT' },
   createdBy: { type: String },
 }, { timestamps: true })
+
+InvoiceSchema.index({ division: 1, proposalCode: 1 }, { unique: true, sparse: true, name: 'uq_division_proposalCode' })
 
 export function createInvoiceModel(conn: Connection) {
   return conn.model<IInvoice>('Invoice', InvoiceSchema)
