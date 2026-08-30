@@ -44,6 +44,21 @@ function parsePricing(p: PricingInput): Record<string, unknown> | null {
   return out
 }
 
+function buildProposalEmailHtml(accountName: string, proposalTitle: string, proposalCode: string, division: string, brandName: string): string {
+  const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
+  const proposalUrl = `${hubUrl}/${division}/proposals?proposal=${proposalCode}`
+  return `
+    <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;">
+      <p style="color:#333;font-size:15px;margin:0 0 16px;">Hi ${escapeHtml(accountName)},</p>
+      <p style="color:#333;font-size:15px;margin:0 0 16px;">We've prepared a proposal for <strong>${escapeHtml(proposalTitle)}</strong>.</p>
+      <p style="color:#333;font-size:15px;margin:0 0 16px;">Please review the attached PDF and click below to accept and proceed to payment:</p>
+      <p style="margin:24px 0;">
+        <a href="${proposalUrl}" style="display:inline-block;padding:12px 28px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Accept proposal</a>
+      </p>
+      <p style="color:#999;font-size:12px;margin-top:24px;">— ${brandName}</p>
+    </div>`
+}
+
 export async function createProposalFromPlan(req: Request, res: Response) {
   try {
     const division = runtimeBrand
@@ -103,12 +118,11 @@ export async function createProposalFromPlan(req: Request, res: Response) {
             if (canSendMail() && account.email) {
               const pdf = await renderProposalPdf(updated.toObject(), account)
               const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
-              const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
               await sendMail({
                 from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
                 to: account.email,
                 subject: `New proposal — ${plan.name} — ${updated.proposalCode}`,
-                html: `<p>Hi ${escapeHtml(account.name || '')},</p><p>We've prepared a proposal for <strong>${escapeHtml(plan.name)}</strong>.</p><p>You can review and accept it in your dashboard:</p><p><a href="${hubUrl}/${division}/proposals?proposal=${updated.proposalCode}" style="display:inline-block;padding:10px 20px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View proposal</a></p><p style="margin-top:16px;color:#666;font-size:12px;">— ${brandName}</p>`,
+                html: buildProposalEmailHtml(account.name || '', plan.name, updated.proposalCode, division, brandName),
                 attachments: [{ filename: `proposal-${updated.proposalCode}.pdf`, content: pdf }],
               })
             }
@@ -173,12 +187,11 @@ export async function createProposalFromPlan(req: Request, res: Response) {
       if (canSendMail() && account.email) {
         const pdf = await renderProposalPdf(proposal.toObject(), account)
         const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
-        const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
         await sendMail({
           from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
           to: account.email,
           subject: `New proposal — ${plan.name} — ${proposal.proposalCode}`,
-          html: `<p>Hi ${escapeHtml(account.name || '')},</p><p>We've prepared a proposal for <strong>${escapeHtml(plan.name)}</strong>.</p><p>You can review and accept it in your dashboard:</p><p><a href="${hubUrl}/${division}/proposals?proposal=${proposal.proposalCode}" style="display:inline-block;padding:10px 20px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View proposal</a></p><p style="margin-top:16px;color:#666;font-size:12px;">— ${brandName}</p>`,
+          html: buildProposalEmailHtml(account.name || '', plan.name, proposal.proposalCode, division, brandName),
           attachments: [{ filename: `proposal-${proposal.proposalCode}.pdf`, content: pdf }],
         })
       }
@@ -531,12 +544,11 @@ export async function sendProposal(req: Request, res: Response) {
         if (canSendMail() && (accountDoc as any)?.email) {
           const pdf = await renderProposalPdf(updated.toObject(), accountDoc)
           const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
-          const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
           await sendMail({
             from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
             to: (accountDoc as any).email,
             subject: `New proposal — ${updated.title} — ${updated.proposalCode}`,
-            html: `<p>Hi ${escapeHtml((accountDoc as any)?.name || '')},</p><p>We've prepared a proposal for <strong>${escapeHtml(updated.title)}</strong>.</p><p>You can review and accept it in your dashboard:</p><p><a href="${hubUrl}/${division}/proposals?proposal=${updated.proposalCode}" style="display:inline-block;padding:10px 20px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View proposal</a></p><p style="margin-top:16px;color:#666;font-size:12px;">— ${brandName}</p>`,
+            html: buildProposalEmailHtml((accountDoc as any)?.name || '', updated.title, updated.proposalCode, division, brandName),
             attachments: [{ filename: `proposal-${updated.proposalCode}.pdf`, content: pdf }],
           })
         }
@@ -645,6 +657,33 @@ export async function acceptProposal(req: Request, res: Response) {
     } catch (e: any) {
       if (e?.code !== 11000) throw e
       // duplicate proposalCode — another concurrent accept already created invoice
+    }
+
+    // Email invoice with payment link to customer
+    try {
+      if (canSendMail() && account.email) {
+        const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+        const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
+        const invoiceUrl = `${hubUrl}/${division}/proposals?proposal=${proposal.proposalCode}`
+        const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
+        await sendMail({
+          from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
+          to: account.email,
+          subject: `Invoice ready — ${invoiceCode} — ${inr.format(totalAmount)}`,
+          html: `
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;">
+              <p style="color:#333;font-size:15px;margin:0 0 16px;">Hi ${escapeHtml(account.name || '')},</p>
+              <p style="color:#333;font-size:15px;margin:0 0 16px;">Your proposal <strong>${escapeHtml(proposal.title)}</strong> has been accepted. Invoice <strong>${invoiceCode}</strong> is ready for payment.</p>
+              ${lineItems.length > 0 ? `<div style="background:#f9fafb;border-radius:8px;padding:16px;margin:16px 0;">${lineItems.map(li => `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px;color:#333;"><span>${escapeHtml(li.label)}</span><span>${inr.format(li.amount)}</span></div>`).join('')}<div style="border-top:1px solid #e5e7eb;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:600;font-size:15px;"><span>Total</span><span>${inr.format(totalAmount)}</span></div></div>` : ''}
+              <p style="margin:24px 0;">
+                <a href="${invoiceUrl}" style="display:inline-block;padding:12px 28px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Pay now</a>
+              </p>
+              <p style="color:#999;font-size:12px;margin-top:24px;">— ${brandName}</p>
+            </div>`,
+        })
+      }
+    } catch (e) {
+      console.error('Failed to email invoice', e)
     }
 
     res.json({ success: true, proposal: proposal.toObject() })
