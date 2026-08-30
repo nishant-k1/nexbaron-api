@@ -26,7 +26,7 @@ export interface BillingStatusChip {
 export interface BillingView extends BillingSummary {
   displayStatus: BillingStatusChip & { phase: BillingPhase }
   oneTimeStatus: BillingStatusChip & { dueAmount: number }
-  recurringStatus: BillingStatusChip & { dueAmount: number }
+  recurringStatus: (BillingStatusChip & { dueAmount: number }) | null
   recurringNote: string
   oneTimeItems: Array<{ label: string; amount: number; type: string }>
   recurringItems: Array<{ label: string; amount: number; type: string }>
@@ -53,7 +53,7 @@ function computeOneTimeStatus(summary: BillingSummary): BillingView['oneTimeStat
 function computeRecurringStatus(summary: BillingSummary): BillingView['recurringStatus'] {
   if (summary.recurringTotal <= 0) return { label: 'N/A', tone: 'muted', dueAmount: 0 }
   if (summary.oneTimeDue > 0) return { label: 'After setup', tone: 'muted', dueAmount: 0 }
-  if (summary.recurringDue <= 0) return { label: 'Up to date', tone: 'success', dueAmount: 0 }
+  if (summary.recurringDue <= 0) return null
   return { label: 'Due', tone: 'warning', dueAmount: summary.recurringDue }
 }
 
