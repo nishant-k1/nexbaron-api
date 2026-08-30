@@ -38,7 +38,7 @@ function computeDisplayStatus(invoice: IInvoice | any, summary: BillingSummary):
   if (invoice.status === 'DRAFT') return { label: 'Draft', tone: 'muted', phase: 'draft' }
   if (summary.amountDue <= 0) return { label: 'Paid', tone: 'success', phase: 'paid' }
   if (summary.oneTimeDue <= 0 && summary.recurringDue > 0) {
-    return { label: 'Setup complete', tone: 'success', phase: 'setup_paid' }
+    return { label: 'Recurring due', tone: 'warning', phase: 'setup_paid' }
   }
   if (summary.totalPaid > 0) return { label: 'Partially paid', tone: 'warning', phase: 'setup_partial' }
   return { label: 'Payment due', tone: 'warning', phase: 'unpaid' }
