@@ -166,20 +166,20 @@ export async function renderProposalPdf(proposal: IProposal | any, account: any)
     })
     doc.y = barY + 28
 
-    ensureSpace(80)
+    ensureSpace(180)
 
     // Terms
     doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(10).text('Terms & conditions')
     doc.moveDown(0.3)
     const terms = (proposal.terms || 'No specific terms provided. This proposal is valid for 30 days from the date of issue.').toString().trim()
     doc.fillColor('#475569').font('Helvetica').fontSize(7).text(terms, { width: pageW })
-    doc.moveDown(0.6)
+    doc.moveDown(0.5)
     doc.fillColor('#64748b').font('Helvetica').fontSize(6).text('Valid for 30 days · One revision included · Changes beyond scope may be billed separately.', { width: pageW })
+    doc.moveDown(0.8)
 
-    ensureSpace(90)
+    ensureSpace(100)
 
     // Acceptance
-    doc.moveDown(0.8)
     doc.strokeColor('#e2e8f0').lineWidth(0.5).moveTo(left, doc.y).lineTo(left + pageW, doc.y).stroke()
     doc.moveDown(0.6)
     doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(10).text('Acceptance')
@@ -202,7 +202,7 @@ export async function renderProposalPdf(proposal: IProposal | any, account: any)
     const range = doc.bufferedPageRange()
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(i)
-      const bottom = 750
+      const bottom = doc.page.height - 52
       doc.save()
       doc.strokeColor('#e2e8f0').lineWidth(0.5).moveTo(left, bottom).lineTo(left + pageW, bottom).stroke()
       doc.fillColor('#94a3b8').font('Helvetica').fontSize(7).text(`${brand.name} · nexbaron.com · Page ${i + 1}`, left, bottom + 8, { width: pageW, align: 'center' })

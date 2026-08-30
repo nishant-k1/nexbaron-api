@@ -240,9 +240,43 @@ export async function createProposalFromPackage(req: Request, res: Response) {
       .findOne({ accountId: account.accountCode, division, packageId: pkg.packageCode })
       .sort({ createdAt: -1 })
       .lean()
-    if (existing && existing.status !== 'ACCEPTED') {
-      res.json({ success: true, proposal: existing, existing: true })
-      return
+    if (existing) {
+      if (existing.status === 'DRAFT') {
+        const updated = await (Proposal as ReturnType<typeof createProposalModel>).findOneAndUpdate(
+          { _id: existing._id, division, status: 'DRAFT' },
+          { $set: { status: 'SENT' } },
+          { new: true }
+        )
+        if (updated) {
+          await Account.updateOne(
+            { accountCode: account.accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD', 'PACKAGE_SELECTED'] } },
+            { $set: { lifecycleStage: 'PROPOSAL_SENT' }, $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: (account as { name?: string }).name || 'customer', at: new Date() } } }
+          ).catch(() => {})
+
+          try {
+            if (canSendMail() && account.email) {
+              const pdf = await renderProposalPdf(updated.toObject(), account)
+              const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+              await sendMail({
+                from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
+                to: account.email,
+                subject: `New proposal — ${pkg.name} — ${updated.proposalCode}`,
+                html: buildProposalEmailHtml(account.name || '', pkg.name, updated.proposalCode, division, brandName),
+                attachments: [{ filename: `proposal-${updated.proposalCode}.pdf`, content: pdf }],
+              })
+            }
+          } catch (e) {
+            console.error('Failed to email proposal', e)
+          }
+        }
+        res.json({ success: true, proposal: updated || existing, existing: true })
+        return
+      }
+      if (existing.status === 'SENT') {
+        res.json({ success: true, proposal: existing, existing: true })
+        return
+      }
+      // ACCEPTED is terminal — fall through to create a fresh proposal
     }
 
     // Service snapshot: PackageService -> Service catalog.
@@ -279,7 +313,7 @@ export async function createProposalFromPackage(req: Request, res: Response) {
       packageId: pkg.packageCode,
       division,
       version: 1,
-      status: 'DRAFT',
+      status: 'SENT',
       title: pkg.name,
       description: pkg.description || '',
       services,
@@ -289,12 +323,29 @@ export async function createProposalFromPackage(req: Request, res: Response) {
 
     // Reflect the selection on the account (only if still early-stage).
     await Account.updateOne(
-      { accountCode: account.accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD'] } },
+      { accountCode: account.accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD', 'PACKAGE_SELECTED'] } },
       {
-        $set: { lifecycleStage: 'PACKAGE_SELECTED' },
-        $push: { stageHistory: { stage: 'PACKAGE_SELECTED', by: (account as { name?: string }).name || 'customer', at: new Date() } },
+        $set: { lifecycleStage: 'PROPOSAL_SENT' },
+        $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: (account as { name?: string }).name || 'customer', at: new Date() } },
       }
     ).catch(() => {})
+
+    // Email proposal PDF to customer
+    try {
+      if (canSendMail() && account.email) {
+        const pdf = await renderProposalPdf(proposal.toObject(), account)
+        const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+        await sendMail({
+          from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
+          to: account.email,
+          subject: `New proposal — ${pkg.name} — ${proposal.proposalCode}`,
+          html: buildProposalEmailHtml(account.name || '', pkg.name, proposal.proposalCode, division, brandName),
+          attachments: [{ filename: `proposal-${proposal.proposalCode}.pdf`, content: pdf }],
+        })
+      }
+    } catch (e) {
+      console.error('Failed to email proposal', e)
+    }
 
     res.status(201).json({ success: true, proposal: proposal.toObject() })
   } catch (error) {
