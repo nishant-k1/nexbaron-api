@@ -37,6 +37,7 @@ export async function getMyInvoices(req: Request, res: Response) {
       .lean()
     const enriched = invoices.map((invoice) => ({
       ...invoice,
+      planLabel: invoice.packageId ? (servicePricingPlans[invoice.packageId as keyof typeof servicePricingPlans] as any)?.name || invoice.packageId : undefined,
       summary: buildBillingView(invoice),
     }))
     const rk = process.env.RAZORPAY_KEY_ID
@@ -72,7 +73,8 @@ export async function getMyInvoice(req: Request, res: Response) {
     const razorpayKeyId = rk && (rk.startsWith('rzp_test_') || rk.startsWith('rzp_live_')) ? rk : ''
     const summary = buildBillingView(invoice)
     const installments = computeInstallments(invoice)
-    res.json({ success: true, invoice, razorpayKeyId, summary, installments })
+    const planLabel = invoice.packageId ? (servicePricingPlans[invoice.packageId as keyof typeof servicePricingPlans] as any)?.name || invoice.packageId : undefined
+    res.json({ success: true, invoice, razorpayKeyId, summary, installments, planLabel })
   } catch (error) {
     return handleError('getMyInvoice', req, res, error, 'Failed to load invoice')
   }
