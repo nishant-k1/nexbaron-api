@@ -10,6 +10,9 @@ import { createPackageModel } from '../../../models/package.model'
 import { createPackageServiceModel } from '../../../models/package-service.model'
 import { createServiceModel } from '../../../models/service.model'
 import { buildBillingView } from '../../billing/services/billing-service'
+import { sendMail, canSendMail } from '../../../utils/mailer'
+import { renderProposalPdf } from '../services/proposal-pdf'
+import { escapeHtml } from '../../../utils/html'
 
 function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
   return { division, userId }
@@ -94,6 +97,24 @@ export async function createProposalFromPlan(req: Request, res: Response) {
             { accountCode: account.accountCode, division, lifecycleStage: { $in: ['REGISTERED', 'LEAD', 'PACKAGE_SELECTED'] } },
             { $set: { lifecycleStage: 'PROPOSAL_SENT' }, $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: (account as { name?: string }).name || 'customer', at: new Date() } } }
           ).catch(() => {})
+
+          // Email proposal PDF to customer
+          try {
+            if (canSendMail() && account.email) {
+              const pdf = await renderProposalPdf(updated.toObject(), account)
+              const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+              const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
+              await sendMail({
+                from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
+                to: account.email,
+                subject: `New proposal — ${plan.name} — ${updated.proposalCode}`,
+                html: `<p>Hi ${escapeHtml(account.name || '')},</p><p>We've prepared a proposal for <strong>${escapeHtml(plan.name)}</strong>.</p><p>You can review and accept it in your dashboard:</p><p><a href="${hubUrl}/${division}/proposals?proposal=${updated.proposalCode}" style="display:inline-block;padding:10px 20px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View proposal</a></p><p style="margin-top:16px;color:#666;font-size:12px;">— ${brandName}</p>`,
+                attachments: [{ filename: `proposal-${updated.proposalCode}.pdf`, content: pdf }],
+              })
+            }
+          } catch (e) {
+            console.error('Failed to email proposal', e)
+          }
         }
         res.json({ success: true, proposal: updated || existing, existing: true })
         return
@@ -146,6 +167,24 @@ export async function createProposalFromPlan(req: Request, res: Response) {
         $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: (account as { name?: string }).name || 'customer', at: new Date() } },
       }
     ).catch(() => {})
+
+    // Email proposal PDF to customer
+    try {
+      if (canSendMail() && account.email) {
+        const pdf = await renderProposalPdf(proposal.toObject(), account)
+        const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+        const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
+        await sendMail({
+          from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
+          to: account.email,
+          subject: `New proposal — ${plan.name} — ${proposal.proposalCode}`,
+          html: `<p>Hi ${escapeHtml(account.name || '')},</p><p>We've prepared a proposal for <strong>${escapeHtml(plan.name)}</strong>.</p><p>You can review and accept it in your dashboard:</p><p><a href="${hubUrl}/${division}/proposals?proposal=${proposal.proposalCode}" style="display:inline-block;padding:10px 20px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View proposal</a></p><p style="margin-top:16px;color:#666;font-size:12px;">— ${brandName}</p>`,
+          attachments: [{ filename: `proposal-${proposal.proposalCode}.pdf`, content: pdf }],
+        })
+      }
+    } catch (e) {
+      console.error('Failed to email proposal', e)
+    }
 
     res.status(201).json({ success: true, proposal: proposal.toObject() })
   } catch (error) {
@@ -484,6 +523,26 @@ export async function sendProposal(req: Request, res: Response) {
           $push: { stageHistory: { stage: 'PROPOSAL_SENT', by: req.staffAuth.name, at: new Date() } },
         }
       )
+
+      // Email proposal PDF to customer
+      try {
+        const { Account: Acct } = getDivisionModels(division)
+        const accountDoc = await Acct.findOne({ accountCode: updated.accountId, division }).lean()
+        if (canSendMail() && (accountDoc as any)?.email) {
+          const pdf = await renderProposalPdf(updated.toObject(), accountDoc)
+          const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
+          const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
+          await sendMail({
+            from: process.env[`SMTP_${division.toUpperCase()}_USER`] || 'hello@nexbaron.com',
+            to: (accountDoc as any).email,
+            subject: `New proposal — ${updated.title} — ${updated.proposalCode}`,
+            html: `<p>Hi ${escapeHtml((accountDoc as any)?.name || '')},</p><p>We've prepared a proposal for <strong>${escapeHtml(updated.title)}</strong>.</p><p>You can review and accept it in your dashboard:</p><p><a href="${hubUrl}/${division}/proposals?proposal=${updated.proposalCode}" style="display:inline-block;padding:10px 20px;background:#14b8a6;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View proposal</a></p><p style="margin-top:16px;color:#666;font-size:12px;">— ${brandName}</p>`,
+            attachments: [{ filename: `proposal-${updated.proposalCode}.pdf`, content: pdf }],
+          })
+        }
+      } catch (e) {
+        console.error('Failed to email proposal', e)
+      }
     }
     res.json({ success: true, proposal: updated?.toObject() })
   } catch (error) {
