@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import mongoose, { Connection } from 'mongoose'
+import mongoose from 'mongoose'
 import { logger } from '../src/utils/logger'
 
 type Brand = 'digital' | 'print'

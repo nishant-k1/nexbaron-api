@@ -1,7 +1,6 @@
 import 'dotenv/config'
-import mongoose, { Connection } from 'mongoose'
+import mongoose from 'mongoose'
 import { logger } from '../src/utils/logger'
-import { createPackageModel } from '../src/models/package.model'
 import { createPackageServiceModel } from '../src/models/package-service.model'
 import { createServiceModel } from '../src/models/service.model'
 
@@ -19,7 +18,6 @@ async function migrateBrand(brand: Brand, apply: boolean) {
   const uri = dbUri(brand)
   const conn = await mongoose.createConnection(uri).asPromise()
   try {
-    const Package = createPackageModel(conn)
     const PackageService = createPackageServiceModel(conn)
     const Service = createServiceModel(conn)
 

@@ -133,24 +133,38 @@ export async function createLead(req: Request, res: Response) {
       return
     }
     const { Lead } = getDivisionModels(division)
-    const lead = await Lead.create({
-      division,
-      projectId: randomUUID(),
-      source: (body.source || 'manual').toString().trim().slice(0, 40),
-      name,
-      email: body.email?.trim() || undefined,
-      phone: body.phone?.trim() || undefined,
-      company: body.company?.trim() || undefined,
-      city: body.city?.trim() || undefined,
-      subject: body.subject?.trim() || undefined,
-      message: body.message?.trim() || undefined,
-      plan: body.plan?.trim() || undefined,
-      clientRef: deriveClientRef({ email: body.email, phone: body.phone }),
-      referredBy: body.referredBy?.name
-        ? { name: String(body.referredBy.name).trim().slice(0, 100), email: body.referredBy.email?.trim() || undefined, projectId: body.referredBy.projectId || undefined }
-        : undefined,
-    })
-    res.status(201).json({ success: true, lead })
+    try {
+      const lead = await Lead.create({
+        division,
+        projectId: randomUUID(),
+        source: (body.source || 'manual').toString().trim().slice(0, 40),
+        name,
+        email: body.email?.trim() || undefined,
+        phone: body.phone?.trim() || undefined,
+        company: body.company?.trim() || undefined,
+        city: body.city?.trim() || undefined,
+        subject: body.subject?.trim() || undefined,
+        message: body.message?.trim() || undefined,
+        plan: body.plan?.trim() || undefined,
+        clientRef: deriveClientRef({ email: body.email, phone: body.phone }),
+        referredBy: body.referredBy?.name
+          ? { name: String(body.referredBy.name).trim().slice(0, 100), email: body.referredBy.email?.trim() || undefined, projectId: body.referredBy.projectId || undefined }
+          : undefined,
+      })
+      res.status(201).json({ success: true, lead })
+    } catch (e: any) {
+      if (e?.code === 11000) {
+        const existing = await Lead.findOne({
+          division,
+          clientRef: deriveClientRef({ email: body.email, phone: body.phone })
+        }).lean()
+        if (existing) {
+          res.json({ success: true, lead: existing, existing: true })
+          return
+        }
+      }
+      throw e
+    }
   } catch (error) {
     return handleError('createLead', req, res, error, 'Failed to create lead')
   }

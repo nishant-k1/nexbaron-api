@@ -6,11 +6,12 @@ import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
 import { createInvoiceModel } from '../../../models/invoice.model'
 import { buildLaunchStages } from '../../digital/payments/services/pricing-service'
-import { computeBillingSummary, computeInstallments } from '../services/billing-service'
+import { computeBillingSummary, computeInstallments, computeNextPaymentCap, buildBillingView } from '../services/billing-service'
 import { escapeHtml, logoNx } from '../../../utils/html'
 import { NX_DIGITAL, NX_PRINT } from '../../../config/constants'
 import { canSendMail, sendMail } from '../../../utils/mailer'
 import { renderInvoiceReceiptPdf } from '../services/billing-receipt-pdf'
+import servicePricingPlans from '../../digital/catalog/plans/v1/plans-type'
 
 function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
   return { division, userId }
@@ -34,9 +35,13 @@ export async function getMyInvoices(req: Request, res: Response) {
       .find({ accountId: account.accountCode, division })
       .sort({ createdAt: -1 })
       .lean()
+    const enriched = invoices.map((invoice) => ({
+      ...invoice,
+      summary: buildBillingView(invoice),
+    }))
     const rk = process.env.RAZORPAY_KEY_ID
     const razorpayKeyId = rk && (rk.startsWith('rzp_test_') || rk.startsWith('rzp_live_')) ? rk : ''
-    res.json({ success: true, invoices, razorpayKeyId })
+    res.json({ success: true, invoices: enriched, razorpayKeyId })
   } catch (error) {
     return handleError('getMyInvoices', req, res, error, 'Failed to load invoices')
   }
@@ -65,7 +70,7 @@ export async function getMyInvoice(req: Request, res: Response) {
     }
     const rk = process.env.RAZORPAY_KEY_ID
     const razorpayKeyId = rk && (rk.startsWith('rzp_test_') || rk.startsWith('rzp_live_')) ? rk : ''
-    const summary = computeBillingSummary(invoice)
+    const summary = buildBillingView(invoice)
     const installments = computeInstallments(invoice)
     res.json({ success: true, invoice, razorpayKeyId, summary, installments })
   } catch (error) {
@@ -112,9 +117,11 @@ export async function getInvoice(req: Request, res: Response) {
       res.status(404).json({ success: false, message: 'Invoice not found' })
       return
     }
+    const rk = process.env.RAZORPAY_KEY_ID
+    const razorpayKeyId = rk && (rk.startsWith('rzp_test_') || rk.startsWith('rzp_live_')) ? rk : ''
     const summary = computeBillingSummary(invoice)
     const installments = computeInstallments(invoice)
-    res.json({ success: true, invoice, summary, installments })
+    res.json({ success: true, invoice, razorpayKeyId, summary, installments })
   } catch (error) {
     return handleError('getInvoice', req, res, error, 'Failed to load invoice')
   }
@@ -336,9 +343,7 @@ export async function createPaymentOrder(req: Request, res: Response) {
     }
     
     // Support partial/advance payment — clamp to amountDue (not invoice.amount) to prevent overpay on second half
-    const { computeBillingSummary: _summary } = await import('../services/billing-service.js')
-    const _s = _summary(invoice as any)
-    const amountDue = _s.amountDue
+    const amountDue = computeNextPaymentCap(invoice as any)
     if (amountDue <= 0) {
       res.status(400).json({ success: false, message: 'Invoice already paid' })
       return
@@ -396,11 +401,12 @@ export async function verifyPayment(req: Request, res: Response) {
       }
     }
 
-    const { verifyPaymentSignature, razorpayConfigured } = await import('../../digital/payments/services/razorpay-service.js')
-    const devMode = !razorpayConfigured()
-    const signatureOk = devMode
-      ? true
-      : verifyPaymentSignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature })
+    const { verifyPaymentSignature, razorpayConfigured, fetchRazorpayPaymentAmount } = await import('../../digital/payments/services/razorpay-service.js')
+    if (!razorpayConfigured() && process.env.NODE_ENV === 'production') {
+      res.status(503).json({ success: false, message: 'Payments are not configured' })
+      return
+    }
+    const signatureOk = !razorpayConfigured() || verifyPaymentSignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature })
     if (!signatureOk) {
       const failAmount = bodyAmount ? Number(bodyAmount) : 0
       // Don't terminally FAIL the invoice — allow retry (keep PENDING), just log failed attempt
@@ -412,41 +418,82 @@ export async function verifyPayment(req: Request, res: Response) {
       return
     }
 
-    // Determine actual amount paid — clamp to amountDue to prevent overpay on partial second half
-    const { computeBillingSummary: _bSummary } = await import('../services/billing-service.js')
-    const _billing = _bSummary(invoice as any)
-    const amountDue = _billing.amountDue
+    // Determine actual amount paid — prefer Razorpay API amount, then client hint, clamped to due
+    const amountDue = computeNextPaymentCap(invoice as any)
     if (amountDue <= 0) {
       res.status(400).json({ success: false, message: 'Invoice already paid' })
       return
     }
     let payAmount = amountDue
-    if (bodyAmount != null && bodyAmount !== '' && !Number.isNaN(Number(bodyAmount))) {
+    const resolveBodyAmount = (): number | null => {
+      if (bodyAmount == null || bodyAmount === '' || Number.isNaN(Number(bodyAmount))) return null
       const requested = Number(bodyAmount)
-      if (requested > 0 && requested <= amountDue) {
-        payAmount = requested
-      } else if (requested > amountDue) {
+      if (requested <= 0) return null
+      if (requested > amountDue) return null
+      return requested
+    }
+    if (razorpayConfigured() && razorpay_payment_id) {
+      const razorpayAmount = await fetchRazorpayPaymentAmount(razorpay_payment_id)
+      if (razorpayAmount != null) {
+        if (razorpayAmount > amountDue) {
+          res.status(400).json({ success: false, message: `Payment amount exceeds due balance of ${amountDue}` })
+          return
+        }
+        payAmount = razorpayAmount > 0 ? razorpayAmount : amountDue
+      } else {
+        const fromBody = resolveBodyAmount()
+        if (fromBody != null) payAmount = fromBody
+      }
+    } else {
+      const fromBody = resolveBodyAmount()
+      if (fromBody != null) {
+        payAmount = fromBody
+      } else if (bodyAmount != null && bodyAmount !== '' && !Number.isNaN(Number(bodyAmount)) && Number(bodyAmount) > amountDue) {
         res.status(400).json({ success: false, message: `Amount exceeds due balance of ${amountDue}` })
         return
       }
     }
     const existingPaid = (invoice.payments || []).filter((p: any) => p.status === 'SUCCESS').reduce((sum: number, p: any) => sum + p.amount, 0)
     const newTotalPaid = existingPaid + payAmount
-    const isFullyPaid = newTotalPaid >= invoice.amount
+    const projectedSummary = computeBillingSummary({
+      ...invoice.toObject(),
+      payments: [...(invoice.payments || []), { amount: payAmount, status: 'SUCCESS' }],
+    })
+    const isFullyPaid = projectedSummary.amountDue === 0
     const newStatus = isFullyPaid ? 'PAID' : 'PENDING'
 
     const newPaymentId = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    // Atomic guard against duplicate razorpay_payment_id race
+    const newPayment = {
+      paymentId: newPaymentId,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      amount: payAmount,
+      status: 'SUCCESS' as const,
+      at: new Date(),
+    }
+    // Atomic guard: only block if this razorpay_payment_id is already SUCCESS (not FAILED retries)
+    const updateFilter: Record<string, unknown> = { _id: invoice._id }
+    if (razorpay_payment_id) {
+      updateFilter.payments = { $not: { $elemMatch: { razorpayPaymentId: razorpay_payment_id, status: 'SUCCESS' } } }
+    }
     const updateRes = await (Invoice as ReturnType<typeof createInvoiceModel>).updateOne(
-      { _id: invoice._id, 'payments.razorpayPaymentId': { $ne: razorpay_payment_id } } as any,
+      updateFilter,
       {
-        $push: { payments: { paymentId: newPaymentId, razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, amount: payAmount, status: 'SUCCESS', at: new Date() } },
+        $push: { payments: newPayment },
         $set: { status: newStatus },
       }
     )
-    if (updateRes.modifiedCount === 0 && razorpay_payment_id) {
-      // Another concurrent verify already inserted this payment
-      res.json({ success: true, message: 'Payment already recorded', paidAmount: 0, totalPaid: newTotalPaid, isFullyPaid: newStatus === 'PAID', orderId: null, duplicate: true })
+    if (updateRes.modifiedCount === 0) {
+      const freshInvoice = await (Invoice as ReturnType<typeof createInvoiceModel>).findOne({ _id: invoice._id }).lean()
+      const alreadySuccess = razorpay_payment_id && (freshInvoice?.payments || []).some(
+        (p: any) => p.razorpayPaymentId === razorpay_payment_id && p.status === 'SUCCESS',
+      )
+      if (alreadySuccess) {
+        const freshTotal = freshInvoice ? computeBillingSummary(freshInvoice as any).totalPaid : newTotalPaid
+        res.json({ success: true, message: 'Payment already recorded', paidAmount: 0, totalPaid: freshTotal, isFullyPaid: freshInvoice?.status === 'PAID', orderId: null, duplicate: true })
+        return
+      }
+      res.status(409).json({ success: false, message: 'Payment could not be recorded. Please refresh and contact support if you were charged.' })
       return
     }
     if (isFullyPaid) {
@@ -463,15 +510,31 @@ export async function verifyPayment(req: Request, res: Response) {
       )
     }
 
-    // Create Order for Hub's Orders list (only when fully paid, idempotent by invoiceNumber)
+    // Create Order for Hub's Orders list (idempotent by invoiceNumber)
     let orderId: string | null = null
-    if (isFullyPaid) {
-      try {
-        const { Order, Lead } = getDivisionModels(division)
-        const existingOrder = await Order.findOne({ invoiceNumber: invoice.invoiceNumber, division }).lean()
-        if (existingOrder) {
-          orderId = String(existingOrder._id)
-        } else {
+    try {
+      const { Order, Lead } = getDivisionModels(division)
+      const existingOrder = await Order.findOne({ invoiceNumber: invoice.invoiceNumber, division }).lean()
+      if (existingOrder) {
+        orderId = String(existingOrder._id)
+        const orderPayment = {
+          method: 'razorpay' as const,
+          amount: payAmount,
+          receivedAt: new Date(),
+          reference: razorpay_payment_id || newPaymentId,
+        }
+        const orderUpdate: Record<string, unknown> = {
+          amountPaid: newTotalPaid,
+          status: 'active',
+        }
+        await Order.updateOne(
+          { _id: existingOrder._id },
+          {
+            $set: orderUpdate,
+            $push: { payments: orderPayment, stageHistory: { stage: 'active', by: account.name, at: new Date() } },
+          },
+        )
+      } else {
         // Find or create Lead for this account
         let lead: any = null
         if (account.leadId) {
@@ -508,6 +571,7 @@ export async function verifyPayment(req: Request, res: Response) {
 
         const launchDate = new Date()
         launchDate.setDate(launchDate.getDate() + 30)
+        
         const newOrder = await Order.create({
           projectId: randomUUID(),
           userId: new Types.ObjectId(userId),
@@ -520,11 +584,12 @@ export async function verifyPayment(req: Request, res: Response) {
             company: account.company,
           },
           service: invoice.packageId || 'plan',
+          planLabel: invoice.packageId ? (servicePricingPlans[invoice.packageId]?.name || invoice.packageId) : undefined,
           amount: invoice.amount,
           currency: invoice.currency || 'INR',
-          status: 'paid',
+          status: 'active',
           items,
-          amountPaid: invoice.amount,
+          amountPaid: newTotalPaid,
           invoiceNumber: invoice.invoiceNumber,
           proposalCode: invoice.proposalCode,
           launchDate,
@@ -541,20 +606,33 @@ export async function verifyPayment(req: Request, res: Response) {
                 label: m.label,
                 dayLabel: m.dayLabel,
                 date,
-                status: m.key === 'payment' ? ('done' as const) : ('pending' as const),
-                completedAt: m.key === 'payment' ? new Date() : undefined,
+                status: (m.key === 'payment' && isFullyPaid) ? ('done' as const) : ('pending' as const),
+                completedAt: (m.key === 'payment' && isFullyPaid) ? new Date() : undefined,
               }
             })
           })(),
-          stageHistory: [{ stage: 'paid', by: account.name, at: new Date() }],
-          payments: [{ method: 'razorpay', amount: invoice.amount, receivedAt: new Date(), reference: razorpay_payment_id || `pay_${Date.now()}` }],
+          stageHistory: [{ stage: 'active', by: account.name, at: new Date() }],
+          payments: [
+            ...(invoice.payments || [])
+              .filter((p: any) => p.status === 'SUCCESS')
+              .map((p: any) => ({
+                method: 'razorpay' as const,
+                amount: p.amount,
+                receivedAt: p.at,
+                reference: p.razorpayPaymentId || p.paymentId,
+              })),
+            {
+              method: 'razorpay' as const,
+              amount: payAmount,
+              receivedAt: new Date(),
+              reference: razorpay_payment_id || newPaymentId,
+            },
+          ],
         })
         orderId = String(newOrder._id)
-        }
-      } catch (e) {
-        // Don't block payment success if order creation fails
-        console.error('Failed to create order from invoice', e)
       }
+    } catch (e) {
+      console.error('Failed to create/update order from invoice', e)
     }
 
     // Email PDF receipt automatically (single-payment, like razorpay-service.ts:175)

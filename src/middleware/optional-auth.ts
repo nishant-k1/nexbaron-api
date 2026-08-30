@@ -18,15 +18,15 @@ function extractTokenOptional(req: Request): string | undefined {
   return undefined
 }
 
-export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+export function optionalAuth(req: Request, res: Response, next: NextFunction) {
   const token = extractTokenOptional(req)
   if (!token) {
     next()
     return
   }
   const payload = verifyToken(token)
-  if (!payload || payload.division !== runtimeBrand) {
-    next()
+  if (!payload) {
+    res.status(401).json({ success: false, message: 'Invalid or expired token' })
     return
   }
   req.userId = payload.sub

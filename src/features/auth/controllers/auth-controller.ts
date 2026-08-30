@@ -182,8 +182,7 @@ export async function googleSignIn(req: Request, res: Response) {
     }
 
     if (!user) {
-      res.status(500).json({ success: false, message: 'Failed to create user' })
-      return
+      return handleError('googleSignIn', req, res, new Error('User creation failed'), 'Failed to create user')
     }
 
     const token = createToken({ sub: String(user._id), division: d })

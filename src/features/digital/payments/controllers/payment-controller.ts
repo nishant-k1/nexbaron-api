@@ -126,6 +126,9 @@ export async function createCheckout(req: Request, res: Response) {
       };
     });
 
+    const plan = servicePricingPlans[planId];
+    const planLabel = plan?.name || planId;
+
     const order = await Order.create({
       projectId: lead.projectId,
       userId: req.userId ? new Types.ObjectId(req.userId) : undefined,
@@ -139,10 +142,11 @@ export async function createCheckout(req: Request, res: Response) {
         city: customer.city,
       },
       service: planId,
+      planLabel,
       billingCycle: computed.billingCycle,
       amount: computed.amount,
       items: computed.items,
-      status: "pending",
+      status: "active",
       amountPaid: 0,
       launchDate: computed.launchDate,
       launchDays: computed.launchDays,
@@ -151,7 +155,7 @@ export async function createCheckout(req: Request, res: Response) {
       razorpay: { orderId: razorpay.id },
       billing: { address: customer.address },
       notes: customer.notes,
-      stageHistory: [{ stage: "pending", by: "system", at: new Date() }],
+      stageHistory: [{ stage: "active", by: "system", at: new Date() }],
     });
 
     // Create corresponding Invoice document for billing detail page
@@ -229,17 +233,14 @@ export async function myOrder(req: Request, res: Response) {
           { label: "Package chosen", done: true },
           {
             label: "Payment completed",
-            done:
-              order.status === "paid" ||
-              order.status === "in_progress" ||
-              order.status === "delivered",
+            done: true,
           },
         ];
         if (plan?.features) {
           for (const feature of plan.features)
             steps.push({
               label: feature.label,
-              done: order.status === "delivered",
+              done: false,
             });
         }
         const doneCount = steps.filter((s) => s.done).length;
@@ -446,7 +447,7 @@ export async function razorpayWebhook(req: Request, res: Response) {
       typeof rawString === "string" ? JSON.parse(rawString) : {}
     ) as {
       event?: string;
-      payload?: { payment?: { entity?: { order_id?: string; id?: string } } };
+      payload?: { payment?: { entity?: { order_id?: string; id?: string; amount?: number } } };
     };
     if (event.event !== "payment.captured") {
       res.json({ success: true });
@@ -465,8 +466,10 @@ export async function razorpayWebhook(req: Request, res: Response) {
       division: runtimeBrand,
     });
     const captured = Boolean(order);
-    if (order)
-      await finalizeOrder(order, { method: "razorpay", paymentId: entity?.id });
+    if (order) {
+      const amount = entity?.amount ? entity.amount / 100 : undefined;
+      await finalizeOrder(order, { method: "razorpay", paymentId: entity?.id, amount });
+    }
     if (!captured) logger.warn({ orderId }, "Webhook for unknown order");
     res.json({ success: true });
   } catch (error) {
@@ -476,14 +479,28 @@ export async function razorpayWebhook(req: Request, res: Response) {
 
 async function finalizeOrder(
   order: IOrder,
-  payment: { method: "razorpay"; paymentId?: string; signature?: string },
+  payment: { method: "razorpay"; amount?: number; paymentId?: string; signature?: string },
 ) {
-  if (order.status === "paid") return;
-  order.amountPaid = order.amount;
-  order.status = "paid";
+  if (payment.paymentId) {
+    const alreadyRecorded = (order.payments || []).some((p) => p.reference === payment.paymentId)
+    if (alreadyRecorded) return
+  }
+  if (order.razorpay?.paymentId) return;
+  
+  const payAmount = payment.amount ?? order.amount;
+  const existingPaid = order.amountPaid || 0;
+  const newTotalPaid = existingPaid + payAmount;
+  
+  order.amountPaid = newTotalPaid;
+  const setupTotal = (order.items || [])
+    .filter((i: any) => i.billingCycle === 'setup')
+    .reduce((sum: number, i: any) => sum + (i.price || 0) * (i.quantity || 1), 0);
+  order.paymentStatus = setupTotal <= 0 ? 'fully_paid' : newTotalPaid <= 0 ? 'unpaid' : newTotalPaid >= setupTotal ? 'fully_paid' : 'partially_paid';
+  order.status = 'active';
+
   order.payments.push({
     method: payment.method,
-    amount: order.amount,
+    amount: payAmount,
     receivedAt: new Date(),
     reference: payment.paymentId,
   });
@@ -492,7 +509,6 @@ async function finalizeOrder(
     paymentId: payment.paymentId,
     signature: payment.signature,
   };
-  order.stageHistory.push({ stage: "paid", by: "system", at: new Date() });
   if (order.milestones && order.milestones.length > 0) {
     const ms = order.milestones;
     if (ms[0]) ms[0].status = "done";

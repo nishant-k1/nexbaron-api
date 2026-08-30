@@ -1,6 +1,6 @@
 import { Schema, Document, Connection } from 'mongoose'
 
-export type ProposalStatus = 'DRAFT' | 'SENT' | 'ACCEPTED'
+export type ProposalStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'EXPIRED'
 export type RecurringFrequency = 'MONTHLY' | 'ANNUAL'
 export type PaymentSchedule = 'FULL_UPFRONT' | 'FIFTY_FIFTY'
 
@@ -61,7 +61,7 @@ const ProposalSchema = new Schema<IProposal>({
   packageId: { type: String, index: true },
   division: { type: String, enum: ['digital', 'print'], required: true },
   version: { type: Number, default: 1 },
-  status: { type: String, enum: ['DRAFT', 'SENT', 'ACCEPTED'], default: 'DRAFT' },
+  status: { type: String, enum: ['DRAFT', 'SENT', 'ACCEPTED', 'EXPIRED'], default: 'DRAFT' },
   title: { type: String, required: true, trim: true },
   description: { type: String },
   services: { type: [ProposalServiceSchema], default: [] },

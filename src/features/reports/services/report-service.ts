@@ -132,7 +132,7 @@ export async function computeBottlenecks(division: 'digital' | 'print') {
   const orders = await Order.find({
     division,
     'stageHistory.0': { $exists: true },
-    status: { $in: ['delivered', 'in_progress'] },
+    status: 'active',
   })
     .select('stageHistory status')
     .sort({ updatedAt: -1 })
@@ -169,7 +169,7 @@ export async function computeBottlenecks(division: 'digital' | 'print') {
 
   const stuckProjects = await Order.countDocuments({
     division,
-    status: { $in: ['paid', 'in_progress'] },
+    status: 'active',
   })
 
   return { bottlenecks, currentActiveProjects: stuckProjects, sampleSize: orders.length }

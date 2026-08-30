@@ -9,6 +9,7 @@ import { getPlanById } from '../../digital/controllers/catalog-controller'
 import { createPackageModel } from '../../../models/package.model'
 import { createPackageServiceModel } from '../../../models/package-service.model'
 import { createServiceModel } from '../../../models/service.model'
+import { buildBillingView } from '../../billing/services/billing-service'
 
 function accountFilterForUser(division: 'digital' | 'print', userId?: string) {
   return { division, userId }
@@ -559,7 +560,6 @@ export async function acceptProposal(req: Request, res: Response) {
     }
     const invoiceCode = await nextCode(Sequence, `invoice-${division}`, 'INV')
     const pricing = proposal.pricing
-    const totalAmount = (pricing?.oneTimeFee || 0) + (pricing?.recurringFee || 0)
     const lineItems: Array<{ label: string; amount: number; type: 'ONE_TIME' | 'RECURRING' }> = []
     if (pricing?.oneTimeEnabled && pricing?.oneTimeFee) {
       lineItems.push({ label: `${proposal.title} - Setup`, amount: pricing.oneTimeFee, type: 'ONE_TIME' })
@@ -567,6 +567,7 @@ export async function acceptProposal(req: Request, res: Response) {
     if (pricing?.recurringEnabled && pricing?.recurringFee) {
       lineItems.push({ label: `${proposal.title} - ${pricing.recurringFrequency === 'ANNUAL' ? 'Annual' : 'Monthly'}`, amount: pricing.recurringFee, type: 'RECURRING' })
     }
+    const totalAmount = lineItems.reduce((sum, li) => sum + li.amount, 0)
     // Use insert with duplicate guard — if race inserts first, swallow duplicate and return existing
     try {
       await Invoice.create({
@@ -624,7 +625,8 @@ export async function getInvoiceForProposal(req: Request, res: Response) {
     }
     const rk = process.env.RAZORPAY_KEY_ID
     const razorpayKeyId = rk && (rk.startsWith('rzp_test_') || rk.startsWith('rzp_live_')) ? rk : ''
-    res.json({ success: true, invoice, razorpayKeyId })
+    const summary = buildBillingView(invoice)
+    res.json({ success: true, invoice, summary, razorpayKeyId })
   } catch (error) {
     return handleError('getInvoiceForProposal', req, res, error, 'Failed to load invoice')
   }

@@ -4,6 +4,7 @@ import { getDivisionModels } from '../../../models/registry'
 import { nextCode } from '../../../utils/sequence'
 import { handleError } from '../../../utils/error'
 import { runtimeBrand } from '../../../config/brand'
+import { escapeRegex } from '../../../utils/regex'
 import { LIFECYCLE_STAGES, type LifecycleStage } from '../../../models/account.model'
 
 export async function getMyAccount(req: Request, res: Response) {
@@ -63,7 +64,7 @@ export async function listAccounts(req: Request, res: Response) {
     const filter: Record<string, unknown> = { division }
     if (stage) filter.lifecycleStage = stage
     if (search) {
-      const rx = new RegExp(search, 'i')
+      const rx = new RegExp(escapeRegex(search), 'i')
       filter.$or = [
         { name: rx },
         { email: rx },

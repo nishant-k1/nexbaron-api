@@ -5,6 +5,7 @@ import { requireAdmin, requireDivision } from '../../admin/middleware/require-ad
 import { runtimeBrand } from '../../../config/brand'
 import { rateLimit } from '../../../utils/rate-limit'
 import { createUploadTarget, isAllowedAttachmentName, readConfig } from '../services/r2-service'
+import { handleError } from '../../../utils/error'
 
 const MAX_FILES_PER_REQUEST = 10
 
@@ -38,8 +39,8 @@ function handleUpload(req: Request, res: Response): void {
     }
 
     res.json({ success: true, division: runtimeBrand, files: targets })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to create upload URLs' })
+  } catch (error) {
+    return handleError('handleUpload', req, res, error, 'Failed to create upload URLs')
   }
 }
 
@@ -87,8 +88,8 @@ customerUploadRouter.get('/chat/download', optionalAuth, rateLimit({ windowMs: 6
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`)
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     res.status(200).send(Buffer.from(body))
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to download attachment' })
+  } catch (error) {
+    return handleError('downloadAttachment', req, res, error, 'Failed to download attachment')
   }
 })
 

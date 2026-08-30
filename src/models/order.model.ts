@@ -1,11 +1,13 @@
 import { Schema, Document, Connection, Types } from 'mongoose'
 
 export type OrderStatus =
-  | 'pending' // created, awaiting payment
-  | 'paid' // payment received → the lead is now a customer
-  | 'in_progress'
-  | 'delivered'
+  | 'active'
   | 'cancelled'
+
+export type PaymentStatus =
+  | 'unpaid'
+  | 'partially_paid'
+  | 'fully_paid'
 
 export type PaymentMethod =
   | 'razorpay'
@@ -97,10 +99,12 @@ export interface IOrder extends Document {
   }
   // What was sold
   service?: string
+  planLabel?: string
   billingCycle?: PlanBillingCycle
   amount: number
   currency: string
   status: OrderStatus
+  paymentStatus: PaymentStatus
   items: IOrderItem[]
   payments: IPayment[]
   amountPaid: number
@@ -279,13 +283,19 @@ const OrderSchema = new Schema<IOrder>(
       city: { type: String, trim: true },
     },
     service: { type: String, trim: true },
+    planLabel: { type: String, trim: true },
     billingCycle: { type: String, enum: ['monthly', 'annual'], default: 'monthly' },
     amount: { type: Number, required: true, min: 0, default: 0 },
     currency: { type: String, default: 'INR' },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'in_progress', 'delivered', 'cancelled'],
-      default: 'pending',
+      enum: ['active', 'cancelled'],
+      default: 'active',
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'partially_paid', 'fully_paid'],
+      default: 'unpaid',
     },
     items: { type: [OrderItemSchema], default: [] },
     payments: { type: [PaymentSchema], default: [] },

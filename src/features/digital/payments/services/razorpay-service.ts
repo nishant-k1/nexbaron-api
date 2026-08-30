@@ -81,6 +81,21 @@ export function verifyWebhookSignature(rawBody: string, signature: string): bool
   return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b)
 }
 
+/** Fetch the captured amount (INR rupees) for a Razorpay payment id. */
+export async function fetchRazorpayPaymentAmount(paymentId: string): Promise<number | null> {
+  if (!razorpayConfigured() || !paymentId) return null
+  const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64')
+  const response = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+    headers: { Authorization: `Basic ${auth}` },
+  })
+  if (!response.ok) {
+    logger.error({ status: response.status, paymentId }, 'Razorpay fetch payment failed')
+    return null
+  }
+  const data = (await response.json()) as { amount?: number }
+  return typeof data.amount === 'number' ? data.amount / 100 : null
+}
+
 export async function nextInvoiceNumber(InvoiceCounter: Model<any>) {
   const year = new Date().getFullYear()
   const seq = await nextSequence(InvoiceCounter, `invoice-${year}`)

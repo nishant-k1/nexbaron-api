@@ -153,7 +153,15 @@ export async function getMyProject(req: Request, res: Response) {
       res.status(404).json({ success: false, message: 'Project not found' })
       return
     }
-    if (lead.email && lead.email.toLowerCase() !== user.email?.toLowerCase()) {
+    const emailMatch = Boolean(lead.email && user.email && lead.email.toLowerCase() === user.email.toLowerCase())
+    const phoneMatch = Boolean(lead.phone && user.phone && lead.phone === user.phone)
+    let accountMatch = false
+    if (!emailMatch && !phoneMatch) {
+      const { Account } = getDivisionModels(division)
+      const account = await Account.findOne({ userId, division }).lean()
+      accountMatch = Boolean(account?.leadId && account.leadId === lead._id.toString())
+    }
+    if (!emailMatch && !phoneMatch && !accountMatch) {
       res.status(403).json({ success: false, message: 'Not your project' })
       return
     }

@@ -4,6 +4,7 @@ import { OrderStatus, PaymentMethod } from '../../../models/order.model'
 import { getDivisionModels } from '../../../models/registry'
 import { findOrders, findOrCreateOrderFromLead, VALID_STATUSES, VALID_PAYMENT_METHODS } from '../services/order-service'
 import { handleError } from '../../../utils/error'
+import servicePricingPlans from '../../digital/catalog/plans/v1/plans-type'
 
 export async function listOrders(req: Request, res: Response) {
   try {
@@ -100,13 +101,13 @@ export async function updateOrderStatus(req: Request, res: Response) {
       order.status = nextStatus
       if (nextStatus !== previousStatus) {
         order.stageHistory.push({ stage: nextStatus, by: req.staffAuth.name, at: new Date() })
-        if (nextStatus === 'delivered' && !order.followUpDate) {
+        if (nextStatus === 'cancelled' && !order.followUpDate) {
           const followUp = new Date()
           followUp.setMonth(followUp.getMonth() + 3)
           order.followUpDate = followUp
           order.followUpType = 'checkin'
         }
-        if (nextStatus === 'delivered' && !order.reviewRequestedAt) {
+        if (nextStatus === 'cancelled' && !order.reviewRequestedAt) {
           order.reviewRequestedAt = new Date()
           order.reviewReceived = false
         }
@@ -231,6 +232,8 @@ export async function createProjectFromClient(req: Request, res: Response) {
     }
 
     const projectId = randomUUID()
+    const serviceId = body.service || lead.plan || undefined
+    const planLabel = serviceId ? (servicePricingPlans[serviceId]?.name || serviceId) : undefined
     const order = await Order.create({
       projectId,
       leadId: lead._id,
@@ -242,13 +245,14 @@ export async function createProjectFromClient(req: Request, res: Response) {
         company: lead.company,
         city: lead.city,
       },
-      service: body.service || lead.plan || undefined,
+      service: serviceId,
+      planLabel,
       amount: Number(body.amount) || 0,
       currency: body.currency || 'INR',
-      status: body.status || 'pending',
+      status: 'active',
       items: Array.isArray(body.items) ? body.items : [],
       notes: body.notes?.trim() || undefined,
-      stageHistory: [{ stage: body.status || 'pending', by: req.staffAuth.name, at: new Date() }],
+      stageHistory: [{ stage: 'active', by: req.staffAuth.name, at: new Date() }],
       assignedTeamMember: body.assignedTeamMember?.trim() || undefined,
       paymentTerms: body.paymentTerms?.trim() || undefined,
     })
@@ -269,6 +273,11 @@ export async function getMyOrders(req: Request, res: Response) {
     }
     const { Order } = getDivisionModels(division)
     const orders = await Order.find({ division, userId }).sort({ createdAt: -1 }).lean()
+    for (const doc of orders) {
+      if (!doc.paymentStatus) {
+        doc.paymentStatus = (doc.amountPaid || 0) <= 0 ? 'unpaid' : (doc.amountPaid || 0) >= (doc.amount || 0) ? 'fully_paid' : 'partially_paid'
+      }
+    }
     res.json({ success: true, orders })
   } catch (error) {
     return handleError('getMyOrders', req, res, error, 'Failed to load orders')
@@ -288,6 +297,10 @@ export async function getOrderDetail(req: Request, res: Response) {
     if (!order) {
       res.status(404).json({ success: false, message: 'Order not found' })
       return
+    }
+    
+    if (!order.paymentStatus) {
+      order.paymentStatus = (order.amountPaid || 0) <= 0 ? 'unpaid' : (order.amountPaid || 0) >= (order.amount || 0) ? 'fully_paid' : 'partially_paid'
     }
     
     // Populate proposalCode from invoice if available

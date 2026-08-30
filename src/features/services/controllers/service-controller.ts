@@ -28,17 +28,16 @@ export async function createService(req: Request, res: Response) {
       return
     }
     const division = req.staffAuth.division
-    const requestedDivision = req.body.division || division
     const { Service, Sequence } = getDivisionModels(division)
     const { name, description, category } = req.body
     if (!name?.trim()) {
       res.status(400).json({ success: false, message: 'Name is required' })
       return
     }
-    const serviceCode = await nextCode(Sequence, `service-${requestedDivision}`, 'SVC')
+    const serviceCode = await nextCode(Sequence, `service-${division}`, 'SVC')
     const service = await Service.create({
       serviceCode,
-      division: requestedDivision,
+      division,
       name: name.trim(),
       description,
       category,

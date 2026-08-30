@@ -1,9 +1,34 @@
-import { OrderStatus, PaymentMethod } from '../../../models/order.model'
+import { OrderStatus, PaymentMethod, PaymentStatus } from '../../../models/order.model'
 import { getDivisionModels } from '../../../models/registry'
 import { escapeRegex } from '../../../utils/regex'
 
-const VALID_STATUSES: OrderStatus[] = ['pending', 'paid', 'in_progress', 'delivered', 'cancelled']
+const VALID_STATUSES: OrderStatus[] = ['active', 'cancelled']
 const VALID_PAYMENT_METHODS: PaymentMethod[] = ['razorpay', 'upi', 'bank', 'cash', 'other']
+
+function computePaymentStatus(amountPaid: number, setupTotal: number): PaymentStatus {
+  if (setupTotal <= 0) return 'fully_paid'
+  if (amountPaid <= 0) return 'unpaid'
+  if (amountPaid >= setupTotal) return 'fully_paid'
+  return 'partially_paid'
+}
+
+function getSetupTotal(items: any[]): number {
+  return (items || [])
+    .filter((i: any) => i.billingCycle === 'setup')
+    .reduce((sum: number, i: any) => sum + (i.price || 0) * (i.quantity || 1), 0)
+}
+
+function getPlanLabel(serviceId?: string): string | undefined {
+  if (!serviceId) return undefined
+  // Lazy-load catalog to avoid circular deps
+  try {
+    const plans = require('../../../features/digital/catalog/plans/v1/plans-type').default
+    const plan = plans[serviceId]
+    return plan?.name || serviceId
+  } catch {
+    return serviceId
+  }
+}
 
 export async function findOrders(division: 'digital' | 'print', filters: { status?: string; search?: string }) {
   const { Order } = getDivisionModels(division)
@@ -21,7 +46,14 @@ export async function findOrders(division: 'digital' | 'print', filters: { statu
       { invoiceNumber: rx },
     ]
   }
-  return Order.find(query).sort({ createdAt: -1 }).limit(500).lean()
+  const results = await Order.find(query).sort({ createdAt: -1 }).limit(500).lean()
+  for (const doc of results) {
+    if (!doc.paymentStatus) {
+      const setupTotal = getSetupTotal(doc.items)
+      doc.paymentStatus = computePaymentStatus(doc.amountPaid || 0, setupTotal)
+    }
+  }
+  return results
 }
 
 export async function findOrCreateOrderFromLead(
@@ -31,10 +63,10 @@ export async function findOrCreateOrderFromLead(
 ) {
   const { Order } = getDivisionModels(lead.division)
 
-  // Only reuse a pending/in_progress order — never append to a terminal paid/delivered
-  let order = await Order.findOne({ leadId: lead._id, status: { $in: ['pending', 'in_progress'] } }).sort({ createdAt: -1 })
+  let order = await Order.findOne({ leadId: lead._id, status: 'active' }).sort({ createdAt: -1 })
 
   if (!order) {
+    const serviceId = body.service || lead.plan || lead.requirement || undefined
     order = await Order.create({
       projectId: lead.projectId,
       leadId: lead._id,
@@ -46,16 +78,16 @@ export async function findOrCreateOrderFromLead(
         company: lead.company,
         city: lead.city,
       },
-      service: body.service || lead.plan || lead.requirement || undefined,
+      service: serviceId,
+      planLabel: getPlanLabel(serviceId),
       amount: body.amount,
       currency: 'INR',
       payments: [],
       amountPaid: 0,
-      stageHistory: [{ stage: 'pending', by: staffName, at: new Date() }],
+      stageHistory: [{ stage: 'active', by: staffName, at: new Date() }],
     })
   }
 
-  const previousStatus = order.status
   order.payments.push({
     method: body.method,
     amount: body.amount,
@@ -64,13 +96,12 @@ export async function findOrCreateOrderFromLead(
     recordedBy: staffName,
   })
   order.amountPaid = order.payments.reduce((sum: number, p: any) => sum + p.amount, 0)
-  order.status = order.amountPaid >= order.amount ? 'paid' : 'pending'
-  if (order.status !== previousStatus) {
-    order.stageHistory.push({ stage: order.status, by: staffName, at: new Date() })
-  }
+  const setupTotal = getSetupTotal(order.items)
+  order.paymentStatus = computePaymentStatus(order.amountPaid, setupTotal)
+  order.status = 'active'
   await order.save()
 
-  return { order, previousStatus }
+  return { order, previousStatus: 'active' as OrderStatus }
 }
 
 export { VALID_STATUSES, VALID_PAYMENT_METHODS }

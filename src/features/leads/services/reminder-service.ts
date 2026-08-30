@@ -17,12 +17,12 @@ export async function generateReminders(division: 'digital' | 'print') {
 
   const orders = await Order.find({
     division,
-    status: { $in: ['pending', 'paid', 'in_progress'] },
+    status: 'active',
   }).lean()
 
   for (const order of orders) {
     // Payment due in 3 days
-    if (order.status === 'pending' && order.dueDate) {
+    if (order.status === 'active' && order.dueDate) {
       const daysUntilDue = Math.ceil((new Date(order.dueDate).getTime() - now.getTime()) / 86400000)
       if (daysUntilDue <= 3 && daysUntilDue >= 0) {
         const count = await upsertReminder(Reminder, division, order._id.toString(), 'payment_due',
@@ -36,7 +36,7 @@ export async function generateReminders(division: 'digital' | 'print') {
     if (order.revisions?.feedback?.length) {
       const lastFeedback = order.revisions.feedback[order.revisions.feedback.length - 1]
       const hoursSinceFeedback = (now.getTime() - new Date(lastFeedback.at).getTime()) / 3600000
-      if (hoursSinceFeedback > 48 && order.status === 'in_progress') {
+      if (hoursSinceFeedback > 48 && order.status === 'active') {
         const count = await upsertReminder(Reminder, division, order._id.toString(), 'revision_pending',
           `Client has not responded to revision feedback for ${Math.floor(hoursSinceFeedback)} hours`,
           new Date(now.getTime() + 86400000))
