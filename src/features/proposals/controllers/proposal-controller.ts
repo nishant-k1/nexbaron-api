@@ -93,9 +93,9 @@ export async function createProposalFromPlan(req: Request, res: Response) {
       return
     }
 
-    // Idempotency: reuse a pending proposal for the same plan to avoid double-click duplicates.
-    // If the latest proposal is already ACCEPTED (terminal — invoice already created, possibly paid),
-    // allow a fresh proposal so the same plan can be re-ordered. Uses unique proposalCode per request.
+    // Reuse a pending (DRAFT) proposal for the same plan to avoid double-click duplicates.
+    // If the latest proposal is already SENT or ACCEPTED, fall through to create a fresh proposal
+    // so the user can re-request. Uses unique proposalCode per request.
     const existing = await (Proposal as ReturnType<typeof createProposalModel>)
       .findOne({ accountId: account.accountCode, division, packageId: plan.id })
       .sort({ createdAt: -1 })
@@ -133,12 +133,7 @@ export async function createProposalFromPlan(req: Request, res: Response) {
         res.json({ success: true, proposal: updated || existing, existing: true })
         return
       }
-      if (existing.status === 'SENT') {
-        // Pending — return as-is (idempotent retry)
-        res.json({ success: true, proposal: existing, existing: true })
-        return
-      }
-      // ACCEPTED is terminal — fall through to create a fresh proposal with a new proposalCode/invoice
+      // SENT or ACCEPTED — fall through to create a fresh proposal
     }
 
     const pricing = plan.pricing
@@ -235,7 +230,8 @@ export async function createProposalFromPackage(req: Request, res: Response) {
       return
     }
 
-    // Idempotency per package: reuse pending (DRAFT/SENT), allow new after ACCEPTED
+    // Reuse a pending (DRAFT) proposal for the same package to avoid double-click duplicates.
+    // If the latest proposal is already SENT or ACCEPTED, fall through to create a fresh proposal.
     const existing = await (Proposal as ReturnType<typeof createProposalModel>)
       .findOne({ accountId: account.accountCode, division, packageId: pkg.packageCode })
       .sort({ createdAt: -1 })
@@ -272,11 +268,7 @@ export async function createProposalFromPackage(req: Request, res: Response) {
         res.json({ success: true, proposal: updated || existing, existing: true })
         return
       }
-      if (existing.status === 'SENT') {
-        res.json({ success: true, proposal: existing, existing: true })
-        return
-      }
-      // ACCEPTED is terminal — fall through to create a fresh proposal
+      // SENT or ACCEPTED — fall through to create a fresh proposal
     }
 
     // Service snapshot: PackageService -> Service catalog.
