@@ -45,7 +45,7 @@ function parsePricing(p: PricingInput): Record<string, unknown> | null {
 }
 
 function buildProposalEmailHtml(accountName: string, proposalTitle: string, proposalCode: string, division: string, brandName: string): string {
-  const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
+  const hubUrl = process.env.HUB_URL || 'https://hub.nexbaron.com'
   const proposalUrl = `${hubUrl}/${division}/proposals?proposal=${proposalCode}`
   return `
     <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;">
@@ -663,7 +663,7 @@ export async function acceptProposal(req: Request, res: Response) {
     try {
       if (canSendMail() && account.email) {
         const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
-        const hubUrl = process.env.FRONTEND_URL || 'https://hub.nexbaron.com'
+        const hubUrl = process.env.HUB_URL || 'https://hub.nexbaron.com'
         const invoiceUrl = `${hubUrl}/${division}/proposals?proposal=${proposal.proposalCode}`
         const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
         await sendMail({
