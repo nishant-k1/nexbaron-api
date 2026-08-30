@@ -645,7 +645,7 @@ export async function verifyPayment(req: Request, res: Response) {
           const pdf = await renderInvoiceReceiptPdf(freshInvoice as any, account as any, { paymentId: newPaymentId })
           const brandName = division === 'digital' ? 'Nexbaron Digital' : 'Nexbaron Print'
           await sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER || 'hello@nexbaron.com',
+            from: process.env[`SMTP_${division.toUpperCase()}_USER`] || process.env.INVOICE_FROM_EMAIL || 'hello@nexbaron.com',
             to: account.email,
             subject: `Payment receipt — ${freshInvoice.invoiceNumber} — ${inrFormat(payAmount)} paid`,
             html: `<p>Hi ${escapeHtml(account.name)},</p><p>Your payment of ${inrFormat(payAmount)} for invoice ${escapeHtml(freshInvoice.invoiceNumber)} was successful. Receipt attached.</p><p> — ${brandName}</p>`,

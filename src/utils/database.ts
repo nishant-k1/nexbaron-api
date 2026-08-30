@@ -1,7 +1,7 @@
 import mongoose, { Connection } from 'mongoose'
 import { logger } from './logger'
 import { registerDivisionModels } from '../models/registry'
-import { runtimeBrand } from './runtime-brand'
+import { runtimeBrand } from '../config/brand'
 
 function databaseUri(): string {
   const brandSpecific = process.env[`DATABASE_URL_${runtimeBrand.toUpperCase()}`]

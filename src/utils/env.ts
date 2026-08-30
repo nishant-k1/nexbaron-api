@@ -8,10 +8,3 @@ export function requireEnv(name: string): string {
   }
   return value
 }
-
-/**
- * Read an optional environment variable. Returns undefined if not set.
- */
-export function optionalEnv(name: string): string | undefined {
-  return process.env[name] || undefined
-}
